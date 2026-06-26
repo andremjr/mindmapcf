@@ -36,6 +36,8 @@ interface Playback {
   autoCamera: boolean;
   selectedNodeId?: string;
   viewport: Viewport;
+  sfxMuted: boolean;
+  sfxMasterVolume: number;
 }
 
 interface State {
