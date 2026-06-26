@@ -309,9 +309,10 @@ function ConnectorLayer({
             d={`M ${prev.x} ${prev.y} Q ${mid.x} ${mid.y} ${n.x} ${n.y}`}
             fill="none"
             stroke={stroke}
-            strokeWidth={isActive ? 1.4 : 0.8}
+            strokeWidth={isActive ? 1 : 0.6}
             strokeDasharray={dash}
-            opacity={isActive ? 0.9 : 0.25}
+            opacity={isActive ? 0.45 : 0.08}
+            style={{ transition: "opacity 0.8s ease, stroke-width 0.8s ease" }}
           />
         );
       })}
