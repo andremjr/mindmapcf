@@ -17,7 +17,7 @@ import type { Project } from "@/lib/types";
 import {
   loadApiKey,
   saveApiKey,
-  transcribeAudioMock,
+  transcribeAudio,
 } from "@/lib/assemblyService";
 
 export function AssemblyConfig({ project }: { project: Project }) {
