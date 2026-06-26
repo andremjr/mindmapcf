@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Download, Copy, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { Download, Copy, CheckCircle2, AlertTriangle, XCircle, Package } from "lucide-react";
 import type { Project, RenderAspect, RenderTarget } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import {
@@ -8,6 +8,7 @@ import {
   downloadJson,
   copyJson,
 } from "@/lib/renderExport";
+import { downloadRendererZip } from "@/lib/rendererBundle";
 import { RENDER_ADAPTERS } from "@/lib/renderAdapters";
 
 const ASPECTS: { id: RenderAspect; w: number; h: number; label: string }[] = [
