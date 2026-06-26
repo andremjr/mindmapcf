@@ -6,15 +6,38 @@ import type {
   AudioFile,
   Transcript,
   TranscriptBlock,
+  TextNode,
+  CameraKeyframe,
+  VisualPreset,
+  SafeArea,
 } from "./types";
 import { buildEmptyProject, buildMockProject } from "./mockProject";
 import { mergeBlocks as mergeFn, splitBlock as splitFn } from "./blockGenerator";
+import { autoLayout, nodesBounds } from "./layoutEngine";
+import { buildCameraKeyframes } from "./cameraEngine";
+import { getPreset } from "./presets";
+
+interface Viewport {
+  x: number;
+  y: number;
+  zoom: number;
+  rotation: number;
+}
+
+interface Playback {
+  time: number;
+  playing: boolean;
+  speed: number;
+  autoCamera: boolean;
+  selectedNodeId?: string;
+  viewport: Viewport;
+}
 
 interface State {
   projects: Project[];
-  /** Sessão de transcrição (não persistida). */
   transcribing: boolean;
   transcribeError: string | null;
+  playback: Playback;
 }
 
 interface Actions {
@@ -32,11 +55,43 @@ interface Actions {
   mergeWithNext: (projectId: string, blockId: string) => void;
   splitBlockAt: (projectId: string, blockId: string, atChar: number) => void;
 
+  // Canvas
+  regenerateLayout: (projectId: string, seed?: number) => void;
+  setNodes: (projectId: string, nodes: TextNode[]) => void;
+  updateNode: (projectId: string, nodeId: string, patch: Partial<TextNode>) => void;
+  moveNode: (projectId: string, nodeId: string, x: number, y: number) => void;
+
+  // Camera
+  rebuildCamera: (projectId: string) => void;
+  updateCamera: (projectId: string, keyframeId: string, patch: Partial<CameraKeyframe>) => void;
+
+  // Preset
+  setPreset: (projectId: string, presetId: string) => void;
+  updatePreset: (projectId: string, patch: Partial<VisualPreset>) => void;
+  setSafeArea: (projectId: string, area: SafeArea) => void;
+
+  // Playback (runtime)
+  setTime: (t: number) => void;
+  setPlaying: (v: boolean) => void;
+  setSpeed: (v: number) => void;
+  setAutoCamera: (v: boolean) => void;
+  setSelectedNode: (id: string | undefined) => void;
+  setViewport: (v: Partial<Viewport>) => void;
+  resetCamera: () => void;
+
   setTranscribing: (v: boolean) => void;
   setTranscribeError: (err: string | null) => void;
 
   reset: () => void;
 }
+
+const INITIAL_PLAYBACK: Playback = {
+  time: 0,
+  playing: false,
+  speed: 1,
+  autoCamera: true,
+  viewport: { x: 0, y: 0, zoom: 1, rotation: 0 },
+};
 
 export const useStore = create<State & Actions>()(
   persist(
@@ -44,6 +99,7 @@ export const useStore = create<State & Actions>()(
       projects: [buildMockProject()],
       transcribing: false,
       transcribeError: null,
+      playback: INITIAL_PLAYBACK,
 
       createProject: (title) => {
         const p = buildEmptyProject(title || "Projeto sem título");
@@ -125,10 +181,106 @@ export const useStore = create<State & Actions>()(
           }),
         })),
 
+      // Canvas
+      regenerateLayout: (projectId, seed) =>
+        set((s) => ({
+          projects: s.projects.map((p) => {
+            if (p.id !== projectId) return p;
+            const nodes = autoLayout(p.blocks, { seed: seed ?? Math.floor(Math.random() * 999) });
+            const camera = buildCameraKeyframes(p.blocks, nodes, {
+              movementIntensity: p.visualPreset.cameraMovementIntensity,
+            });
+            return { ...p, nodes, camera, status: "canvas_generated", updatedAt: new Date().toISOString() };
+          }),
+        })),
+
+      setNodes: (projectId, nodes) => get().updateProject(projectId, { nodes }),
+
+      updateNode: (projectId, nodeId, patch) =>
+        set((s) => ({
+          projects: s.projects.map((p) =>
+            p.id !== projectId
+              ? p
+              : {
+                  ...p,
+                  updatedAt: new Date().toISOString(),
+                  nodes: p.nodes.map((n) => (n.id === nodeId ? { ...n, ...patch } : n)),
+                },
+          ),
+        })),
+
+      moveNode: (projectId, nodeId, x, y) =>
+        set((s) => ({
+          projects: s.projects.map((p) =>
+            p.id !== projectId
+              ? p
+              : { ...p, nodes: p.nodes.map((n) => (n.id === nodeId ? { ...n, x, y } : n)) },
+          ),
+        })),
+
+      // Camera
+      rebuildCamera: (projectId) =>
+        set((s) => ({
+          projects: s.projects.map((p) => {
+            if (p.id !== projectId) return p;
+            const camera = buildCameraKeyframes(p.blocks, p.nodes, {
+              movementIntensity: p.visualPreset.cameraMovementIntensity,
+            });
+            return { ...p, camera, updatedAt: new Date().toISOString() };
+          }),
+        })),
+
+      updateCamera: (projectId, keyframeId, patch) =>
+        set((s) => ({
+          projects: s.projects.map((p) =>
+            p.id !== projectId
+              ? p
+              : {
+                  ...p,
+                  camera: p.camera.map((k) => (k.id === keyframeId ? { ...k, ...patch } : k)),
+                },
+          ),
+        })),
+
+      // Preset
+      setPreset: (projectId, presetId) => {
+        const preset = getPreset(presetId);
+        get().updateProject(projectId, { visualPreset: preset });
+        get().rebuildCamera(projectId);
+      },
+
+      updatePreset: (projectId, patch) =>
+        set((s) => ({
+          projects: s.projects.map((p) =>
+            p.id !== projectId ? p : { ...p, visualPreset: { ...p.visualPreset, ...patch } },
+          ),
+        })),
+
+      setSafeArea: (projectId, area) => get().updateProject(projectId, { safeArea: area }),
+
+      // Playback
+      setTime: (t) => set((s) => ({ playback: { ...s.playback, time: t } })),
+      setPlaying: (v) => set((s) => ({ playback: { ...s.playback, playing: v } })),
+      setSpeed: (v) => set((s) => ({ playback: { ...s.playback, speed: v } })),
+      setAutoCamera: (v) => set((s) => ({ playback: { ...s.playback, autoCamera: v } })),
+      setSelectedNode: (id) => set((s) => ({ playback: { ...s.playback, selectedNodeId: id } })),
+      setViewport: (v) =>
+        set((s) => ({ playback: { ...s.playback, viewport: { ...s.playback.viewport, ...v } } })),
+      resetCamera: () =>
+        set((s) => ({
+          playback: { ...s.playback, viewport: { x: 0, y: 0, zoom: 1, rotation: 0 } },
+        })),
+
       setTranscribing: (v) => set({ transcribing: v }),
       setTranscribeError: (err) => set({ transcribeError: err }),
 
-      reset: () => set({ projects: [buildMockProject()], transcribing: false, transcribeError: null }),
+      reset: () =>
+        set({
+          projects: [buildMockProject()],
+          transcribing: false,
+          transcribeError: null,
+          playback: INITIAL_PLAYBACK,
+        }),
     }),
     {
       name: "canvas-narrativo-store",
@@ -149,4 +301,22 @@ export const useStore = create<State & Actions>()(
 
 export function useProject(id: string | undefined) {
   return useStore((s) => s.projects.find((p) => p.id === id));
+}
+
+export function fitViewport(
+  nodes: Pick<TextNode, "x" | "y">[],
+  width = 1200,
+  height = 700,
+  padding = 200,
+): Viewport {
+  const b = nodesBounds(nodes as TextNode[]);
+  const w = b.maxX - b.minX + padding * 2;
+  const h = b.maxY - b.minY + padding * 2;
+  const zoom = Math.min(width / w, height / h, 1);
+  return {
+    x: (b.minX + b.maxX) / 2,
+    y: (b.minY + b.maxY) / 2,
+    zoom,
+    rotation: 0,
+  };
 }
