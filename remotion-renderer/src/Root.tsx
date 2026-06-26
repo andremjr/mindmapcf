@@ -7,11 +7,19 @@ import embeddedJson from "../project.json";
 const INITIAL_PROPS: CanvasNarrativoExport =
   (embeddedJson as unknown as CanvasNarrativoExport) ?? DEFAULT_PROPS;
 
-const rc0 = INITIAL_PROPS.renderConfig ?? DEFAULT_PROPS.renderConfig;
-const initialDuration = Math.max(
-  1,
-  Math.ceil((rc0.durationSec ?? INITIAL_PROPS.project?.durationSec ?? 12) * (rc0.fps ?? 30)),
-);
+function resolveMetadata(p: CanvasNarrativoExport) {
+  const rc: any = p.renderConfig ?? {};
+  const proj: any = p.project ?? {};
+  const duration =
+    rc.durationSec ?? rc.duration ?? proj.durationSec ?? proj.duration ?? 10;
+  const fps = rc.fps ?? 30;
+  const width = rc.width ?? 1920;
+  const height = rc.height ?? 1080;
+  const durationInFrames = Math.max(1, Math.ceil(duration * fps));
+  return { width, height, fps, durationInFrames };
+}
+
+const initial = resolveMetadata(INITIAL_PROPS);
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -19,24 +27,14 @@ export const RemotionRoot: React.FC = () => {
       id="CanvasNarrativo"
       component={CanvasNarrativo}
       defaultProps={INITIAL_PROPS}
-      width={rc0.width ?? 1920}
-      height={rc0.height ?? 1080}
-      fps={rc0.fps ?? 30}
-      durationInFrames={initialDuration}
+      width={initial.width}
+      height={initial.height}
+      fps={initial.fps}
+      durationInFrames={initial.durationInFrames}
       calculateMetadata={({ props }) => {
         const p = props as CanvasNarrativoExport;
-        const rc = p.renderConfig ?? rc0;
-        const duration = Math.max(
-          1,
-          Math.ceil((rc.durationSec ?? p.project?.durationSec ?? 12) * (rc.fps ?? 30)),
-        );
-        return {
-          width: rc.width ?? 1920,
-          height: rc.height ?? 1080,
-          fps: rc.fps ?? 30,
-          durationInFrames: duration,
-          props: p,
-        };
+        const m = resolveMetadata(p);
+        return { ...m, props: p };
       }}
     />
   );
