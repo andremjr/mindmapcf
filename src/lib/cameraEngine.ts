@@ -93,11 +93,8 @@ function easeFn(e: CameraEase): (t: number) => number {
       return (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
     case "cinematic":
     default:
-      // Cubic with a slow tail — sensação de câmera com inércia.
-      return (t) => {
-        const k = 1 - Math.pow(1 - t, 3);
-        return 0.85 * k + 0.15 * (t < 0.5 ? 2 * t * t : 1);
-      };
+      // Quintic ease-out — começa firme, desacelera longo (sensação de inércia de câmera).
+      return (t) => 1 - Math.pow(1 - t, 5);
   }
 }
 
