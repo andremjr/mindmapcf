@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { useStore } from "@/lib/store";
 import { PROJECT_STATUS_LABEL, type ProjectStatus } from "@/lib/types";
 
-export const Route = createFileRoute("/projects")({
+export const Route = createFileRoute("/projects/")({
   head: () => ({
     meta: [
       { title: "Projetos — Canvas Narrativo" },
