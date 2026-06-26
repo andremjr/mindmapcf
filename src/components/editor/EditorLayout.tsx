@@ -87,9 +87,11 @@ function StepContent({ step, project }: { step: EditorStep; project: Project }) 
       return <TranscriptPanel project={project} />;
     case "blocks":
       return <BlocksReview project={project} />;
-    case "canvas":
     case "sound":
+      return <SoundPanel project={project} />;
     case "render":
+      return <RenderPanel project={project} />;
+    case "canvas":
     default:
       return <CanvasPreview project={project} step={step} />;
   }
