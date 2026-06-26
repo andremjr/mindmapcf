@@ -138,8 +138,8 @@ export function CanvasStage({ project }: Props) {
             }px, 0) scale(${playback.viewport.zoom}) rotate(${playback.viewport.rotation}deg)`,
             transformOrigin: "0 0",
             transition: playback.playing
-              ? `transform ${0.6 / Math.max(playback.speed, 0.25)}s cubic-bezier(0.22,0.61,0.36,1)`
-              : "transform 0.18s ease-out",
+              ? `transform ${1.6 / Math.max(playback.speed, 0.25)}s cubic-bezier(0.16,0.84,0.24,1)`
+              : "transform 0.32s cubic-bezier(0.22,0.61,0.36,1)",
           }}
         >
           {/* Conectores entre vizinhos. */}
