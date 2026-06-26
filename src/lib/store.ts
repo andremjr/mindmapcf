@@ -98,6 +98,8 @@ const INITIAL_PLAYBACK: Playback = {
   speed: 1,
   autoCamera: true,
   viewport: { x: 0, y: 0, zoom: 1, rotation: 0 },
+  sfxMuted: false,
+  sfxMasterVolume: 0.8,
 };
 
 export const useStore = create<State & Actions>()(
