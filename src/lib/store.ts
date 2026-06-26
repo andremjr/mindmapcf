@@ -10,12 +10,17 @@ import type {
   CameraKeyframe,
   VisualPreset,
   SafeArea,
+  SfxEvent,
+  SoundPreset,
+  RenderConfig,
 } from "./types";
 import { buildEmptyProject, buildMockProject } from "./mockProject";
 import { mergeBlocks as mergeFn, splitBlock as splitFn } from "./blockGenerator";
 import { autoLayout, nodesBounds } from "./layoutEngine";
 import { buildCameraKeyframes } from "./cameraEngine";
 import { getPreset } from "./presets";
+import { getSoundPreset } from "./sfxPresets";
+import { generateSfx } from "./sfxGenerator";
 
 interface Viewport {
   x: number;
