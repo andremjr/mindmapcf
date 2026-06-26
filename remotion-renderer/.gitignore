@@ -1,0 +1,7 @@
+node_modules
+out
+*.log
+.DS_Store
+project.json
+public/audio
+public/sfx
