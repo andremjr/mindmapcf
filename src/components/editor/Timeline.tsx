@@ -71,7 +71,11 @@ export function Timeline({ project }: { project: Project }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playback.playing, playback.speed, duration]);
 
-  const seek = (t: number) => setTime(Math.max(0, Math.min(duration, t)));
+  const seek = (t: number) => {
+    const v = Math.max(0, Math.min(duration, t));
+    setTime(v);
+    sfxService.resetTriggers(v);
+  };
 
   const blockAt = (t: number) => {
     for (let i = project.blocks.length - 1; i >= 0; i--) {
