@@ -145,19 +145,25 @@ export function CanvasStage({ project }: Props) {
           {/* Conectores entre vizinhos. */}
           <ConnectorLayer nodes={project.nodes} preset={preset} activeNodeId={activeNodeId} />
 
-          {project.nodes.map((n) => (
-            <NodeView
-              key={n.id}
-              node={n}
-              isActive={n.id === activeNodeId}
-              isSelected={n.id === playback.selectedNodeId}
-              preset={preset}
-              onSelect={() => setSelected(n.id)}
-              onDrag={(dx, dy) => moveNode(project.id, n.id, n.x + dx, n.y + dy)}
-              screenToWorld={screenToWorld}
-              zoom={playback.viewport.zoom}
-            />
-          ))}
+          {project.nodes.map((n, i) => {
+            const activeIdx = project.nodes.findIndex((x) => x.id === activeNodeId);
+            const relation: "active" | "past" | "future" =
+              i === activeIdx ? "active" : i < activeIdx ? "past" : "future";
+            return (
+              <NodeView
+                key={n.id}
+                node={n}
+                isActive={n.id === activeNodeId}
+                isSelected={n.id === playback.selectedNodeId}
+                relation={relation}
+                preset={preset}
+                onSelect={() => setSelected(n.id)}
+                onDrag={(dx, dy) => moveNode(project.id, n.id, n.x + dx, n.y + dy)}
+                screenToWorld={screenToWorld}
+                zoom={playback.viewport.zoom}
+              />
+            );
+          })}
         </div>
       </div>
 
