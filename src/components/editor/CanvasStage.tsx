@@ -522,7 +522,7 @@ function SafeAreaOverlay({ area }: { area: "16:9" | "9:16" | "1:1" }) {
           aspectRatio: String(aspect),
           height: aspect >= 1 ? "78%" : "92%",
           maxWidth: "92%",
-          borderColor: "oklch(1 0 0 / 0.18)",
+          borderColor: "oklch(1 0 0 / 0.06)",
         }}
       />
     </div>
