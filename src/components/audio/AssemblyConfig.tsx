@@ -69,7 +69,9 @@ export function AssemblyConfig({ project }: { project: Project }) {
       <div className="flex items-center gap-2">
         <Sparkles className="size-4 text-primary" />
         <h3 className="text-display text-sm">AssemblyAI</h3>
-        <span className="text-[10px] text-mono text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">MOCK</span>
+        <span className="text-[10px] text-mono text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
+          {apiKey ? "REAL" : "MOCK"}
+        </span>
       </div>
 
       <div className="rounded-md border border-chart-4/30 bg-chart-4/5 p-3 flex gap-3 text-xs">
