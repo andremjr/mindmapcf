@@ -133,7 +133,21 @@ export interface CameraKeyframe {
   depthIntensity: number;
 }
 
+// ------------- SFX -------------
+
+// Canonical SFX kinds requested by the project brief. Older shorthand kinds
+// remain in the union for backwards compatibility with legacy data.
 export type SfxKind =
+  | "whoosh_soft"
+  | "whoosh_deep"
+  | "focus_click"
+  | "text_pop"
+  | "zoom_riser"
+  | "low_impact"
+  | "transition_air"
+  | "subtle_hit"
+  | "marker_tick"
+  // legacy aliases
   | "whoosh"
   | "impact"
   | "tick"
@@ -142,13 +156,71 @@ export type SfxKind =
   | "ambient"
   | "transition";
 
+export type SfxTrigger =
+  | "camera_move"
+  | "node_focus"
+  | "strong_idea"
+  | "text_emphasis"
+  | "zoom_in"
+  | "zoom_out"
+  | "transition"
+  | "marker_reveal"
+  | "manual";
+
 export interface SfxEvent {
   id: string;
   time: number;
+  /** Logical SFX type — maps to an entry in the asset registry. */
   kind: SfxKind;
+  /** Reference to a concrete sound asset (registry id). Optional fallback to kind. */
+  soundId?: string;
   volume: number;
   blockId?: string;
+  nodeId?: string;
+  trigger?: SfxTrigger;
+  enabled?: boolean;
 }
+
+/**
+ * SFX asset registry entry.
+ *
+ * IMPORTANT (legal): only ship assets with permissive licenses
+ * (CC0, CC-BY, MIT, Apache). Always fill `license`, `author` and `sourceUrl`.
+ * See `public/sfx/README.md` for how to add new sounds.
+ */
+export interface SfxAsset {
+  id: string;
+  name: string;
+  kind: SfxKind;
+  /** Public URL or relative path. `synth:*` means procedurally generated via Web Audio. */
+  file: string;
+  origin: "synth" | "public" | "user";
+  license: "CC0" | "CC-BY" | "CC-BY-SA" | "MIT" | "Apache-2.0" | "mock";
+  author: string;
+  sourceUrl: string;
+  attributionRequired: boolean;
+  description?: string;
+}
+
+export interface SoundPreset {
+  id: string;
+  name: string;
+  /** Master volume default (0–1). */
+  masterVolume: number;
+  /** Mapping of SFX kind → preferred asset id. */
+  sounds: Partial<Record<SfxKind, string>>;
+  /** How often auto-SFX triggers (0–1, 1 = on every block). */
+  frequency: number;
+  /** Overall sonic intensity (0–1). */
+  intensity: number;
+  playImpactOnStrongIdea: boolean;
+  playClickOnNodeFocus: boolean;
+  playWhooshOnCameraMove: boolean;
+  duckOnSpeech: boolean;
+  ambientTrack?: string;
+}
+
+// ------------- Visual presets -------------
 
 export type GridStyle = "none" | "dots" | "lines" | "lines3d";
 export type ConnectorStyle = "minimal" | "investigation" | "tech" | "none";
@@ -175,23 +247,33 @@ export interface VisualPreset {
   grain: number;
 }
 
-export interface SoundPreset {
-  id: string;
-  name: string;
-  ambientTrack?: string;
-  masterVolume: number;
-  duckOnSpeech: boolean;
-}
+// ------------- Render / Export -------------
+
+export type SafeArea = "16:9" | "9:16" | "1:1";
+export type RenderAspect = "horizontal" | "vertical" | "square";
+export type RenderTarget = "remotion" | "hyperframes" | "generic";
 
 export interface RenderConfig {
+  aspect: RenderAspect;
   width: number;
   height: number;
   fps: number;
-  format: "mp4" | "webm";
-  quality: "draft" | "standard" | "high";
+  durationSec: number;
+  safeArea: SafeArea;
+  textScale: number;
+  motionIntensity: number;
+  depthIntensity: number;
+  audioMixing: {
+    speechGain: number;
+    sfxGain: number;
+    ambientGain: number;
+    duckOnSpeech: boolean;
+  };
+  exportTarget: RenderTarget;
+  /** Output codec hint (used only by adapters that actually render). */
+  format?: "mp4" | "webm";
+  quality?: "draft" | "standard" | "high";
 }
-
-export type SafeArea = "16:9" | "9:16" | "1:1";
 
 export interface Project {
   id: string;
