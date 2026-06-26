@@ -47,7 +47,7 @@ npm install
 npm run studio
 ```
 
-O studio abre em `http://localhost:3000`. Os props padrão (`DEFAULT_PROPS`) já mostram um demo; para visualizar seu projeto, salve-o como `project.json` e abra-o pelo seletor de props do studio.
+O studio abre em `http://localhost:3000` já carregando o `project.json` embutido como props padrão — sem precisar selecionar manualmente. Se quiser testar outro JSON, basta substituir o arquivo `project.json` e reiniciar o studio.
 
 ## 5. Renderizar o MP4
 
