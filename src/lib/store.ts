@@ -294,6 +294,78 @@ export const useStore = create<State & Actions>()(
           playback: { ...s.playback, viewport: { x: 0, y: 0, zoom: 1, rotation: 0 } },
         })),
 
+      // SFX
+      regenerateSfx: (projectId) =>
+        set((s) => ({
+          projects: s.projects.map((p) => {
+            if (p.id !== projectId) return p;
+            const sfx = generateSfx({
+              blocks: p.blocks,
+              nodes: p.nodes,
+              camera: p.camera,
+              preset: p.soundPreset,
+              durationSec: p.durationSec,
+            });
+            return { ...p, sfx, updatedAt: new Date().toISOString() };
+          }),
+        })),
+
+      setSfx: (projectId, sfx) => get().updateProject(projectId, { sfx }),
+
+      updateSfxEvent: (projectId, eventId, patch) =>
+        set((s) => ({
+          projects: s.projects.map((p) =>
+            p.id !== projectId
+              ? p
+              : { ...p, sfx: p.sfx.map((e) => (e.id === eventId ? { ...e, ...patch } : e)) },
+          ),
+        })),
+
+      toggleSfxEvent: (projectId, eventId) =>
+        set((s) => ({
+          projects: s.projects.map((p) =>
+            p.id !== projectId
+              ? p
+              : {
+                  ...p,
+                  sfx: p.sfx.map((e) =>
+                    e.id === eventId ? { ...e, enabled: e.enabled === false ? true : false } : e,
+                  ),
+                },
+          ),
+        })),
+
+      removeSfxEvent: (projectId, eventId) =>
+        set((s) => ({
+          projects: s.projects.map((p) =>
+            p.id !== projectId ? p : { ...p, sfx: p.sfx.filter((e) => e.id !== eventId) },
+          ),
+        })),
+
+      setSoundPreset: (projectId, presetId) => {
+        const preset = getSoundPreset(presetId);
+        get().updateProject(projectId, { soundPreset: preset });
+        get().regenerateSfx(projectId);
+      },
+
+      updateSoundPreset: (projectId, patch) =>
+        set((s) => ({
+          projects: s.projects.map((p) =>
+            p.id !== projectId ? p : { ...p, soundPreset: { ...p.soundPreset, ...patch } },
+          ),
+        })),
+
+      setSfxMuted: (m) => set((s) => ({ playback: { ...s.playback, sfxMuted: m } })),
+      setSfxMasterVolume: (v) =>
+        set((s) => ({ playback: { ...s.playback, sfxMasterVolume: v } })),
+
+      updateRenderConfig: (projectId, patch) =>
+        set((s) => ({
+          projects: s.projects.map((p) =>
+            p.id !== projectId ? p : { ...p, render: { ...p.render, ...patch } },
+          ),
+        })),
+
       setTranscribing: (v) => set({ transcribing: v }),
       setTranscribeError: (err) => set({ transcribeError: err }),
 
