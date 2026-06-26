@@ -86,6 +86,20 @@ interface Actions {
   setViewport: (v: Partial<Viewport>) => void;
   resetCamera: () => void;
 
+  // SFX
+  regenerateSfx: (projectId: string) => void;
+  setSfx: (projectId: string, sfx: SfxEvent[]) => void;
+  updateSfxEvent: (projectId: string, eventId: string, patch: Partial<SfxEvent>) => void;
+  toggleSfxEvent: (projectId: string, eventId: string) => void;
+  removeSfxEvent: (projectId: string, eventId: string) => void;
+  setSoundPreset: (projectId: string, presetId: string) => void;
+  updateSoundPreset: (projectId: string, patch: Partial<SoundPreset>) => void;
+  setSfxMuted: (m: boolean) => void;
+  setSfxMasterVolume: (v: number) => void;
+
+  // Render config
+  updateRenderConfig: (projectId: string, patch: Partial<RenderConfig>) => void;
+
   setTranscribing: (v: boolean) => void;
   setTranscribeError: (err: string | null) => void;
 
