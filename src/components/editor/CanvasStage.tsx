@@ -138,26 +138,32 @@ export function CanvasStage({ project }: Props) {
             }px, 0) scale(${playback.viewport.zoom}) rotate(${playback.viewport.rotation}deg)`,
             transformOrigin: "0 0",
             transition: playback.playing
-              ? `transform ${0.6 / Math.max(playback.speed, 0.25)}s cubic-bezier(0.22,0.61,0.36,1)`
-              : "transform 0.18s ease-out",
+              ? `transform ${1.6 / Math.max(playback.speed, 0.25)}s cubic-bezier(0.16,0.84,0.24,1)`
+              : "transform 0.32s cubic-bezier(0.22,0.61,0.36,1)",
           }}
         >
           {/* Conectores entre vizinhos. */}
           <ConnectorLayer nodes={project.nodes} preset={preset} activeNodeId={activeNodeId} />
 
-          {project.nodes.map((n) => (
-            <NodeView
-              key={n.id}
-              node={n}
-              isActive={n.id === activeNodeId}
-              isSelected={n.id === playback.selectedNodeId}
-              preset={preset}
-              onSelect={() => setSelected(n.id)}
-              onDrag={(dx, dy) => moveNode(project.id, n.id, n.x + dx, n.y + dy)}
-              screenToWorld={screenToWorld}
-              zoom={playback.viewport.zoom}
-            />
-          ))}
+          {project.nodes.map((n, i) => {
+            const activeIdx = project.nodes.findIndex((x) => x.id === activeNodeId);
+            const relation: "active" | "past" | "future" =
+              i === activeIdx ? "active" : i < activeIdx ? "past" : "future";
+            return (
+              <NodeView
+                key={n.id}
+                node={n}
+                isActive={n.id === activeNodeId}
+                isSelected={n.id === playback.selectedNodeId}
+                relation={relation}
+                preset={preset}
+                onSelect={() => setSelected(n.id)}
+                onDrag={(dx, dy) => moveNode(project.id, n.id, n.x + dx, n.y + dy)}
+                screenToWorld={screenToWorld}
+                zoom={playback.viewport.zoom}
+              />
+            );
+          })}
         </div>
       </div>
 
@@ -303,9 +309,10 @@ function ConnectorLayer({
             d={`M ${prev.x} ${prev.y} Q ${mid.x} ${mid.y} ${n.x} ${n.y}`}
             fill="none"
             stroke={stroke}
-            strokeWidth={isActive ? 1.4 : 0.8}
+            strokeWidth={isActive ? 1 : 0.6}
             strokeDasharray={dash}
-            opacity={isActive ? 0.9 : 0.25}
+            opacity={isActive ? 0.45 : 0.08}
+            style={{ transition: "opacity 0.8s ease, stroke-width 0.8s ease" }}
           />
         );
       })}
@@ -317,21 +324,24 @@ function NodeView({
   node,
   isActive,
   isSelected,
+  relation,
   preset,
   onSelect,
   onDrag,
-  screenToWorld,
+  screenToWorld: _screenToWorld,
   zoom,
 }: {
   node: TextNode;
   isActive: boolean;
   isSelected: boolean;
+  relation: "active" | "past" | "future";
   preset: Project["visualPreset"];
   onSelect: () => void;
   onDrag: (dx: number, dy: number) => void;
   screenToWorld: (x: number, y: number) => { x: number; y: number };
   zoom: number;
 }) {
+  void _screenToWorld;
   const draggingRef = useRef<{ sx: number; sy: number } | null>(null);
 
   const onPointerDown = (e: React.PointerEvent) => {
@@ -354,20 +364,47 @@ function NodeView({
     draggingRef.current = null;
   };
 
-  // Profundidade fake 2.5D.
+  // Hierarquia temporal — câmera trata ativo como protagonista absoluto.
   const depth = node.z * 60 * preset.depthIntensity;
-  const depthOpacity = isActive ? 1 : Math.max(0.18, 0.7 - Math.abs(node.z) * 0.25 * preset.depthIntensity);
-  const depthBlur = isActive ? 0 : Math.abs(node.z) * 1.8 * preset.blurIntensity;
-  const depthScale = isActive ? node.scale * 1.05 : node.scale * (1 - Math.abs(node.z) * 0.08);
+  const stateOpacity =
+    relation === "active" ? 1 : relation === "past" ? 0.18 : 0.28;
+  const stateBlur =
+    relation === "active"
+      ? 0
+      : (relation === "past" ? 6 : 4) * preset.blurIntensity;
+  const depthBlur = Math.abs(node.z) * 1.4 * preset.blurIntensity;
+  const stateScale =
+    relation === "active"
+      ? node.scale * 1.04
+      : node.scale * (1 - Math.abs(node.z) * 0.08) * 0.92;
 
-  const fontSize = node.variant === "headline" ? 56 : node.variant === "accent" ? 38 : node.variant === "caption" ? 18 : 26;
-  const color = node.accentColor ?? (node.variant === "accent" ? preset.accentColor : preset.textColor);
+  // Tipografia cinematográfica — protagonista grande, contexto pequeno.
+  const baseSize =
+    node.variant === "headline"
+      ? 96
+      : node.variant === "accent"
+      ? 68
+      : node.variant === "caption"
+      ? 22
+      : 52;
+  const fontSize = isActive ? baseSize : Math.round(baseSize * 0.78);
+
+  const color =
+    relation === "active"
+      ? node.accentColor ??
+        (node.variant === "accent" ? preset.accentColor : preset.textColor)
+      : preset.textColor;
+
   const marker = node.markerStyle ?? preset.markerStyle;
   const glow = isActive
-    ? `0 0 ${24 + preset.glowIntensity * 40}px color-mix(in oklab, ${preset.accentColor} ${
-        40 + preset.glowIntensity * 50
+    ? `0 0 ${28 + preset.glowIntensity * 36}px color-mix(in oklab, ${preset.accentColor} ${
+        24 + preset.glowIntensity * 40
       }%, transparent)`
     : "none";
+
+  // Marcadores discretos — só ativos recebem cor de destaque.
+  const markerColor = isActive ? preset.accentColor : preset.mutedTextColor;
+  const markerOpacity = isActive ? 0.85 : 0.35;
 
   return (
     <div
@@ -380,60 +417,83 @@ function NodeView({
       style={{
         left: node.x,
         top: node.y,
-        transform: `translate3d(-50%, -50%, ${depth}px) rotate(${node.rotation}deg) scale(${depthScale})`,
-        opacity: node.opacity * depthOpacity,
-        filter: depthBlur > 0.1 ? `blur(${depthBlur}px)` : undefined,
-        transition: "opacity 0.4s ease, filter 0.4s ease, transform 0.45s cubic-bezier(0.22,0.61,0.36,1)",
-        maxWidth: 520,
+        transform: `translate3d(-50%, -50%, ${depth}px) rotate(${node.rotation * (isActive ? 1 : 0.35)}deg) scale(${stateScale})`,
+        opacity: node.opacity * stateOpacity,
+        filter:
+          stateBlur + depthBlur > 0.1
+            ? `blur(${stateBlur + depthBlur}px)`
+            : undefined,
+        transition:
+          "opacity 0.9s cubic-bezier(0.22,0.61,0.36,1), filter 0.9s cubic-bezier(0.22,0.61,0.36,1), transform 1.1s cubic-bezier(0.16,0.84,0.24,1)",
+        maxWidth: isActive ? 880 : 640,
+        zIndex: isActive ? 10 : 1,
       }}
     >
       <div
-        className="relative px-4 py-2"
+        className="relative px-6 py-3"
         style={{
           color,
           textShadow: glow,
           outline: isSelected ? `1px solid ${preset.accentColor}` : "none",
-          outlineOffset: 8,
+          outlineOffset: 12,
         }}
       >
         {marker === "bracket" && (
           <>
             <span
-              className="absolute -left-2 top-0 bottom-0 w-3 border-l border-t border-b"
-              style={{ borderColor: color, opacity: 0.55 }}
+              aria-hidden
+              className="absolute -left-4 top-2 bottom-2"
+              style={{
+                width: 14,
+                borderLeft: `1px solid ${markerColor}`,
+                borderTop: `1px solid ${markerColor}`,
+                borderBottom: `1px solid ${markerColor}`,
+                opacity: markerOpacity,
+              }}
             />
             <span
-              className="absolute -right-2 top-0 bottom-0 w-3 border-r border-t border-b"
-              style={{ borderColor: color, opacity: 0.55 }}
+              aria-hidden
+              className="absolute -right-4 top-2 bottom-2"
+              style={{
+                width: 14,
+                borderRight: `1px solid ${markerColor}`,
+                borderTop: `1px solid ${markerColor}`,
+                borderBottom: `1px solid ${markerColor}`,
+                opacity: markerOpacity,
+              }}
             />
           </>
         )}
         {marker === "vline" && (
           <span
-            className="absolute -left-3 top-1 bottom-1 w-[2px]"
-            style={{ background: node.accentColor ?? preset.accentColor }}
+            className="absolute -left-4 top-2 bottom-2"
+            style={{
+              width: 2,
+              background: markerColor,
+              opacity: markerOpacity,
+            }}
           />
         )}
-        {marker === "arrow" && (
+        {marker === "arrow" && isActive && (
           <span
-            className="absolute -left-5 top-1/2 -translate-y-1/2 text-sm"
-            style={{ color: preset.accentColor }}
+            className="absolute -left-6 top-1/2 -translate-y-1/2 text-base"
+            style={{ color: preset.accentColor, opacity: 0.85 }}
           >
             →
           </span>
         )}
         {marker === "dot" && (
           <span
-            className="absolute -left-3 top-1/2 -translate-y-1/2 size-1.5 rounded-full"
-            style={{ background: preset.accentColor }}
+            className="absolute -left-4 top-1/2 -translate-y-1/2 size-1.5 rounded-full"
+            style={{ background: markerColor, opacity: markerOpacity }}
           />
         )}
         <div
           style={{
             fontSize,
-            fontWeight: node.fontWeight,
-            lineHeight: 1.08,
-            letterSpacing: "-0.02em",
+            fontWeight: isActive ? Math.max(node.fontWeight, 500) : 400,
+            lineHeight: 1.05,
+            letterSpacing: "-0.025em",
             whiteSpace: "pre-wrap",
           }}
         >
@@ -441,8 +501,8 @@ function NodeView({
         </div>
         {isActive && node.variant !== "caption" && (
           <div
-            className="mt-1 text-[10px] uppercase tracking-[0.3em]"
-            style={{ color: preset.mutedTextColor }}
+            className="mt-3 text-[10px] uppercase tracking-[0.42em]"
+            style={{ color: preset.mutedTextColor, opacity: 0.6 }}
           >
             {node.type}
           </div>
@@ -462,7 +522,7 @@ function SafeAreaOverlay({ area }: { area: "16:9" | "9:16" | "1:1" }) {
           aspectRatio: String(aspect),
           height: aspect >= 1 ? "78%" : "92%",
           maxWidth: "92%",
-          borderColor: "oklch(1 0 0 / 0.18)",
+          borderColor: "oklch(1 0 0 / 0.06)",
         }}
       />
     </div>

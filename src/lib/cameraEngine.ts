@@ -17,7 +17,7 @@ export function buildCameraKeyframes(
   nodes: TextNode[],
   opts: BuildOptions = {},
 ): CameraKeyframe[] {
-  const { wideShotEvery = 25, movementIntensity = 0.7 } = opts;
+  const { wideShotEvery = 35, movementIntensity = 0.45 } = opts;
   const keyframes: CameraKeyframe[] = [];
   const nodeByBlock = new Map(nodes.map((n) => [n.blockId, n]));
   const bounds = nodesBounds(nodes);
@@ -37,13 +37,13 @@ export function buildCameraKeyframes(
     const node = nodeByBlock.get(b.id);
     if (!node) return;
 
-    // Zoom alterna entre planos fechados e médios, modulado pela ênfase.
+    // Zoom suave, sem variação brusca — sensação de câmera documental.
     const phase = i % 4;
     const baseZoom =
-      phase === 0 ? 1.35 : phase === 1 ? 1.05 : phase === 2 ? 1.5 : 1.2;
-    const zoom = baseZoom + b.emphasis * 0.35;
-    const rotation = node.rotation * 0.25 * movementIntensity;
-    const dur = Math.max(0.4, Math.min(b.duration * 0.7, 2.4));
+      phase === 0 ? 1.15 : phase === 1 ? 1.0 : phase === 2 ? 1.22 : 1.08;
+    const zoom = baseZoom + b.emphasis * 0.18;
+    const rotation = node.rotation * 0.08 * movementIntensity;
+    const dur = Math.max(1.2, Math.min(b.duration * 0.9, 3.2));
 
     keyframes.push({
       id: `cam_${b.id}`,
@@ -93,11 +93,8 @@ function easeFn(e: CameraEase): (t: number) => number {
       return (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
     case "cinematic":
     default:
-      // Cubic with a slow tail — sensação de câmera com inércia.
-      return (t) => {
-        const k = 1 - Math.pow(1 - t, 3);
-        return 0.85 * k + 0.15 * (t < 0.5 ? 2 * t * t : 1);
-      };
+      // Quintic ease-out — começa firme, desacelera longo (sensação de inércia de câmera).
+      return (t) => 1 - Math.pow(1 - t, 5);
   }
 }
 
