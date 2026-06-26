@@ -20,6 +20,8 @@ import { Timeline } from "./Timeline";
 import { AudioPanel } from "../audio/AudioPanel";
 import { TranscriptPanel } from "../audio/TranscriptPanel";
 import { BlocksReview } from "../blocks/BlocksReview";
+import { SoundPanel } from "./SoundPanel";
+import { RenderPanel } from "./RenderPanel";
 
 export const EDITOR_STEPS: { id: EditorStep; label: string; icon: typeof Mic }[] = [
   { id: "audio", label: "Áudio", icon: Mic },
