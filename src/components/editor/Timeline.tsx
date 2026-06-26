@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { Project, TranscriptBlock, BlockType } from "@/lib/types";
 import { useStore } from "@/lib/store";
+import { sfxService } from "@/lib/sfxService";
 
 const TYPE_COLOR: Record<BlockType, string> = {
   intro: "oklch(0.78 0.16 220)",
@@ -43,7 +44,12 @@ export function Timeline({ project }: { project: Project }) {
   const lastRef = useRef<number>(0);
 
   useEffect(() => {
-    if (!playback.playing) return;
+    if (!playback.playing) {
+      sfxService.resetTriggers(playback.time);
+      return;
+    }
+    sfxService.unlock();
+    sfxService.resetTriggers(playback.time);
     lastRef.current = performance.now();
     const tick = (t: number) => {
       const dt = ((t - lastRef.current) / 1000) * playback.speed;
@@ -55,6 +61,7 @@ export function Timeline({ project }: { project: Project }) {
         return;
       }
       setTime(next);
+      sfxService.tick(project.sfx, next, project.soundPreset);
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
@@ -64,7 +71,11 @@ export function Timeline({ project }: { project: Project }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playback.playing, playback.speed, duration]);
 
-  const seek = (t: number) => setTime(Math.max(0, Math.min(duration, t)));
+  const seek = (t: number) => {
+    const v = Math.max(0, Math.min(duration, t));
+    setTime(v);
+    sfxService.resetTriggers(v);
+  };
 
   const blockAt = (t: number) => {
     for (let i = project.blocks.length - 1; i >= 0; i--) {
@@ -213,15 +224,27 @@ export function Timeline({ project }: { project: Project }) {
           </div>
         </div>
 
-        <div className="relative h-3 mt-2">
-          {project.sfx.map((s) => (
+        <div className="relative h-3 mt-1.5" title="Câmera">
+          {project.camera.map((k) => (
             <div
-              key={s.id}
-              className="absolute top-0 bottom-0 w-1 bg-accent rounded-full"
-              style={{ left: `${(s.time / duration) * 100}%`, opacity: 0.4 + s.volume * 0.5 }}
-              title={`${s.kind} @ ${s.time.toFixed(2)}s`}
+              key={k.id}
+              className="absolute top-1 size-2 -ml-1 rounded-full border border-primary/70 bg-primary/30"
+              style={{ left: `${(k.time / duration) * 100}%` }}
+              title={`câmera @ ${k.time.toFixed(2)}s · zoom ${k.zoom.toFixed(2)}`}
             />
           ))}
+        </div>
+        <div className="relative h-3 mt-1" title="SFX">
+          {project.sfx
+            .filter((s) => s.enabled !== false)
+            .map((s) => (
+              <div
+                key={s.id}
+                className="absolute top-0 bottom-0 w-1 bg-accent rounded-full"
+                style={{ left: `${(s.time / duration) * 100}%`, opacity: 0.4 + s.volume * 0.5 }}
+                title={`${s.kind} @ ${s.time.toFixed(2)}s`}
+              />
+            ))}
         </div>
       </div>
     </div>

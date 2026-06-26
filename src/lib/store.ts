@@ -10,12 +10,17 @@ import type {
   CameraKeyframe,
   VisualPreset,
   SafeArea,
+  SfxEvent,
+  SoundPreset,
+  RenderConfig,
 } from "./types";
 import { buildEmptyProject, buildMockProject } from "./mockProject";
 import { mergeBlocks as mergeFn, splitBlock as splitFn } from "./blockGenerator";
 import { autoLayout, nodesBounds } from "./layoutEngine";
 import { buildCameraKeyframes } from "./cameraEngine";
 import { getPreset } from "./presets";
+import { getSoundPreset } from "./sfxPresets";
+import { generateSfx } from "./sfxGenerator";
 
 interface Viewport {
   x: number;
@@ -31,6 +36,8 @@ interface Playback {
   autoCamera: boolean;
   selectedNodeId?: string;
   viewport: Viewport;
+  sfxMuted: boolean;
+  sfxMasterVolume: number;
 }
 
 interface State {
@@ -79,6 +86,20 @@ interface Actions {
   setViewport: (v: Partial<Viewport>) => void;
   resetCamera: () => void;
 
+  // SFX
+  regenerateSfx: (projectId: string) => void;
+  setSfx: (projectId: string, sfx: SfxEvent[]) => void;
+  updateSfxEvent: (projectId: string, eventId: string, patch: Partial<SfxEvent>) => void;
+  toggleSfxEvent: (projectId: string, eventId: string) => void;
+  removeSfxEvent: (projectId: string, eventId: string) => void;
+  setSoundPreset: (projectId: string, presetId: string) => void;
+  updateSoundPreset: (projectId: string, patch: Partial<SoundPreset>) => void;
+  setSfxMuted: (m: boolean) => void;
+  setSfxMasterVolume: (v: number) => void;
+
+  // Render config
+  updateRenderConfig: (projectId: string, patch: Partial<RenderConfig>) => void;
+
   setTranscribing: (v: boolean) => void;
   setTranscribeError: (err: string | null) => void;
 
@@ -91,6 +112,8 @@ const INITIAL_PLAYBACK: Playback = {
   speed: 1,
   autoCamera: true,
   viewport: { x: 0, y: 0, zoom: 1, rotation: 0 },
+  sfxMuted: false,
+  sfxMasterVolume: 0.8,
 };
 
 export const useStore = create<State & Actions>()(
@@ -269,6 +292,78 @@ export const useStore = create<State & Actions>()(
       resetCamera: () =>
         set((s) => ({
           playback: { ...s.playback, viewport: { x: 0, y: 0, zoom: 1, rotation: 0 } },
+        })),
+
+      // SFX
+      regenerateSfx: (projectId) =>
+        set((s) => ({
+          projects: s.projects.map((p) => {
+            if (p.id !== projectId) return p;
+            const sfx = generateSfx({
+              blocks: p.blocks,
+              nodes: p.nodes,
+              camera: p.camera,
+              preset: p.soundPreset,
+              durationSec: p.durationSec,
+            });
+            return { ...p, sfx, updatedAt: new Date().toISOString() };
+          }),
+        })),
+
+      setSfx: (projectId, sfx) => get().updateProject(projectId, { sfx }),
+
+      updateSfxEvent: (projectId, eventId, patch) =>
+        set((s) => ({
+          projects: s.projects.map((p) =>
+            p.id !== projectId
+              ? p
+              : { ...p, sfx: p.sfx.map((e) => (e.id === eventId ? { ...e, ...patch } : e)) },
+          ),
+        })),
+
+      toggleSfxEvent: (projectId, eventId) =>
+        set((s) => ({
+          projects: s.projects.map((p) =>
+            p.id !== projectId
+              ? p
+              : {
+                  ...p,
+                  sfx: p.sfx.map((e) =>
+                    e.id === eventId ? { ...e, enabled: e.enabled === false ? true : false } : e,
+                  ),
+                },
+          ),
+        })),
+
+      removeSfxEvent: (projectId, eventId) =>
+        set((s) => ({
+          projects: s.projects.map((p) =>
+            p.id !== projectId ? p : { ...p, sfx: p.sfx.filter((e) => e.id !== eventId) },
+          ),
+        })),
+
+      setSoundPreset: (projectId, presetId) => {
+        const preset = getSoundPreset(presetId);
+        get().updateProject(projectId, { soundPreset: preset });
+        get().regenerateSfx(projectId);
+      },
+
+      updateSoundPreset: (projectId, patch) =>
+        set((s) => ({
+          projects: s.projects.map((p) =>
+            p.id !== projectId ? p : { ...p, soundPreset: { ...p.soundPreset, ...patch } },
+          ),
+        })),
+
+      setSfxMuted: (m) => set((s) => ({ playback: { ...s.playback, sfxMuted: m } })),
+      setSfxMasterVolume: (v) =>
+        set((s) => ({ playback: { ...s.playback, sfxMasterVolume: v } })),
+
+      updateRenderConfig: (projectId, patch) =>
+        set((s) => ({
+          projects: s.projects.map((p) =>
+            p.id !== projectId ? p : { ...p, render: { ...p.render, ...patch } },
+          ),
         })),
 
       setTranscribing: (v) => set({ transcribing: v }),

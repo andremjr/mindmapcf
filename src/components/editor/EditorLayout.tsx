@@ -20,6 +20,8 @@ import { Timeline } from "./Timeline";
 import { AudioPanel } from "../audio/AudioPanel";
 import { TranscriptPanel } from "../audio/TranscriptPanel";
 import { BlocksReview } from "../blocks/BlocksReview";
+import { SoundPanel } from "./SoundPanel";
+import { RenderPanel } from "./RenderPanel";
 
 export const EDITOR_STEPS: { id: EditorStep; label: string; icon: typeof Mic }[] = [
   { id: "audio", label: "Áudio", icon: Mic },
@@ -85,9 +87,11 @@ function StepContent({ step, project }: { step: EditorStep; project: Project }) 
       return <TranscriptPanel project={project} />;
     case "blocks":
       return <BlocksReview project={project} />;
-    case "canvas":
     case "sound":
+      return <SoundPanel project={project} />;
     case "render":
+      return <RenderPanel project={project} />;
+    case "canvas":
     default:
       return <CanvasPreview project={project} step={step} />;
   }
