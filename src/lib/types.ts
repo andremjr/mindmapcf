@@ -25,14 +25,13 @@ export interface AudioFile {
   sizeBytes: number;
   durationSec: number;
   mimeType: string;
-  /** Local object URL — não é persistido entre sessões. */
   objectUrl?: string;
 }
 
 export interface TranscriptWord {
   id: string;
   text: string;
-  start: number; // seconds
+  start: number;
   end: number;
   confidence?: number;
 }
@@ -86,34 +85,52 @@ export interface TranscriptBlock {
   end: number;
   duration: number;
   type: BlockType;
-  emphasis: number; // 0..1
+  emphasis: number;
   keywords: string[];
   originalWordIds: string[];
 }
+
+export type MarkerStyle = "bracket" | "vline" | "arrow" | "dot" | "none";
+export type NodeVariant = "headline" | "body" | "caption" | "accent";
 
 export interface TextNode {
   id: string;
   blockId: string;
   text: string;
+  shortText: string;
+  type: BlockType;
   x: number;
   y: number;
-  z: number; // depth for 2.5D
+  z: number;
   scale: number;
-  rotation: number;
   opacity: number;
+  blur: number;
+  rotation: number;
+  accentColor?: string;
+  markerStyle: MarkerStyle;
   fontWeight: number;
-  variant: "headline" | "body" | "caption" | "accent";
+  variant: NodeVariant;
 }
+
+export type CameraEase =
+  | "linear"
+  | "ease-in"
+  | "ease-out"
+  | "ease-in-out"
+  | "cinematic";
 
 export interface CameraKeyframe {
   id: string;
   time: number;
+  targetNodeId?: string;
   x: number;
   y: number;
   zoom: number;
   rotation: number;
-  focusNodeId?: string;
-  ease: "linear" | "ease-in" | "ease-out" | "ease-in-out" | "cinematic";
+  duration: number;
+  easing: CameraEase;
+  focusIntensity: number;
+  depthIntensity: number;
 }
 
 export type SfxKind =
@@ -129,21 +146,33 @@ export interface SfxEvent {
   id: string;
   time: number;
   kind: SfxKind;
-  volume: number; // 0..1
+  volume: number;
   blockId?: string;
 }
+
+export type GridStyle = "none" | "dots" | "lines" | "lines3d";
+export type ConnectorStyle = "minimal" | "investigation" | "tech" | "none";
 
 export interface VisualPreset {
   id: string;
   name: string;
-  background: string;
-  accent: string;
+  backgroundColor: string;
+  backgroundGradient?: string;
+  gridStyle: GridStyle;
+  fontFamily: string;
   textColor: string;
-  mutedColor: string;
-  fontHeadline: string;
-  fontBody: string;
-  grain: number; // 0..1
+  mutedTextColor: string;
+  accentColor: string;
+  secondaryAccentColor: string;
+  connectorStyle: ConnectorStyle;
+  markerStyle: MarkerStyle;
+  glowIntensity: number;
+  blurIntensity: number;
+  depthIntensity: number;
+  shadowIntensity: number;
+  cameraMovementIntensity: number;
   vignette: number;
+  grain: number;
 }
 
 export interface SoundPreset {
@@ -162,6 +191,8 @@ export interface RenderConfig {
   quality: "draft" | "standard" | "high";
 }
 
+export type SafeArea = "16:9" | "9:16" | "1:1";
+
 export interface Project {
   id: string;
   title: string;
@@ -179,4 +210,5 @@ export interface Project {
   visualPreset: VisualPreset;
   soundPreset: SoundPreset;
   render: RenderConfig;
+  safeArea?: SafeArea;
 }
