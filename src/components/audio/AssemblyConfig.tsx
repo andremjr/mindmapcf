@@ -45,7 +45,7 @@ export function AssemblyConfig({ project }: { project: Project }) {
     setTranscribing(true);
     setTranscribeError(null);
     try {
-      const transcript = await transcribeAudioMock(project.audio, {
+      const transcript = await transcribeAudio(project.audio, {
         apiKey,
         language,
         wordTimestamps,
