@@ -1,25 +1,31 @@
 import type {
   Project,
   TranscriptBlock,
-  SfxEvent,
-  SoundPreset,
   RenderConfig,
 } from "./types";
 import { DEFAULT_VISUAL_PRESET } from "./presets";
+import { DEFAULT_SOUND_PRESET } from "./sfxPresets";
 import { autoLayout } from "./layoutEngine";
 import { buildCameraKeyframes } from "./cameraEngine";
-
-const DEFAULT_SOUND: SoundPreset = {
-  id: "sp_room",
-  name: "Sala Ambient",
-  masterVolume: 0.8,
-  duckOnSpeech: true,
-};
+import { generateSfx } from "./sfxGenerator";
 
 const DEFAULT_RENDER: RenderConfig = {
+  aspect: "horizontal",
   width: 1920,
   height: 1080,
   fps: 30,
+  durationSec: 0,
+  safeArea: "16:9",
+  textScale: 1,
+  motionIntensity: 0.7,
+  depthIntensity: 0.8,
+  audioMixing: {
+    speechGain: 1,
+    sfxGain: 0.85,
+    ambientGain: 0.3,
+    duckOnSpeech: true,
+  },
+  exportTarget: "remotion",
   format: "mp4",
   quality: "standard",
 };
@@ -62,26 +68,12 @@ function buildBlocks(): TranscriptBlock[] {
   });
 }
 
-function buildSfx(blocks: TranscriptBlock[]): SfxEvent[] {
-  return blocks.flatMap((b, i) => {
-    const evts: SfxEvent[] = [
-      { id: `sfx_${i}_in`, time: b.start, kind: "whoosh", volume: 0.4, blockId: b.id },
-    ];
-    if (b.type === "warning" || b.type === "problem") {
-      evts.push({ id: `sfx_${i}_imp`, time: b.start + 0.15, kind: "impact", volume: 0.55, blockId: b.id });
-    }
-    if (b.type === "conclusion") {
-      evts.push({ id: `sfx_${i}_drop`, time: b.start, kind: "drop", volume: 0.7, blockId: b.id });
-    }
-    return evts;
-  });
-}
-
 export function buildMockProject(): Project {
   const blocks = buildBlocks();
   const nodes = autoLayout(blocks, { seed: 7 });
   const camera = buildCameraKeyframes(blocks, nodes, { movementIntensity: 0.8 });
-  const sfx = buildSfx(blocks);
+  const duration = blocks[blocks.length - 1].end;
+  const sfx = generateSfx({ blocks, nodes, camera, preset: DEFAULT_SOUND_PRESET, durationSec: duration });
   const now = new Date().toISOString();
   return {
     id: "prj_demo",
@@ -90,12 +82,12 @@ export function buildMockProject(): Project {
     status: "canvas_generated",
     createdAt: now,
     updatedAt: now,
-    durationSec: blocks[blocks.length - 1].end,
+    durationSec: duration,
     audio: {
       id: "aud_demo",
       name: "demo-narration.mp3",
       sizeBytes: 1_840_000,
-      durationSec: blocks[blocks.length - 1].end,
+      durationSec: duration,
       mimeType: "audio/mpeg",
     },
     blocks,
@@ -103,13 +95,13 @@ export function buildMockProject(): Project {
     camera,
     sfx,
     visualPreset: DEFAULT_VISUAL_PRESET,
-    soundPreset: DEFAULT_SOUND,
-    render: DEFAULT_RENDER,
+    soundPreset: DEFAULT_SOUND_PRESET,
+    render: { ...DEFAULT_RENDER, durationSec: duration },
     safeArea: "16:9",
   };
 }
 
-export const DEFAULT_SOUND_PRESET = DEFAULT_SOUND;
+export { DEFAULT_SOUND_PRESET } from "./sfxPresets";
 export const DEFAULT_RENDER_CONFIG = DEFAULT_RENDER;
 export { DEFAULT_VISUAL_PRESET };
 
@@ -127,7 +119,7 @@ export function buildEmptyProject(title: string): Project {
     camera: [],
     sfx: [],
     visualPreset: DEFAULT_VISUAL_PRESET,
-    soundPreset: DEFAULT_SOUND,
+    soundPreset: DEFAULT_SOUND_PRESET,
     render: DEFAULT_RENDER,
     safeArea: "16:9",
   };
