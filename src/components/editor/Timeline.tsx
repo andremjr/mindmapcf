@@ -224,15 +224,27 @@ export function Timeline({ project }: { project: Project }) {
           </div>
         </div>
 
-        <div className="relative h-3 mt-2">
-          {project.sfx.map((s) => (
+        <div className="relative h-3 mt-1.5" title="Câmera">
+          {project.camera.map((k) => (
             <div
-              key={s.id}
-              className="absolute top-0 bottom-0 w-1 bg-accent rounded-full"
-              style={{ left: `${(s.time / duration) * 100}%`, opacity: 0.4 + s.volume * 0.5 }}
-              title={`${s.kind} @ ${s.time.toFixed(2)}s`}
+              key={k.id}
+              className="absolute top-1 size-2 -ml-1 rounded-full border border-primary/70 bg-primary/30"
+              style={{ left: `${(k.time / duration) * 100}%` }}
+              title={`câmera @ ${k.time.toFixed(2)}s · zoom ${k.zoom.toFixed(2)}`}
             />
           ))}
+        </div>
+        <div className="relative h-3 mt-1" title="SFX">
+          {project.sfx
+            .filter((s) => s.enabled !== false)
+            .map((s) => (
+              <div
+                key={s.id}
+                className="absolute top-0 bottom-0 w-1 bg-accent rounded-full"
+                style={{ left: `${(s.time / duration) * 100}%`, opacity: 0.4 + s.volume * 0.5 }}
+                title={`${s.kind} @ ${s.time.toFixed(2)}s`}
+              />
+            ))}
         </div>
       </div>
     </div>
