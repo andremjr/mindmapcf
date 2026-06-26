@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import type { Project, TranscriptBlock, BlockType } from "@/lib/types";
 import { useStore } from "@/lib/store";
+import { sfxService } from "@/lib/sfxService";
 
 const TYPE_COLOR: Record<BlockType, string> = {
   intro: "oklch(0.78 0.16 220)",
