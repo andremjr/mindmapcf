@@ -44,7 +44,12 @@ export function Timeline({ project }: { project: Project }) {
   const lastRef = useRef<number>(0);
 
   useEffect(() => {
-    if (!playback.playing) return;
+    if (!playback.playing) {
+      sfxService.resetTriggers(playback.time);
+      return;
+    }
+    sfxService.unlock();
+    sfxService.resetTriggers(playback.time);
     lastRef.current = performance.now();
     const tick = (t: number) => {
       const dt = ((t - lastRef.current) / 1000) * playback.speed;
@@ -56,6 +61,7 @@ export function Timeline({ project }: { project: Project }) {
         return;
       }
       setTime(next);
+      sfxService.tick(project.sfx, next, project.soundPreset);
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
