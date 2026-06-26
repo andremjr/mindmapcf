@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Download, Copy, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { Download, Copy, CheckCircle2, AlertTriangle, XCircle, Package } from "lucide-react";
 import type { Project, RenderAspect, RenderTarget } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import {
@@ -8,6 +8,7 @@ import {
   downloadJson,
   copyJson,
 } from "@/lib/renderExport";
+import { downloadRendererZip } from "@/lib/rendererBundle";
 import { RENDER_ADAPTERS } from "@/lib/renderAdapters";
 
 const ASPECTS: { id: RenderAspect; w: number; h: number; label: string }[] = [
@@ -64,9 +65,16 @@ export function RenderPanel({ project }: { project: Project }) {
             onClick={() =>
               downloadJson(`${project.id}-${target}.json`, payload)
             }
-            className="flex items-center gap-2 px-3 py-2 rounded bg-primary text-primary-foreground text-xs hover:bg-primary/90 disabled:opacity-40"
+            className="flex items-center gap-2 px-3 py-2 rounded border border-border/60 text-xs hover:bg-muted/50 disabled:opacity-40"
           >
             <Download className="size-3.5" /> Baixar JSON
+          </button>
+          <button
+            onClick={() => downloadRendererZip(project)}
+            className="flex items-center gap-2 px-3 py-2 rounded bg-primary text-primary-foreground text-xs hover:bg-primary/90"
+            title="Baixa o projeto Remotion completo (.zip) com seu project.json embutido"
+          >
+            <Package className="size-3.5" /> Baixar Renderizador (.zip)
           </button>
         </div>
       </header>
