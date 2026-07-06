@@ -205,7 +205,7 @@ export const useStore = create<State & Actions>()(
         })),
 
       // Canvas
-      regenerateLayout: (projectId, seed) =>
+      regenerateLayout: (projectId, seed) => {
         set((s) => {
           let firstNode: TextNode | undefined;
           const projects: Project[] = s.projects.map((p): Project => {
@@ -223,7 +223,12 @@ export const useStore = create<State & Actions>()(
             ? { ...s.playback, viewport: { ...s.playback.viewport, x: firstNode.x, y: firstNode.y, zoom: 1 } }
             : s.playback;
           return { projects, playback };
-        }),
+        });
+        // Após regerar o layout, garante que os SFX também sejam recalculados
+        // para que o zip do renderizador contenha os efeitos sonoros.
+        get().regenerateSfx(projectId);
+      },
+
 
       setNodes: (projectId, nodes) => get().updateProject(projectId, { nodes }),
 
