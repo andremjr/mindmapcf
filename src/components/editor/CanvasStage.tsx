@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import type { Project, TextNode, Chapter } from "@/lib/types";
+import type { Project, TextNode } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { cameraAt, activeBlockAt } from "@/lib/cameraEngine";
-import { CANVAS, validateCanvasLayout } from "@/lib/layoutEngine";
+import { validateCanvasLayout } from "@/lib/layoutEngine";
 
 interface Props {
   project: Project;
