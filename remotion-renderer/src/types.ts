@@ -180,6 +180,7 @@ export interface CanvasNarrativoExport {
   soundPreset: SoundPreset;
   renderConfig: RenderConfig;
   assetRegistry: SfxAsset[];
+  chapters?: Chapter[];
 }
 
 /** Default props used when no --props=./project.json is passed (studio preview). */
