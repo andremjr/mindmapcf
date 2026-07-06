@@ -127,7 +127,9 @@ export const CanvasNarrativo: React.FC<CanvasNarrativoExport> = (props) => {
         />
       )}
 
-      {audioSrc && <Audio src={audioSrc} />}
+      {audioSrc && (
+        <Audio src={audioSrc} volume={renderConfig?.audioMixing?.speechGain ?? 1} />
+      )}
 
       {sfxEvents
         .filter((e) => e.enabled !== false)
@@ -138,12 +140,15 @@ export const CanvasNarrativo: React.FC<CanvasNarrativoExport> = (props) => {
           const src = resolvePublic(asset.file);
           if (!src) return null;
           const startFrame = Math.max(0, Math.round(e.time * fps));
+          const sfxGain = renderConfig?.audioMixing?.sfxGain ?? 0.2;
+          const finalVol = Math.max(0, Math.min(1, e.volume * sfxGain));
           return (
             <Sequence key={e.id} from={startFrame}>
-              <Audio src={src} volume={Math.max(0, Math.min(1, e.volume))} />
+              <Audio src={src} volume={finalVol} />
             </Sequence>
           );
         })}
+
     </AbsoluteFill>
   );
 };
