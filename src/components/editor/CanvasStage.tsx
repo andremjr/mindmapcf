@@ -137,8 +137,8 @@ export function CanvasStage({ project, debug = false }: Props) {
               : "transform 0.32s cubic-bezier(0.22,0.61,0.36,1)",
           }}
         >
-          {/* Linha guia vertical + capítulos */}
-          <GuideLine chapters={chapters} nodes={project.nodes} />
+          {/* Curved connectors between parent and children */}
+          <Connectors nodes={project.nodes} />
 
           {project.nodes.map((n) => (
             <NodeCard
