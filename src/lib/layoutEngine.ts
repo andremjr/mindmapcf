@@ -62,51 +62,63 @@ const STOP_PT = new Set(
 
 interface Size { w: number; h: number; }
 
-function measureBox(kind: NodeKind, text: string): Size {
-  const len = text.length;
+// Largura-alvo por tipo de nó. A altura cresce em função do texto real
+// (frases completas), para caber uma sentença inteira sem cortar.
+const NODE_WIDTH: Partial<Record<NodeKind, number>> = {
+  root: 520,
+  mainIdea: 480,
+  subtopic: 460,
+  detail: 420,
+  evidence: 560,
+  quote: 460,
+  conclusion: 460,
+  hook: 480,
+  statement: 440,
+  transition: 380,
+};
+
+// Aproxima quantos caracteres cabem por linha na largura útil do card.
+function approxCharsPerLine(widthPx: number, fontSize: number): number {
+  const usable = widthPx - 56; // padding horizontal
+  const avgCharPx = fontSize * 0.55;
+  return Math.max(12, Math.floor(usable / avgCharPx));
+}
+
+function fontSizeFor(kind: NodeKind): number {
   switch (kind) {
-    case "root":
-      return { w: 440, h: clamp(140, 130 + len * 0.35, 190) };
-    case "mainIdea":
-      return { w: 310, h: clamp(96, 84 + len * 0.4, 130) };
-    case "subtopic":
-      return { w: 380, h: clamp(90, 78 + len * 0.32, 130) };
-    case "detail":
-      return { w: 300, h: clamp(78, 68 + len * 0.35, 110) };
-    case "evidence":
-      return { w: 510, h: clamp(190, 170 + len * 0.5, 270) };
-    case "quote":
-      return { w: 400, h: 140 };
-    case "conclusion":
-      return { w: 360, h: 130 };
-    // legacy
-    case "hook": return { w: 420, h: 150 };
-    case "statement": return { w: 340, h: 110 };
-    case "transition": return { w: 300, h: 90 };
-    default: return { w: 320, h: 100 };
+    case "root": return 32;
+    case "mainIdea": return 24;
+    case "subtopic": return 22;
+    case "evidence": return 22;
+    case "quote": return 24;
+    case "conclusion": return 24;
+    case "hook": return 26;
+    default: return 20;
   }
+}
+
+function measureBox(kind: NodeKind, text: string): Size {
+  const w = NODE_WIDTH[kind] ?? 420;
+  const fs = fontSizeFor(kind);
+  const lineHeight = fs * 1.35;
+  const cpl = approxCharsPerLine(w, fs);
+  const chars = Math.max(1, text.length);
+  const lines = Math.max(2, Math.ceil(chars / cpl));
+  const padY = kind === "evidence" ? 72 : 60;
+  const h = clamp(110, Math.round(lines * lineHeight + padY), 460);
+  return { w, h };
 }
 
 function clamp(min: number, v: number, max: number) {
   return Math.max(min, Math.min(max, v));
 }
 
-// ---------- Text shortening ----------
+// ---------- Text — usa a frase completa ----------
 
-const WORD_LIMITS: Partial<Record<NodeKind, number>> = {
-  root: 5,
-  mainIdea: 6,
-  subtopic: 8,
-  detail: 6,
-  evidence: 12,
-  quote: 14,
-};
-
-function shortenText(text: string, kind: NodeKind): string {
-  const limit = WORD_LIMITS[kind] ?? 10;
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  if (words.length <= limit) return words.join(" ");
-  return words.slice(0, limit).join(" ") + "…";
+// Tema central continua sendo derivado (não é uma frase); demais nós recebem
+// a frase COMPLETA vinda do bloco (uma sentença = um nó).
+function nodeTextFromBlock(block: TranscriptBlock): string {
+  return (block.text ?? block.shortText ?? "").trim();
 }
 
 function deriveRootText(blocks: TranscriptBlock[]): string {
