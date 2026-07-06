@@ -185,8 +185,8 @@ export function CanvasStage({ project, debug = false }: Props) {
       <div className="pointer-events-none absolute right-2 bottom-2 text-[10px] text-muted-foreground/60 text-mono z-10">
         arraste / scroll = pan/zoom
       </div>
-      {void screenToWorld && null}
-    </div>
+      </div>
+
   );
 }
 
