@@ -2,6 +2,8 @@ import JSZip from "jszip";
 import type { Project, SfxAsset } from "./types";
 import { buildExport } from "./renderExport";
 import { bakeSynthSfx, synthKindFor } from "./sfxBaker";
+import { generateSfx } from "./sfxGenerator";
+
 
 // Raw imports — Vite bundles each file's source as a string.
 import pkgJson from "../../remotion-renderer/package.json?raw";
@@ -64,7 +66,23 @@ export async function downloadRendererZip(project: Project) {
     root.file(path, content);
   }
 
-  const exportData = buildExport(project);
+  // Rede de segurança: se o projeto ainda não tem SFX gerados (por ex.
+  // quando o usuário não abriu o painel de Som), gera aqui na hora para
+  // garantir que o zip contenha os efeitos sonoros e o áudio.
+  let workingProject = project;
+  if (!project.sfx || project.sfx.length === 0) {
+    const sfx = generateSfx({
+      blocks: project.blocks,
+      nodes: project.nodes,
+      camera: project.camera,
+      preset: project.soundPreset,
+      durationSec: project.durationSec,
+    });
+    workingProject = { ...project, sfx };
+  }
+
+  const exportData = buildExport(workingProject);
+
   const projectJson: typeof exportData & {
     audio: (typeof exportData)["audio"] & Record<string, unknown> | null;
   } = JSON.parse(JSON.stringify(exportData));

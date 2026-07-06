@@ -205,7 +205,7 @@ export const useStore = create<State & Actions>()(
         })),
 
       // Canvas
-      regenerateLayout: (projectId, seed) =>
+      regenerateLayout: (projectId, seed) => {
         set((s) => {
           let firstNode: TextNode | undefined;
           const projects: Project[] = s.projects.map((p): Project => {
@@ -223,7 +223,12 @@ export const useStore = create<State & Actions>()(
             ? { ...s.playback, viewport: { ...s.playback.viewport, x: firstNode.x, y: firstNode.y, zoom: 1 } }
             : s.playback;
           return { projects, playback };
-        }),
+        });
+        // Após regerar o layout, garante que os SFX também sejam recalculados
+        // para que o zip do renderizador contenha os efeitos sonoros.
+        get().regenerateSfx(projectId);
+      },
+
 
       setNodes: (projectId, nodes) => get().updateProject(projectId, { nodes }),
 
@@ -250,7 +255,7 @@ export const useStore = create<State & Actions>()(
         })),
 
       // Camera
-      rebuildCamera: (projectId) =>
+      rebuildCamera: (projectId) => {
         set((s) => ({
           projects: s.projects.map((p) => {
             if (p.id !== projectId) return p;
@@ -259,7 +264,12 @@ export const useStore = create<State & Actions>()(
             });
             return { ...p, camera, updatedAt: new Date().toISOString() };
           }),
-        })),
+        }));
+        // SFX depende de camera/blocks — regenera automaticamente para que o
+        // export/zip do renderizador sempre inclua os efeitos sonoros.
+        get().regenerateSfx(projectId);
+      },
+
 
       updateCamera: (projectId, keyframeId, patch) =>
         set((s) => ({

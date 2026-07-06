@@ -421,14 +421,6 @@ const NodeCardR: React.FC<{ node: TextNode; active: boolean }> = ({ node, active
     ? `0 26px 60px ${color}30, 0 0 0 1px ${color}88`
     : "0 12px 30px rgba(0,0,0,0.6)";
 
-  const label =
-    isRoot ? "TEMA CENTRAL"
-    : isMain ? "IDEIA"
-    : isSub ? "SUBTÓPICO"
-    : isDetail ? "DETALHE"
-    : isLegacyHero ? (kind === "hook" ? "GANCHO" : "CONCLUSÃO")
-    : null;
-
   return (
     <div style={container}>
       <div
@@ -445,20 +437,7 @@ const NodeCardR: React.FC<{ node: TextNode; active: boolean }> = ({ node, active
           position: "relative",
         }}
       >
-        {label && (
-          <div
-            style={{
-              fontSize: isRoot ? 13 : 11,
-              letterSpacing: "0.35em",
-              color,
-              marginBottom: isRoot ? 14 : 8,
-              fontWeight: 700,
-              opacity: 0.9,
-            }}
-          >
-            {label}
-          </div>
-        )}
+
         <div
           style={{
             fontSize,
