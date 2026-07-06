@@ -16,7 +16,7 @@ import type {
 } from "./types";
 import { buildEmptyProject, buildMockProject } from "./mockProject";
 import { mergeBlocks as mergeFn, splitBlock as splitFn } from "./blockGenerator";
-import { autoLayout, nodesBounds } from "./layoutEngine";
+import { autoLayoutFull, nodesBounds } from "./layoutEngine";
 import { buildCameraKeyframes } from "./cameraEngine";
 import { getPreset } from "./presets";
 import { getSoundPreset } from "./sfxPresets";
@@ -206,16 +206,24 @@ export const useStore = create<State & Actions>()(
 
       // Canvas
       regenerateLayout: (projectId, seed) =>
-        set((s) => ({
-          projects: s.projects.map((p) => {
+        set((s) => {
+          let firstNode: TextNode | undefined;
+          const projects: Project[] = s.projects.map((p): Project => {
             if (p.id !== projectId) return p;
-            const nodes = autoLayout(p.blocks, { seed: seed ?? Math.floor(Math.random() * 999) });
+            const { nodes, chapters } = autoLayoutFull(p.blocks, {
+              seed: seed ?? Math.floor(Math.random() * 999),
+            });
             const camera = buildCameraKeyframes(p.blocks, nodes, {
               movementIntensity: p.visualPreset.cameraMovementIntensity,
             });
-            return { ...p, nodes, camera, status: "canvas_generated", updatedAt: new Date().toISOString() };
-          }),
-        })),
+            firstNode = nodes[0];
+            return { ...p, nodes, chapters, camera, status: "canvas_generated", updatedAt: new Date().toISOString() };
+          });
+          const playback = firstNode
+            ? { ...s.playback, viewport: { ...s.playback.viewport, x: firstNode.x, y: firstNode.y, zoom: 1 } }
+            : s.playback;
+          return { projects, playback };
+        }),
 
       setNodes: (projectId, nodes) => get().updateProject(projectId, { nodes }),
 

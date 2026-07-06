@@ -4,6 +4,7 @@ import {
   Crosshair,
   Maximize,
   RotateCcw,
+  Bug,
 } from "lucide-react";
 import type { Project, SafeArea } from "@/lib/types";
 import { useStore, fitViewport } from "@/lib/store";
@@ -11,7 +12,15 @@ import { VISUAL_PRESETS } from "@/lib/presets";
 
 const SAFE_AREAS: SafeArea[] = ["16:9", "9:16", "1:1"];
 
-export function CanvasToolbar({ project }: { project: Project }) {
+export function CanvasToolbar({
+  project,
+  debug,
+  onToggleDebug,
+}: {
+  project: Project;
+  debug?: boolean;
+  onToggleDebug?: () => void;
+}) {
   const regenerateLayout = useStore((s) => s.regenerateLayout);
   const rebuildCamera = useStore((s) => s.rebuildCamera);
   const setViewport = useStore((s) => s.setViewport);
@@ -99,6 +108,19 @@ export function CanvasToolbar({ project }: { project: Project }) {
           </button>
         ))}
       </div>
+
+      {onToggleDebug && (
+        <button
+          onClick={onToggleDebug}
+          className={`surface-card flex items-center gap-1.5 px-2 py-1.5 text-[11px] rounded transition ${
+            debug ? "text-amber-400" : "text-muted-foreground hover:text-foreground"
+          }`}
+          title="Mostrar debug do canvas"
+        >
+          <Bug className="size-3.5" />
+          <span>Debug</span>
+        </button>
+      )}
     </div>
   );
 }

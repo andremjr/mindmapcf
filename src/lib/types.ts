@@ -93,12 +93,28 @@ export interface TranscriptBlock {
 export type MarkerStyle = "bracket" | "vline" | "arrow" | "dot" | "none";
 export type NodeVariant = "headline" | "body" | "caption" | "accent";
 
+/** Categorias visuais dos cards no canvas narrativo. */
+export type NodeKind =
+  | "hook"
+  | "statement"
+  | "evidence"
+  | "quote"
+  | "transition"
+  | "conclusion";
+
+export interface CameraTarget {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
 export interface TextNode {
   id: string;
   blockId: string;
   text: string;
   shortText: string;
   type: BlockType;
+  /** Posição do CENTRO do card no plano infinito. */
   x: number;
   y: number;
   z: number;
@@ -110,6 +126,38 @@ export interface TextNode {
   markerStyle: MarkerStyle;
   fontWeight: number;
   variant: NodeVariant;
+  // ---- Layout engine v2 ----
+  /** Largura do card em px (world space). */
+  width?: number;
+  /** Altura do card em px (world space). */
+  height?: number;
+  /** Tipo visual do card. */
+  nodeKind?: NodeKind;
+  /** Palavras destacadas dentro do texto. */
+  emphasisWords?: string[];
+  /** Subtítulo opcional. */
+  subtitle?: string;
+  /** Índice do capítulo ao qual pertence. */
+  chapterIndex?: number;
+  /** Cor do capítulo. */
+  chapterColor?: string;
+  /** Alvo de câmera calculado (world coords + zoom). */
+  cameraTarget?: CameraTarget;
+  /** Timing herdado do bloco, útil para render/timeline. */
+  startTime?: number;
+  endTime?: number;
+}
+
+/** Capítulo narrativo detectado pelo layout engine. */
+export interface Chapter {
+  index: number;
+  title: string;
+  color: string;
+  startTime: number;
+  endTime: number;
+  startY: number;
+  endY: number;
+  blockIds: string[];
 }
 
 export type CameraEase =
@@ -293,4 +341,6 @@ export interface Project {
   soundPreset: SoundPreset;
   render: RenderConfig;
   safeArea?: SafeArea;
+  /** Capítulos narrativos (gerados pelo layout engine v2). */
+  chapters?: Chapter[];
 }
