@@ -95,6 +95,10 @@ export type NodeVariant = "headline" | "body" | "caption" | "accent";
 
 /** Categorias visuais dos cards no canvas narrativo. */
 export type NodeKind =
+  | "root"
+  | "mainIdea"
+  | "subtopic"
+  | "detail"
   | "hook"
   | "statement"
   | "evidence"
