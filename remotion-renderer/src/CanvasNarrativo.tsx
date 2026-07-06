@@ -390,42 +390,81 @@ const NodeCardR: React.FC<{ node: TextNode; active: boolean }> = ({ node, active
     );
   }
 
-  const isHero = kind === "hook" || kind === "conclusion";
-  const fontSize = kind === "hook" ? 82 : kind === "conclusion" ? 66 : 52;
+  // Mind-map cards: root, mainIdea, subtopic, detail (+ legacy hero fallbacks).
+  const isRoot = kind === "root";
+  const isMain = kind === "mainIdea";
+  const isSub = kind === "subtopic";
+  const isDetail = kind === "detail";
+  const isLegacyHero = kind === "hook" || kind === "conclusion";
+
+  const fontSize =
+    isRoot ? 44
+    : isMain ? 30
+    : isSub ? 24
+    : isDetail ? 20
+    : isLegacyHero ? (kind === "hook" ? 82 : 66)
+    : 26;
+
+  const bg =
+    isRoot ? "linear-gradient(135deg, #0e0e12, #17171d)"
+    : isMain ? "#0d0d11"
+    : isSub ? "#0b0b0f"
+    : "#08080b";
+
+  const border = active
+    ? color
+    : isRoot || isMain
+    ? "rgba(255,255,255,0.22)"
+    : "rgba(255,255,255,0.12)";
+  const borderWidth = isRoot ? 2 : isMain ? 1.6 : 1;
+  const glow = active
+    ? `0 26px 60px ${color}30, 0 0 0 1px ${color}88`
+    : "0 12px 30px rgba(0,0,0,0.6)";
+
+  const label =
+    isRoot ? "TEMA CENTRAL"
+    : isMain ? "IDEIA"
+    : isSub ? "SUBTÓPICO"
+    : isDetail ? "DETALHE"
+    : isLegacyHero ? (kind === "hook" ? "GANCHO" : "CONCLUSÃO")
+    : null;
+
   return (
     <div style={container}>
       <div
         style={{
-          background: isHero ? "linear-gradient(135deg, #111114, #16161a)" : "#111114",
-          borderRadius: 28,
-          border: `1px solid ${active ? color : "rgba(255,255,255,0.08)"}`,
-          boxShadow: active ? `0 26px 80px ${color}30` : "0 12px 30px rgba(0,0,0,0.6)",
-          padding: "44px 52px",
+          background: bg,
+          borderRadius: isRoot ? 28 : 22,
+          border: `${borderWidth}px solid ${border}`,
+          boxShadow: glow,
+          padding: isRoot ? "34px 40px" : isMain ? "26px 32px" : "20px 26px",
           minHeight: height,
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
+          position: "relative",
         }}
       >
-        {isHero && (
+        {label && (
           <div
             style={{
-              fontSize: 14,
+              fontSize: isRoot ? 13 : 11,
               letterSpacing: "0.35em",
               color,
-              marginBottom: 22,
+              marginBottom: isRoot ? 14 : 8,
               fontWeight: 700,
+              opacity: 0.9,
             }}
           >
-            ▍ {kind === "hook" ? "GANCHO" : "CONCLUSÃO"}
+            {label}
           </div>
         )}
         <div
           style={{
             fontSize,
-            fontWeight: isHero ? 700 : 500,
-            lineHeight: 1.12,
-            letterSpacing: "-0.025em",
+            fontWeight: isRoot || isMain || isLegacyHero ? 700 : 500,
+            lineHeight: 1.2,
+            letterSpacing: "-0.02em",
             color: "#f5f5f5",
           }}
         >
