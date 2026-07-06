@@ -150,6 +150,12 @@ export interface TextNode {
   /** Timing herdado do bloco, útil para render/timeline. */
   startTime?: number;
   endTime?: number;
+  /** Tree layout — id of parent node. */
+  parentId?: string;
+  /** Tree layout — depth (0 = root). */
+  depth?: number;
+  /** Tree layout — ids of children nodes. */
+  childIds?: string[];
 }
 
 /** Capítulo narrativo detectado pelo layout engine. */
