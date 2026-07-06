@@ -481,13 +481,6 @@ function MindMapCard({
     ? `0 24px 60px ${color}30, 0 0 0 1px ${color}88, inset 0 0 0 1px ${color}22`
     : "0 10px 24px rgba(0,0,0,0.55)";
 
-  const label =
-    isRoot ? "TEMA CENTRAL"
-    : isMain ? "IDEIA"
-    : isSub ? "SUBTÓPICO"
-    : isDetail ? "DETALHE"
-    : null;
-
   return (
     <div
       style={{
@@ -505,20 +498,7 @@ function MindMapCard({
         position: "relative",
       }}
     >
-      {label && (
-        <div
-          style={{
-            fontSize: isRoot ? 11 : 10,
-            letterSpacing: "0.35em",
-            color,
-            marginBottom: isRoot ? 10 : 6,
-            fontWeight: 600,
-            opacity: 0.9,
-          }}
-        >
-          {label}
-        </div>
-      )}
+
       <div
         style={{
           fontSize,
