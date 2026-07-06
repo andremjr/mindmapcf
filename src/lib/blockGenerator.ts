@@ -6,17 +6,25 @@ import type {
 } from "./types";
 import { TRIGGERS, STOPWORDS_PT } from "./triggers";
 
-const MAX_CHARS = 120;
-const MIN_DUR = 5;
-const MAX_DUR = 12;
-const PAUSE_THRESHOLD = 0.6;
-const STRONG_PUNCT = /[.!?]$/;
+// Uma frase = um nó. Corte em pontuação final (. ! ?) ou pausa longa.
+const STRONG_PUNCT = /[.!?…]$/;
+const SOFT_PUNCT = /[,;:]$/;
+const LONG_PAUSE = 0.9;        // pausa que força novo nó
+const HARD_MAX_CHARS = 220;    // limite de segurança para frases enormes
+const HARD_MAX_DUR = 14;       // idem, em segundos
+const MIN_MERGE_CHARS = 24;    // fragmento curto demais → junta com vizinho
+const MIN_MERGE_DUR = 1.6;
 
 function uid(prefix = "blk") {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
-/** Segmenta palavras em grupos respeitando pausa, pontuação e limites. */
+/**
+ * Segmenta palavras em frases completas (uma sentença por nó).
+ * Um corte acontece quando: a palavra termina com pontuação forte,
+ * ou existe uma pausa longa, ou a frase excede limites de segurança
+ * (nesse caso corta em vírgula/pausa mais próxima).
+ */
 function segmentWords(words: TranscriptWord[]): TranscriptWord[][] {
   const groups: TranscriptWord[][] = [];
   let current: TranscriptWord[] = [];
@@ -33,27 +41,33 @@ function segmentWords(words: TranscriptWord[]): TranscriptWord[][] {
     current.push(w);
 
     const next = words[i + 1];
-    const groupStart = current[0].start;
-    const groupEnd = w.end;
-    const groupDur = groupEnd - groupStart;
-    const groupChars = current.map((x) => x.text).join(" ").length;
-    const pauseAhead = next ? next.start - w.end : 0;
+    const start = current[0].start;
+    const durSoFar = w.end - start;
+    const charsSoFar = current.map((x) => x.text).join(" ").length;
+    const pauseAhead = next ? next.start - w.end : Infinity;
     const endsStrong = STRONG_PUNCT.test(w.text);
+    const endsSoft = SOFT_PUNCT.test(w.text);
 
-    const tooBig = groupDur >= MAX_DUR || groupChars >= MAX_CHARS;
-    const niceBreak =
-      groupDur >= MIN_DUR &&
-      (endsStrong || pauseAhead >= PAUSE_THRESHOLD);
+    // Corte principal: fim de frase ou pausa muito longa.
+    if (endsStrong || pauseAhead >= LONG_PAUSE) {
+      flush();
+      continue;
+    }
 
-    if (tooBig || niceBreak) flush();
+    // Corte de segurança: frase gigantesca sem pontuação forte.
+    if (charsSoFar >= HARD_MAX_CHARS || durSoFar >= HARD_MAX_DUR) {
+      if (endsSoft || pauseAhead >= 0.35) flush();
+    }
   }
   flush();
 
-  // Junta micro-grupos com o anterior.
+  // Junta fragmentos muito curtos ao vizinho mais próximo — mantém frases inteiras.
   const merged: TranscriptWord[][] = [];
   for (const g of groups) {
     const dur = g[g.length - 1].end - g[0].start;
-    if (merged.length > 0 && dur < 2) {
+    const chars = g.map((x) => x.text).join(" ").length;
+    const tooSmall = dur < MIN_MERGE_DUR || chars < MIN_MERGE_CHARS;
+    if (tooSmall && merged.length > 0) {
       merged[merged.length - 1].push(...g);
     } else {
       merged.push(g);
