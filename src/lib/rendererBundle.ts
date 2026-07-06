@@ -96,7 +96,7 @@ export async function downloadRendererZip(project: Project) {
   // 2) SFX sintetizados usados no projeto → renderizados como WAVs em public/sfx/.
   const usedAssets = new Set<string>();
   for (const e of projectJson.sfxEvents ?? []) {
-    if (e.enabled !== false) usedAssets.add(e.soundId);
+    if (e.enabled !== false && e.soundId) usedAssets.add(e.soundId);
   }
   const registry: SfxAsset[] = projectJson.assetRegistry ?? [];
   const synthAssets = registry.filter(
