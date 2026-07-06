@@ -206,8 +206,9 @@ export const useStore = create<State & Actions>()(
 
       // Canvas
       regenerateLayout: (projectId, seed) =>
-        set((s) => ({
-          projects: s.projects.map((p) => {
+        set((s) => {
+          let firstNode: TextNode | undefined;
+          const projects = s.projects.map((p) => {
             if (p.id !== projectId) return p;
             const { nodes, chapters } = autoLayoutFull(p.blocks, {
               seed: seed ?? Math.floor(Math.random() * 999),
@@ -215,9 +216,14 @@ export const useStore = create<State & Actions>()(
             const camera = buildCameraKeyframes(p.blocks, nodes, {
               movementIntensity: p.visualPreset.cameraMovementIntensity,
             });
+            firstNode = nodes[0];
             return { ...p, nodes, chapters, camera, status: "canvas_generated", updatedAt: new Date().toISOString() };
-          }),
-        })),
+          });
+          const playback = firstNode
+            ? { ...s.playback, viewport: { ...s.playback.viewport, x: firstNode.x, y: firstNode.y, zoom: 1 } }
+            : s.playback;
+          return { projects, playback };
+        }),
 
       setNodes: (projectId, nodes) => get().updateProject(projectId, { nodes }),
 
