@@ -330,8 +330,7 @@ function buildTree(blocks: TranscriptBlock[]): TNode {
         b.type === "example" || b.type === "warning" ? "evidence" : "detail";
       const owner = subs[(i - subCount) % Math.max(1, subs.length)];
       if (!owner) continue;
-      const t = b.shortText || b.text;
-      const st = shortenText(t, kind);
+      const t = nodeTextFromBlock(b);
       const det: TNode = {
         id: `n_${b.id}`,
         blockId: b.id,
@@ -342,8 +341,8 @@ function buildTree(blocks: TranscriptBlock[]): TNode {
         chapterIndex: cIdx,
         chapterColor: color,
         text: t,
-        shortText: st,
-        ...measureBox(kind, st),
+        shortText: t,
+        ...measureBox(kind, t),
         x: 0, y: 0,
         children: [],
       };
