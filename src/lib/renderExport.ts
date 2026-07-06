@@ -32,6 +32,8 @@ import type {
   Chapter,
 } from "./types";
 import { SFX_ASSETS, getAssetById } from "./sfxAssets";
+import { validateCanvasLayout } from "./layoutEngine";
+
 
 export interface RenderExport {
   schemaVersion: 1;
