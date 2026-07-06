@@ -97,7 +97,7 @@ export const CanvasNarrativo: React.FC<CanvasNarrativoExport> = (props) => {
             willChange: "transform",
           }}
         >
-          <GuideLine nodes={textNodes} chapters={chapters} />
+          <Connectors nodes={textNodes} />
           {textNodes.map((n) => (
             <NodeCardR
               key={n.id}
