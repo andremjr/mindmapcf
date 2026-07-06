@@ -123,6 +123,7 @@ export function buildExport(p: Project): RenderExport {
     soundPreset: p.soundPreset,
     renderConfig,
     assetRegistry,
+    chapters: p.chapters ?? [],
   };
 }
 
