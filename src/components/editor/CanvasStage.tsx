@@ -400,13 +400,11 @@ function NodeCard({
         top: node.y - height / 2,
         width,
         minHeight: height,
-        opacity: isActive ? 1 : 0.55,
-        filter: isActive ? "none" : "blur(0.3px)",
-        transition: "opacity 0.9s cubic-bezier(0.22,0.61,0.36,1), filter 0.9s",
+        opacity: isActive ? 1 : 0.72,
+        transition: "opacity 0.6s cubic-bezier(0.22,0.61,0.36,1)",
         zIndex: isActive ? 10 : 1,
       }}
     >
-      {/* Card específico por tipo */}
       {kind === "evidence" ? (
         <EvidenceCard node={node} color={color} isActive={isActive} />
       ) : kind === "quote" ? (
@@ -414,61 +412,14 @@ function NodeCard({
       ) : kind === "transition" ? (
         <TransitionCard text={text} color={color} isActive={isActive} />
       ) : (
-        <div
-          style={{
-            background: kind === "hook" || kind === "conclusion"
-              ? `linear-gradient(135deg, ${baseBg}, #16161a)`
-              : baseBg,
-            borderRadius: 24,
-            border: `1px solid ${borderColor}`,
-            boxShadow: glow,
-            padding: "36px 44px",
-            minHeight: height,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            outline: isSelected ? `2px solid ${color}` : "none",
-            outlineOffset: 8,
-          }}
-        >
-          {kind === "hook" && (
-            <div
-              style={{
-                fontSize: 13,
-                letterSpacing: "0.35em",
-                color,
-                marginBottom: 20,
-                fontWeight: 600,
-              }}
-            >
-              ▍ GANCHO
-            </div>
-          )}
-          {kind === "conclusion" && (
-            <div
-              style={{
-                fontSize: 13,
-                letterSpacing: "0.35em",
-                color,
-                marginBottom: 20,
-                fontWeight: 600,
-              }}
-            >
-              ▍ CONCLUSÃO
-            </div>
-          )}
-          <div
-            style={{
-              fontSize,
-              fontWeight: kind === "hook" || kind === "conclusion" ? 700 : 500,
-              lineHeight: 1.12,
-              letterSpacing: "-0.025em",
-              color: "#f5f5f5",
-            }}
-          >
-            {highlightText(text, node.emphasisWords, color)}
-          </div>
-        </div>
+        <MindMapCard
+          kind={kind}
+          text={text}
+          color={color}
+          isActive={isActive}
+          isSelected={isSelected}
+          height={height}
+        />
       )}
 
       {debug && (
