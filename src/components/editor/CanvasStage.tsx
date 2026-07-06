@@ -375,17 +375,8 @@ function NodeCard({
     draggingRef.current = null;
   };
 
-  const fontSize =
-    kind === "hook" ? 76
-    : kind === "conclusion" ? 60
-    : kind === "quote" ? 52
-    : kind === "transition" ? 44
-    : kind === "evidence" ? 40
-    : 48;
+  void isSelected;
 
-  const baseBg = "#111114";
-  const borderColor = isActive ? color : "rgba(255,255,255,0.08)";
-  const glow = isActive ? `0 20px 60px ${color}30, 0 0 0 1px ${color}66` : "0 8px 24px rgba(0,0,0,0.5)";
 
   return (
     <div
