@@ -341,4 +341,6 @@ export interface Project {
   soundPreset: SoundPreset;
   render: RenderConfig;
   safeArea?: SafeArea;
+  /** Capítulos narrativos (gerados pelo layout engine v2). */
+  chapters?: Chapter[];
 }
