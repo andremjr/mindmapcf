@@ -48,7 +48,7 @@ export const CanvasNarrativo: React.FC<CanvasNarrativoExport> = (props) => {
     renderConfig,
     audio,
     assetRegistry = [],
-    chapters: _chapters = [],
+    
   } = props;
 
   const frame = useCurrentFrame();
