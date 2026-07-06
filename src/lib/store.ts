@@ -209,11 +209,13 @@ export const useStore = create<State & Actions>()(
         set((s) => ({
           projects: s.projects.map((p) => {
             if (p.id !== projectId) return p;
-            const nodes = autoLayout(p.blocks, { seed: seed ?? Math.floor(Math.random() * 999) });
+            const { nodes, chapters } = autoLayoutFull(p.blocks, {
+              seed: seed ?? Math.floor(Math.random() * 999),
+            });
             const camera = buildCameraKeyframes(p.blocks, nodes, {
               movementIntensity: p.visualPreset.cameraMovementIntensity,
             });
-            return { ...p, nodes, camera, status: "canvas_generated", updatedAt: new Date().toISOString() };
+            return { ...p, nodes, chapters, camera, status: "canvas_generated", updatedAt: new Date().toISOString() };
           }),
         })),
 
