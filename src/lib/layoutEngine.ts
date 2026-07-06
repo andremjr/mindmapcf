@@ -284,7 +284,7 @@ function buildTree(blocks: TranscriptBlock[]): TNode {
     const color = CHAPTER_PALETTE[cIdx % CHAPTER_PALETTE.length];
     const [mainIdx, ...restIdx] = group;
     const mainBlock = blocks[mainIdx];
-    const mainText = mainBlock.shortText || mainBlock.text;
+    const mainText = nodeTextFromBlock(mainBlock);
     const mainNode: TNode = {
       id: `n_${mainBlock.id}`,
       blockId: mainBlock.id,
@@ -295,8 +295,8 @@ function buildTree(blocks: TranscriptBlock[]): TNode {
       chapterIndex: cIdx,
       chapterColor: color,
       text: mainText,
-      shortText: shortenText(mainText, "mainIdea"),
-      ...measureBox("mainIdea", shortenText(mainText, "mainIdea")),
+      shortText: mainText,
+      ...measureBox("mainIdea", mainText),
       x: 0, y: 0,
       children: [],
     };
