@@ -2,6 +2,8 @@ import JSZip from "jszip";
 import type { Project, SfxAsset } from "./types";
 import { buildExport } from "./renderExport";
 import { bakeSynthSfx, synthKindFor } from "./sfxBaker";
+import { generateSfx } from "./sfxGenerator";
+
 
 // Raw imports — Vite bundles each file's source as a string.
 import pkgJson from "../../remotion-renderer/package.json?raw";
