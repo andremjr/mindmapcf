@@ -156,83 +156,63 @@ function activeBlockAt(blocks: TranscriptBlock[], time: number): TranscriptBlock
   return blocks[0];
 }
 
-// ---------- Guide line ----------
+// ---------- Curved connectors (mind map edges) ----------
 
-const GuideLine: React.FC<{ nodes: TextNode[]; chapters: Chapter[] }> = ({ nodes, chapters }) => {
+const Connectors: React.FC<{ nodes: TextNode[] }> = ({ nodes }) => {
   if (!nodes.length) return null;
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const n of nodes) {
+    const w = n.width ?? 320, h = n.height ?? 100;
+    minX = Math.min(minX, n.x - w / 2);
+    minY = Math.min(minY, n.y - h / 2);
+    maxX = Math.max(maxX, n.x + w / 2);
+    maxY = Math.max(maxY, n.y + h / 2);
+  }
+  const pad = 200;
+  const svgLeft = minX - pad;
+  const svgTop = minY - pad;
+  const svgW = maxX - minX + pad * 2;
+  const svgH = maxY - minY + pad * 2;
+
+  const paths: React.ReactNode[] = [];
+  for (const child of nodes) {
+    if (!child.parentId) continue;
+    const parent = byId.get(child.parentId);
+    if (!parent) continue;
+    const pw = parent.width ?? 320;
+    const cw = child.width ?? 320;
+    const sx = parent.x + pw / 2 - svgLeft;
+    const sy = parent.y - svgTop;
+    const tx = child.x - cw / 2 - svgLeft;
+    const ty = child.y - svgTop;
+    const dx = Math.max(60, (tx - sx) * 0.5);
+    const d = `M ${sx} ${sy} C ${sx + dx} ${sy}, ${tx - dx} ${ty}, ${tx} ${ty}`;
+    const color = child.chapterColor ?? "rgba(255,255,255,0.25)";
+    paths.push(
+      <g key={`c_${child.id}`}>
+        <path d={d} stroke={color} strokeOpacity={0.2} strokeWidth={10} fill="none" strokeLinecap="round" />
+        <path d={d} stroke={color} strokeOpacity={0.9} strokeWidth={2.6} fill="none" strokeLinecap="round" />
+        <circle cx={sx} cy={sy} r={4} fill={color} />
+        <circle cx={tx} cy={ty} r={4} fill={color} />
+      </g>,
+    );
+  }
   return (
-    <>
-      {chapters.length > 0 ? (
-        chapters.map((c) => (
-          <React.Fragment key={c.index}>
-            <div
-              style={{
-                position: "absolute",
-                left: GUIDE_X - 1.5,
-                top: c.startY - 40,
-                width: 3,
-                height: Math.max(40, c.endY - c.startY + 80),
-                background: `linear-gradient(180deg, ${c.color}00, ${c.color}, ${c.color}00)`,
-                boxShadow: `0 0 28px ${c.color}66`,
-                borderRadius: 3,
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                left: GUIDE_X - 9,
-                top: c.startY - 12,
-                width: 18,
-                height: 18,
-                borderRadius: 999,
-                background: c.color,
-                boxShadow: `0 0 24px ${c.color}, 0 0 0 6px rgba(0,0,0,0.6)`,
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                left: GUIDE_X + 30,
-                top: c.startY - 22,
-                fontSize: 16,
-                letterSpacing: "0.3em",
-                fontWeight: 700,
-                color: c.color,
-                textShadow: `0 0 14px ${c.color}88`,
-              }}
-            >
-              {`CAP. ${String(c.index + 1).padStart(2, "0")} · ${c.title}`}
-            </div>
-          </React.Fragment>
-        ))
-      ) : (
-        <div
-          style={{
-            position: "absolute",
-            left: GUIDE_X - 1,
-            top: -1000,
-            width: 2,
-            bottom: -1000,
-            background: "rgba(255,255,255,0.15)",
-          }}
-        />
-      )}
-      {nodes.map((n) => (
-        <div
-          key={`dot_${n.id}`}
-          style={{
-            position: "absolute",
-            left: GUIDE_X - 5,
-            top: n.y - 5,
-            width: 10,
-            height: 10,
-            borderRadius: 999,
-            background: n.chapterColor ?? "#888",
-            boxShadow: `0 0 14px ${n.chapterColor ?? "#888"}bb`,
-          }}
-        />
-      ))}
-    </>
+    <svg
+      style={{
+        position: "absolute",
+        left: svgLeft,
+        top: svgTop,
+        width: svgW,
+        height: svgH,
+        pointerEvents: "none",
+        overflow: "visible",
+      }}
+    >
+      {paths}
+    </svg>
   );
 };
 
