@@ -24,17 +24,29 @@ export const CANVAS = {
   guideX: 380,
   /** X central onde os cards são posicionados (centro do card). */
   contentCx: 1360,
-  /** Deslocamento lateral alternado para dar dinamismo. */
-  alternateOffset: 120,
-  /** Y inicial do primeiro nó. */
+  /** Y inicial do primeiro nó (topo do primeiro card). */
   startY: 340,
-  /** Espaçamento vertical mínimo entre nós (após colisão). */
-  minGap: 220,
-  /** Espaçamento vertical entre capítulos. */
-  chapterGap: 820,
   /** Padding safe area (horizontal). */
   safePadX: 160,
+
+  // ----- Regras de espaçamento vertical (spec do usuário) -----
+  /** Espaçamento vertical mínimo padrão. */
+  gapMin: 220,
+  /** Espaçamento vertical quando muda de capítulo. */
+  gapChapter: 700,
+  /** Espaçamento adicional para nós de evidência. */
+  gapEvidence: 360,
+  /** Espaçamento adicional para nós de gancho (hook). */
+  gapHook: 420,
+  /** Incremento usado ao resolver colisões (empurra para baixo). */
+  collisionStep: 120,
+  /** Padding usado no teste de colisão (safe area em torno do card). */
+  collisionPad: 40,
 } as const;
+
+/** Offsets laterais alternados (dão respiro e leve fluxo visual). */
+const X_ALTERNATION = [0, -70, +90, -40, +60, -20];
+
 
 /** Paleta de cores por capítulo (documentário investigativo moderno). */
 const CHAPTER_PALETTE = [
