@@ -250,7 +250,7 @@ export const useStore = create<State & Actions>()(
         })),
 
       // Camera
-      rebuildCamera: (projectId) =>
+      rebuildCamera: (projectId) => {
         set((s) => ({
           projects: s.projects.map((p) => {
             if (p.id !== projectId) return p;
@@ -259,7 +259,12 @@ export const useStore = create<State & Actions>()(
             });
             return { ...p, camera, updatedAt: new Date().toISOString() };
           }),
-        })),
+        }));
+        // SFX depende de camera/blocks — regenera automaticamente para que o
+        // export/zip do renderizador sempre inclua os efeitos sonoros.
+        get().regenerateSfx(projectId);
+      },
+
 
       updateCamera: (projectId, keyframeId, patch) =>
         set((s) => ({
