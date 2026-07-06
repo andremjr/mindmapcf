@@ -596,24 +596,33 @@ export function autoLayout(
   return autoLayoutFull(blocks, opts).nodes;
 }
 
-/** Força não-sobreposição empurrando nós posteriores para baixo. */
+/**
+ * Força não-sobreposição empurrando nós posteriores em passos de 120 px.
+ * Loop até que nenhum par colida.
+ */
 function enforceNoOverlap(nodes: TextNode[]): TextNode[] {
   const out = nodes.map((n) => ({ ...n }));
-  for (let i = 0; i < out.length; i++) {
-    for (let j = 0; j < i; j++) {
-      const a = bbox(out[j]);
-      const b = bbox(out[i]);
-      if (overlaps(a, b)) {
-        const push = (a.y + a.h + 60) - b.y;
-        if (push > 0) {
-          out[i].y += push;
-          if (out[i].cameraTarget) out[i].cameraTarget = { ...out[i].cameraTarget!, y: out[i].y };
+  const step = CANVAS.collisionStep;
+  let iterations = 0;
+  let changed = true;
+  while (changed && iterations < 500) {
+    changed = false;
+    iterations++;
+    for (let i = 0; i < out.length; i++) {
+      for (let j = 0; j < i; j++) {
+        if (overlaps(bbox(out[j]), bbox(out[i]), CANVAS.collisionPad)) {
+          out[i].y += step;
+          if (out[i].cameraTarget) {
+            out[i].cameraTarget = { ...out[i].cameraTarget!, y: out[i].y };
+          }
+          changed = true;
         }
       }
     }
   }
   return out;
 }
+
 
 /** Bounding box (para "ver mapa completo" e câmera). */
 export function nodesBounds(nodes: TextNode[]) {
