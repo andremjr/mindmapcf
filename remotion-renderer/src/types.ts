@@ -11,6 +11,10 @@ export type CameraEase =
 export type NodeVariant = "headline" | "body" | "caption" | "accent";
 export type MarkerStyle = "bracket" | "vline" | "arrow" | "dot" | "none";
 export type NodeKind =
+  | "root"
+  | "mainIdea"
+  | "subtopic"
+  | "detail"
   | "hook"
   | "statement"
   | "evidence"
