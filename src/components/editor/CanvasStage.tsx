@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import type { Project, TextNode, Chapter } from "@/lib/types";
+import type { Project, TextNode } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { cameraAt, activeBlockAt } from "@/lib/cameraEngine";
-import { CANVAS, validateCanvasLayout } from "@/lib/layoutEngine";
+import { validateCanvasLayout } from "@/lib/layoutEngine";
 
 interface Props {
   project: Project;
@@ -137,8 +137,8 @@ export function CanvasStage({ project, debug = false }: Props) {
               : "transform 0.32s cubic-bezier(0.22,0.61,0.36,1)",
           }}
         >
-          {/* Linha guia vertical + capítulos */}
-          <GuideLine chapters={chapters} nodes={project.nodes} />
+          {/* Curved connectors between parent and children */}
+          <Connectors nodes={project.nodes} />
 
           {project.nodes.map((n) => (
             <NodeCard
@@ -227,98 +227,79 @@ function BackgroundLayer({
   );
 }
 
-// ---------------- Guide line + chapters ----------------
+// ---------------- Curved connectors ----------------
 
-function GuideLine({
-  chapters,
-  nodes,
-}: {
-  chapters: Chapter[];
-  nodes: TextNode[];
-}) {
+function Connectors({ nodes }: { nodes: TextNode[] }) {
   if (nodes.length === 0) return null;
-  const x = CANVAS.guideX;
-  const startY = Math.min(...nodes.map((n) => (n.y ?? 0) - (n.height ?? 200) / 2)) - 120;
-  const endY = Math.max(...nodes.map((n) => (n.y ?? 0) + (n.height ?? 200) / 2)) + 120;
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+
+  // Compute bounding box to size the SVG canvas.
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const n of nodes) {
+    const w = n.width ?? 320, h = n.height ?? 100;
+    minX = Math.min(minX, n.x - w / 2);
+    minY = Math.min(minY, n.y - h / 2);
+    maxX = Math.max(maxX, n.x + w / 2);
+    maxY = Math.max(maxY, n.y + h / 2);
+  }
+  const pad = 200;
+  const svgLeft = minX - pad;
+  const svgTop = minY - pad;
+  const svgW = maxX - minX + pad * 2;
+  const svgH = maxY - minY + pad * 2;
+
+  const paths: React.ReactNode[] = [];
+  for (const child of nodes) {
+    if (!child.parentId) continue;
+    const parent = byId.get(child.parentId);
+    if (!parent) continue;
+    const pw = parent.width ?? 320;
+    const cw = child.width ?? 320;
+    const sx = parent.x + pw / 2 - svgLeft;
+    const sy = parent.y - svgTop;
+    const tx = child.x - cw / 2 - svgLeft;
+    const ty = child.y - svgTop;
+    const dx = Math.max(60, (tx - sx) * 0.5);
+    const d = `M ${sx} ${sy} C ${sx + dx} ${sy}, ${tx - dx} ${ty}, ${tx} ${ty}`;
+    const color = child.chapterColor ?? "rgba(255,255,255,0.25)";
+    paths.push(
+      <g key={`c_${child.id}`}>
+        <path
+          d={d}
+          stroke={color}
+          strokeOpacity={0.18}
+          strokeWidth={8}
+          fill="none"
+          strokeLinecap="round"
+        />
+        <path
+          d={d}
+          stroke={color}
+          strokeOpacity={0.85}
+          strokeWidth={2.2}
+          fill="none"
+          strokeLinecap="round"
+        />
+        <circle cx={sx} cy={sy} r={3.5} fill={color} />
+        <circle cx={tx} cy={ty} r={3.5} fill={color} />
+      </g>,
+    );
+  }
 
   return (
-    <div className="absolute" style={{ left: 0, top: 0, pointerEvents: "none" }}>
-      {/* Segmentos coloridos por capítulo (fallback: cinza se sem capítulos) */}
-      {chapters.length > 0 ? (
-        chapters.map((c) => (
-          <div key={c.index}>
-            <div
-              style={{
-                position: "absolute",
-                left: x - 1,
-                top: c.startY - 40,
-                width: 2,
-                height: Math.max(30, c.endY - c.startY + 80),
-                background: `linear-gradient(180deg, ${c.color}00, ${c.color}, ${c.color}00)`,
-                boxShadow: `0 0 24px ${c.color}55`,
-                borderRadius: 2,
-              }}
-            />
-            {/* Marker + label */}
-            <div
-              style={{
-                position: "absolute",
-                left: x - 7,
-                top: c.startY - 10,
-                width: 14,
-                height: 14,
-                borderRadius: 999,
-                background: c.color,
-                boxShadow: `0 0 20px ${c.color}, 0 0 0 4px rgba(0,0,0,0.6)`,
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                left: x + 22,
-                top: c.startY - 18,
-                fontSize: 13,
-                letterSpacing: "0.3em",
-                fontWeight: 600,
-                color: c.color,
-                textShadow: `0 0 12px ${c.color}66`,
-              }}
-            >
-              {`CAP. ${String(c.index + 1).padStart(2, "0")} · ${c.title}`}
-            </div>
-          </div>
-        ))
-      ) : (
-        <div
-          style={{
-            position: "absolute",
-            left: x - 1,
-            top: startY,
-            width: 2,
-            height: endY - startY,
-            background: "linear-gradient(180deg, transparent, rgba(255,255,255,0.25), transparent)",
-          }}
-        />
-      )}
-
-      {/* Bolinhas conectando os nós */}
-      {nodes.map((n) => (
-        <div
-          key={`dot_${n.id}`}
-          style={{
-            position: "absolute",
-            left: x - 4,
-            top: n.y - 4,
-            width: 8,
-            height: 8,
-            borderRadius: 999,
-            background: n.chapterColor ?? "#888",
-            opacity: 0.9,
-            boxShadow: `0 0 12px ${n.chapterColor ?? "#888"}aa`,
-          }}
-        />
-      ))}
-    </div>
+    <svg
+      style={{
+        position: "absolute",
+        left: svgLeft,
+        top: svgTop,
+        width: svgW,
+        height: svgH,
+        pointerEvents: "none",
+        overflow: "visible",
+      }}
+    >
+      {paths}
+    </svg>
   );
 }
 
@@ -394,17 +375,8 @@ function NodeCard({
     draggingRef.current = null;
   };
 
-  const fontSize =
-    kind === "hook" ? 76
-    : kind === "conclusion" ? 60
-    : kind === "quote" ? 52
-    : kind === "transition" ? 44
-    : kind === "evidence" ? 40
-    : 48;
+  void isSelected;
 
-  const baseBg = "#111114";
-  const borderColor = isActive ? color : "rgba(255,255,255,0.08)";
-  const glow = isActive ? `0 20px 60px ${color}30, 0 0 0 1px ${color}66` : "0 8px 24px rgba(0,0,0,0.5)";
 
   return (
     <div
@@ -419,13 +391,11 @@ function NodeCard({
         top: node.y - height / 2,
         width,
         minHeight: height,
-        opacity: isActive ? 1 : 0.55,
-        filter: isActive ? "none" : "blur(0.3px)",
-        transition: "opacity 0.9s cubic-bezier(0.22,0.61,0.36,1), filter 0.9s",
+        opacity: isActive ? 1 : 0.72,
+        transition: "opacity 0.6s cubic-bezier(0.22,0.61,0.36,1)",
         zIndex: isActive ? 10 : 1,
       }}
     >
-      {/* Card específico por tipo */}
       {kind === "evidence" ? (
         <EvidenceCard node={node} color={color} isActive={isActive} />
       ) : kind === "quote" ? (
@@ -433,61 +403,14 @@ function NodeCard({
       ) : kind === "transition" ? (
         <TransitionCard text={text} color={color} isActive={isActive} />
       ) : (
-        <div
-          style={{
-            background: kind === "hook" || kind === "conclusion"
-              ? `linear-gradient(135deg, ${baseBg}, #16161a)`
-              : baseBg,
-            borderRadius: 24,
-            border: `1px solid ${borderColor}`,
-            boxShadow: glow,
-            padding: "36px 44px",
-            minHeight: height,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            outline: isSelected ? `2px solid ${color}` : "none",
-            outlineOffset: 8,
-          }}
-        >
-          {kind === "hook" && (
-            <div
-              style={{
-                fontSize: 13,
-                letterSpacing: "0.35em",
-                color,
-                marginBottom: 20,
-                fontWeight: 600,
-              }}
-            >
-              ▍ GANCHO
-            </div>
-          )}
-          {kind === "conclusion" && (
-            <div
-              style={{
-                fontSize: 13,
-                letterSpacing: "0.35em",
-                color,
-                marginBottom: 20,
-                fontWeight: 600,
-              }}
-            >
-              ▍ CONCLUSÃO
-            </div>
-          )}
-          <div
-            style={{
-              fontSize,
-              fontWeight: kind === "hook" || kind === "conclusion" ? 700 : 500,
-              lineHeight: 1.12,
-              letterSpacing: "-0.025em",
-              color: "#f5f5f5",
-            }}
-          >
-            {highlightText(text, node.emphasisWords, color)}
-          </div>
-        </div>
+        <MindMapCard
+          kind={kind}
+          text={text}
+          color={color}
+          isActive={isActive}
+          isSelected={isSelected}
+          height={height}
+        />
       )}
 
       {debug && (
@@ -513,6 +436,130 @@ function NodeCard({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function MindMapCard({
+  kind, text, color, isActive, isSelected, height,
+}: {
+  kind: string;
+  text: string;
+  color: string;
+  isActive: boolean;
+  isSelected: boolean;
+  height: number;
+}) {
+  const isRoot = kind === "root";
+  const isMain = kind === "mainIdea";
+  const isSub = kind === "subtopic";
+  const isDetail = kind === "detail";
+  const isLegacyHero = kind === "hook" || kind === "conclusion";
+
+  const fontSize =
+    isRoot ? 34
+    : isMain ? 24
+    : isSub ? 20
+    : isDetail ? 17
+    : isLegacyHero ? 34
+    : 22;
+
+  const bg =
+    isRoot ? "linear-gradient(135deg, #0e0e12, #17171d)"
+    : isMain ? "#0d0d11"
+    : isSub ? "#0b0b0f"
+    : "#08080b";
+
+  const borderColor = isActive
+    ? color
+    : isRoot || isMain
+    ? "rgba(255,255,255,0.22)"
+    : "rgba(255,255,255,0.12)";
+
+  const borderWidth = isRoot ? 2 : isMain ? 1.5 : 1;
+  const glow = isActive
+    ? `0 24px 60px ${color}30, 0 0 0 1px ${color}88, inset 0 0 0 1px ${color}22`
+    : "0 10px 24px rgba(0,0,0,0.55)";
+
+  const label =
+    isRoot ? "TEMA CENTRAL"
+    : isMain ? "IDEIA"
+    : isSub ? "SUBTÓPICO"
+    : isDetail ? "DETALHE"
+    : null;
+
+  return (
+    <div
+      style={{
+        background: bg,
+        borderRadius: isRoot ? 26 : 20,
+        border: `${borderWidth}px solid ${borderColor}`,
+        boxShadow: glow,
+        padding: isRoot ? "28px 32px" : isMain ? "20px 26px" : "16px 22px",
+        minHeight: height,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        outline: isSelected ? `2px solid ${color}` : "none",
+        outlineOffset: 6,
+        position: "relative",
+      }}
+    >
+      {label && (
+        <div
+          style={{
+            fontSize: isRoot ? 11 : 10,
+            letterSpacing: "0.35em",
+            color,
+            marginBottom: isRoot ? 10 : 6,
+            fontWeight: 600,
+            opacity: 0.9,
+          }}
+        >
+          {label}
+        </div>
+      )}
+      <div
+        style={{
+          fontSize,
+          fontWeight: isRoot || isMain || isLegacyHero ? 700 : 500,
+          lineHeight: 1.2,
+          letterSpacing: "-0.015em",
+          color: "#f5f5f5",
+        }}
+      >
+        {text}
+      </div>
+      {/* left connection dot */}
+      {!isRoot && (
+        <div
+          style={{
+            position: "absolute",
+            left: -5,
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: 10,
+            height: 10,
+            borderRadius: 999,
+            background: color,
+            boxShadow: `0 0 10px ${color}aa`,
+          }}
+        />
+      )}
+      {/* right connection dot (has children implied by layout) */}
+      <div
+        style={{
+          position: "absolute",
+          right: -5,
+          top: "50%",
+          transform: "translateY(-50%)",
+          width: 8,
+          height: 8,
+          borderRadius: 999,
+          background: color,
+          opacity: 0.6,
+        }}
+      />
     </div>
   );
 }

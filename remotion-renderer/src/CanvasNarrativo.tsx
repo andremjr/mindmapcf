@@ -13,7 +13,6 @@ import type {
   CanvasNarrativoExport,
   TextNode,
   TranscriptBlock,
-  Chapter,
   NodeKind,
 } from "./types";
 import { cameraAt } from "./cameraEngine";
@@ -26,7 +25,7 @@ function warnOnce(key: string, msg: string) {
   console.warn(`[CanvasNarrativo] ${msg}`);
 }
 
-const GUIDE_X = 380;
+// Legacy guide column; no longer used by tree layout.
 
 function resolvePublic(p?: string | null): string | null {
   if (!p) return null;
@@ -49,7 +48,7 @@ export const CanvasNarrativo: React.FC<CanvasNarrativoExport> = (props) => {
     renderConfig,
     audio,
     assetRegistry = [],
-    chapters = [],
+    
   } = props;
 
   const frame = useCurrentFrame();
@@ -97,7 +96,7 @@ export const CanvasNarrativo: React.FC<CanvasNarrativoExport> = (props) => {
             willChange: "transform",
           }}
         >
-          <GuideLine nodes={textNodes} chapters={chapters} />
+          <Connectors nodes={textNodes} />
           {textNodes.map((n) => (
             <NodeCardR
               key={n.id}
@@ -156,83 +155,63 @@ function activeBlockAt(blocks: TranscriptBlock[], time: number): TranscriptBlock
   return blocks[0];
 }
 
-// ---------- Guide line ----------
+// ---------- Curved connectors (mind map edges) ----------
 
-const GuideLine: React.FC<{ nodes: TextNode[]; chapters: Chapter[] }> = ({ nodes, chapters }) => {
+const Connectors: React.FC<{ nodes: TextNode[] }> = ({ nodes }) => {
   if (!nodes.length) return null;
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const n of nodes) {
+    const w = n.width ?? 320, h = n.height ?? 100;
+    minX = Math.min(minX, n.x - w / 2);
+    minY = Math.min(minY, n.y - h / 2);
+    maxX = Math.max(maxX, n.x + w / 2);
+    maxY = Math.max(maxY, n.y + h / 2);
+  }
+  const pad = 200;
+  const svgLeft = minX - pad;
+  const svgTop = minY - pad;
+  const svgW = maxX - minX + pad * 2;
+  const svgH = maxY - minY + pad * 2;
+
+  const paths: React.ReactNode[] = [];
+  for (const child of nodes) {
+    if (!child.parentId) continue;
+    const parent = byId.get(child.parentId);
+    if (!parent) continue;
+    const pw = parent.width ?? 320;
+    const cw = child.width ?? 320;
+    const sx = parent.x + pw / 2 - svgLeft;
+    const sy = parent.y - svgTop;
+    const tx = child.x - cw / 2 - svgLeft;
+    const ty = child.y - svgTop;
+    const dx = Math.max(60, (tx - sx) * 0.5);
+    const d = `M ${sx} ${sy} C ${sx + dx} ${sy}, ${tx - dx} ${ty}, ${tx} ${ty}`;
+    const color = child.chapterColor ?? "rgba(255,255,255,0.25)";
+    paths.push(
+      <g key={`c_${child.id}`}>
+        <path d={d} stroke={color} strokeOpacity={0.2} strokeWidth={10} fill="none" strokeLinecap="round" />
+        <path d={d} stroke={color} strokeOpacity={0.9} strokeWidth={2.6} fill="none" strokeLinecap="round" />
+        <circle cx={sx} cy={sy} r={4} fill={color} />
+        <circle cx={tx} cy={ty} r={4} fill={color} />
+      </g>,
+    );
+  }
   return (
-    <>
-      {chapters.length > 0 ? (
-        chapters.map((c) => (
-          <React.Fragment key={c.index}>
-            <div
-              style={{
-                position: "absolute",
-                left: GUIDE_X - 1.5,
-                top: c.startY - 40,
-                width: 3,
-                height: Math.max(40, c.endY - c.startY + 80),
-                background: `linear-gradient(180deg, ${c.color}00, ${c.color}, ${c.color}00)`,
-                boxShadow: `0 0 28px ${c.color}66`,
-                borderRadius: 3,
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                left: GUIDE_X - 9,
-                top: c.startY - 12,
-                width: 18,
-                height: 18,
-                borderRadius: 999,
-                background: c.color,
-                boxShadow: `0 0 24px ${c.color}, 0 0 0 6px rgba(0,0,0,0.6)`,
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                left: GUIDE_X + 30,
-                top: c.startY - 22,
-                fontSize: 16,
-                letterSpacing: "0.3em",
-                fontWeight: 700,
-                color: c.color,
-                textShadow: `0 0 14px ${c.color}88`,
-              }}
-            >
-              {`CAP. ${String(c.index + 1).padStart(2, "0")} · ${c.title}`}
-            </div>
-          </React.Fragment>
-        ))
-      ) : (
-        <div
-          style={{
-            position: "absolute",
-            left: GUIDE_X - 1,
-            top: -1000,
-            width: 2,
-            bottom: -1000,
-            background: "rgba(255,255,255,0.15)",
-          }}
-        />
-      )}
-      {nodes.map((n) => (
-        <div
-          key={`dot_${n.id}`}
-          style={{
-            position: "absolute",
-            left: GUIDE_X - 5,
-            top: n.y - 5,
-            width: 10,
-            height: 10,
-            borderRadius: 999,
-            background: n.chapterColor ?? "#888",
-            boxShadow: `0 0 14px ${n.chapterColor ?? "#888"}bb`,
-          }}
-        />
-      ))}
-    </>
+    <svg
+      style={{
+        position: "absolute",
+        left: svgLeft,
+        top: svgTop,
+        width: svgW,
+        height: svgH,
+        pointerEvents: "none",
+        overflow: "visible",
+      }}
+    >
+      {paths}
+    </svg>
   );
 };
 
@@ -411,42 +390,81 @@ const NodeCardR: React.FC<{ node: TextNode; active: boolean }> = ({ node, active
     );
   }
 
-  const isHero = kind === "hook" || kind === "conclusion";
-  const fontSize = kind === "hook" ? 82 : kind === "conclusion" ? 66 : 52;
+  // Mind-map cards: root, mainIdea, subtopic, detail (+ legacy hero fallbacks).
+  const isRoot = kind === "root";
+  const isMain = kind === "mainIdea";
+  const isSub = kind === "subtopic";
+  const isDetail = kind === "detail";
+  const isLegacyHero = kind === "hook" || kind === "conclusion";
+
+  const fontSize =
+    isRoot ? 44
+    : isMain ? 30
+    : isSub ? 24
+    : isDetail ? 20
+    : isLegacyHero ? (kind === "hook" ? 82 : 66)
+    : 26;
+
+  const bg =
+    isRoot ? "linear-gradient(135deg, #0e0e12, #17171d)"
+    : isMain ? "#0d0d11"
+    : isSub ? "#0b0b0f"
+    : "#08080b";
+
+  const border = active
+    ? color
+    : isRoot || isMain
+    ? "rgba(255,255,255,0.22)"
+    : "rgba(255,255,255,0.12)";
+  const borderWidth = isRoot ? 2 : isMain ? 1.6 : 1;
+  const glow = active
+    ? `0 26px 60px ${color}30, 0 0 0 1px ${color}88`
+    : "0 12px 30px rgba(0,0,0,0.6)";
+
+  const label =
+    isRoot ? "TEMA CENTRAL"
+    : isMain ? "IDEIA"
+    : isSub ? "SUBTÓPICO"
+    : isDetail ? "DETALHE"
+    : isLegacyHero ? (kind === "hook" ? "GANCHO" : "CONCLUSÃO")
+    : null;
+
   return (
     <div style={container}>
       <div
         style={{
-          background: isHero ? "linear-gradient(135deg, #111114, #16161a)" : "#111114",
-          borderRadius: 28,
-          border: `1px solid ${active ? color : "rgba(255,255,255,0.08)"}`,
-          boxShadow: active ? `0 26px 80px ${color}30` : "0 12px 30px rgba(0,0,0,0.6)",
-          padding: "44px 52px",
+          background: bg,
+          borderRadius: isRoot ? 28 : 22,
+          border: `${borderWidth}px solid ${border}`,
+          boxShadow: glow,
+          padding: isRoot ? "34px 40px" : isMain ? "26px 32px" : "20px 26px",
           minHeight: height,
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
+          position: "relative",
         }}
       >
-        {isHero && (
+        {label && (
           <div
             style={{
-              fontSize: 14,
+              fontSize: isRoot ? 13 : 11,
               letterSpacing: "0.35em",
               color,
-              marginBottom: 22,
+              marginBottom: isRoot ? 14 : 8,
               fontWeight: 700,
+              opacity: 0.9,
             }}
           >
-            ▍ {kind === "hook" ? "GANCHO" : "CONCLUSÃO"}
+            {label}
           </div>
         )}
         <div
           style={{
             fontSize,
-            fontWeight: isHero ? 700 : 500,
-            lineHeight: 1.12,
-            letterSpacing: "-0.025em",
+            fontWeight: isRoot || isMain || isLegacyHero ? 700 : 500,
+            lineHeight: 1.2,
+            letterSpacing: "-0.02em",
             color: "#f5f5f5",
           }}
         >

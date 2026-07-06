@@ -11,6 +11,10 @@ export type CameraEase =
 export type NodeVariant = "headline" | "body" | "caption" | "accent";
 export type MarkerStyle = "bracket" | "vline" | "arrow" | "dot" | "none";
 export type NodeKind =
+  | "root"
+  | "mainIdea"
+  | "subtopic"
+  | "detail"
   | "hook"
   | "statement"
   | "evidence"
@@ -58,6 +62,9 @@ export interface TextNode {
   cameraTarget?: CameraTarget;
   startTime?: number;
   endTime?: number;
+  parentId?: string;
+  depth?: number;
+  childIds?: string[];
 }
 
 export interface TranscriptBlock {
