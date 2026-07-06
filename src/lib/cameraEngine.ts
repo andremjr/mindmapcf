@@ -37,10 +37,11 @@ export function buildCameraKeyframes(
   const rootNode = nodes.find((n) => n.nodeKind === "root");
   const firstStart = blocks[0]?.start ?? 0;
 
-  const ZOOM_FAR = 0.6;
-  const ZOOM_NEAR = 1.15;
+  const ZOOM_FAR = 0.55;
+  const ZOOM_NEAR = 1.35;
   const LAND = 0.5;           // margem para terminar de focar no nó
   const MAX_MOVE = 1.0;       // duração máxima do movimento entre frases
+
 
   // 1) Abertura no root.
   if (rootNode) {
