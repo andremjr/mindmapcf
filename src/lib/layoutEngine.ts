@@ -306,8 +306,7 @@ function buildTree(blocks: TranscriptBlock[]): TNode {
     const subs: TNode[] = [];
     for (let i = 0; i < subCount; i++) {
       const b = blocks[restIdx[i]];
-      const t = b.shortText || b.text;
-      const st = shortenText(t, "subtopic");
+      const t = nodeTextFromBlock(b);
       const sub: TNode = {
         id: `n_${b.id}`,
         blockId: b.id,
@@ -318,8 +317,8 @@ function buildTree(blocks: TranscriptBlock[]): TNode {
         chapterIndex: cIdx,
         chapterColor: color,
         text: t,
-        shortText: st,
-        ...measureBox("subtopic", st),
+        shortText: t,
+        ...measureBox("subtopic", t),
         x: 0, y: 0,
         children: [],
       };
