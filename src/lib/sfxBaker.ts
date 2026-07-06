@@ -57,19 +57,30 @@ async function renderKind(kind: SynthKind): Promise<AudioBuffer> {
     case "whoosh_soft":
     case "whoosh_deep":
     case "transition_air": {
+      // Sopro cinematográfico: ruído com dupla filtragem (low-pass + peaking)
+      // e envelope suave — sem "chiado" agressivo, sem timbre de arcade.
       const deep = kind === "whoosh_deep";
-      const dur = deep ? 0.9 : 0.45;
+      const dur = deep ? 1.1 : 0.7;
       const noiseBuf = ctx.createBuffer(1, Math.floor(SAMPLE_RATE * dur), SAMPLE_RATE);
       fillNoise(noiseBuf, dur);
       const noise = ctx.createBufferSource();
       noise.buffer = noiseBuf;
-      const filt = ctx.createBiquadFilter();
-      filt.type = "bandpass";
-      filt.Q.value = deep ? 0.7 : 1.2;
-      filt.frequency.setValueAtTime(deep ? 300 : 1200, t0);
-      filt.frequency.exponentialRampToValueAtTime(deep ? 1200 : 400, t0 + dur);
-      noise.connect(filt).connect(g);
-      g.gain.linearRampToValueAtTime(vol * 0.6, t0 + 0.05);
+
+      const lp = ctx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.Q.value = 0.4;
+      lp.frequency.setValueAtTime(deep ? 500 : 900, t0);
+      lp.frequency.exponentialRampToValueAtTime(deep ? 900 : 1600, t0 + dur * 0.55);
+      lp.frequency.exponentialRampToValueAtTime(deep ? 350 : 600, t0 + dur);
+
+      const hp = ctx.createBiquadFilter();
+      hp.type = "highpass";
+      hp.frequency.value = deep ? 90 : 180;
+
+      noise.connect(hp).connect(lp).connect(g);
+      // Envelope tipo "swell" — fade-in longo e fade-out ainda mais longo.
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(vol * (deep ? 0.42 : 0.32), t0 + dur * 0.35);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
       noise.start(t0);
       noise.stop(t0 + dur + 0.05);
@@ -78,71 +89,93 @@ async function renderKind(kind: SynthKind): Promise<AudioBuffer> {
     case "focus_click":
     case "marker_tick":
     case "subtle_hit": {
+      // Tick delicado: sine curto com passa-alta para timbre "wood/UI premium",
+      // sem o triângulo que soava a videogame.
+      const dur = 0.06;
       const osc = ctx.createOscillator();
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(kind === "marker_tick" ? 1800 : 900, t0);
-      osc.frequency.exponentialRampToValueAtTime(120, t0 + 0.08);
-      osc.connect(g);
-      g.gain.linearRampToValueAtTime(vol * 0.7, t0 + 0.005);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09);
+      osc.type = "sine";
+      const f0 = kind === "marker_tick" ? 2400 : 1400;
+      osc.frequency.setValueAtTime(f0, t0);
+      osc.frequency.exponentialRampToValueAtTime(f0 * 0.55, t0 + dur);
+      const hp = ctx.createBiquadFilter();
+      hp.type = "highpass";
+      hp.frequency.value = 800;
+      osc.connect(hp).connect(g);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(vol * 0.35, t0 + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
       osc.start(t0);
-      osc.stop(t0 + 0.1);
+      osc.stop(t0 + dur + 0.02);
       break;
     }
     case "text_pop": {
+      // Pop suave — sine com ligeiro pitch-bend, sem cauda longa.
+      const dur = 0.14;
       const osc = ctx.createOscillator();
       osc.type = "sine";
-      osc.frequency.setValueAtTime(420, t0);
-      osc.frequency.exponentialRampToValueAtTime(720, t0 + 0.05);
-      osc.frequency.exponentialRampToValueAtTime(220, t0 + 0.15);
+      osc.frequency.setValueAtTime(520, t0);
+      osc.frequency.exponentialRampToValueAtTime(340, t0 + dur);
       osc.connect(g);
-      g.gain.linearRampToValueAtTime(vol * 0.6, t0 + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.2);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(vol * 0.32, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
       osc.start(t0);
-      osc.stop(t0 + 0.22);
+      osc.stop(t0 + dur + 0.02);
       break;
     }
     case "zoom_riser": {
-      const dur = 0.7;
-      const osc = ctx.createOscillator();
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(120, t0);
-      osc.frequency.exponentialRampToValueAtTime(1400, t0 + dur);
-      const filt = ctx.createBiquadFilter();
-      filt.type = "lowpass";
-      filt.frequency.setValueAtTime(400, t0);
-      filt.frequency.exponentialRampToValueAtTime(3500, t0 + dur);
-      osc.connect(filt).connect(g);
-      g.gain.linearRampToValueAtTime(vol * 0.5, t0 + 0.1);
+      // Riser aéreo — ruído com low-pass abrindo. Sem sawtooth (que dava
+      // aquele timbre de "buzz" retrô).
+      const dur = 0.8;
+      const noiseBuf = ctx.createBuffer(1, Math.floor(SAMPLE_RATE * dur), SAMPLE_RATE);
+      fillNoise(noiseBuf, dur);
+      const noise = ctx.createBufferSource();
+      noise.buffer = noiseBuf;
+      const lp = ctx.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.Q.value = 0.3;
+      lp.frequency.setValueAtTime(300, t0);
+      lp.frequency.exponentialRampToValueAtTime(3200, t0 + dur);
+      const hp = ctx.createBiquadFilter();
+      hp.type = "highpass";
+      hp.frequency.value = 150;
+      noise.connect(hp).connect(lp).connect(g);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(vol * 0.28, t0 + dur * 0.75);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-      osc.start(t0);
-      osc.stop(t0 + dur + 0.05);
+      noise.start(t0);
+      noise.stop(t0 + dur + 0.05);
       break;
     }
     case "low_impact": {
-      const dur = 0.6;
+      // Sub thump — sine grave com curta transiente filtrada, estilo trailer.
+      const dur = 0.7;
       const osc = ctx.createOscillator();
       osc.type = "sine";
-      osc.frequency.setValueAtTime(120, t0);
-      osc.frequency.exponentialRampToValueAtTime(40, t0 + dur);
-      const noiseBuf = ctx.createBuffer(1, Math.floor(SAMPLE_RATE * 0.15), SAMPLE_RATE);
-      fillNoise(noiseBuf, 0.15);
+      osc.frequency.setValueAtTime(90, t0);
+      osc.frequency.exponentialRampToValueAtTime(38, t0 + dur);
+      const noiseBuf = ctx.createBuffer(1, Math.floor(SAMPLE_RATE * 0.08), SAMPLE_RATE);
+      fillNoise(noiseBuf, 0.08);
       const noise = ctx.createBufferSource();
       noise.buffer = noiseBuf;
       const nFilt = ctx.createBiquadFilter();
       nFilt.type = "lowpass";
-      nFilt.frequency.value = 600;
-      noise.connect(nFilt).connect(g);
+      nFilt.frequency.value = 350;
+      const nGain = ctx.createGain();
+      nGain.gain.value = 0.35;
+      noise.connect(nFilt).connect(nGain).connect(g);
       osc.connect(g);
-      g.gain.linearRampToValueAtTime(vol * 0.9, t0 + 0.01);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(vol * 0.55, t0 + 0.02);
       g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
       osc.start(t0);
       noise.start(t0);
       osc.stop(t0 + dur + 0.05);
-      noise.stop(t0 + 0.2);
+      noise.stop(t0 + 0.12);
       break;
     }
   }
+
 
   return await ctx.startRendering();
 }

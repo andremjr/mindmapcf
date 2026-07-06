@@ -86,10 +86,11 @@ export function ensureRenderConfig(p: Project): RenderConfig {
     depthIntensity: base?.depthIntensity ?? p.visualPreset.depthIntensity,
     audioMixing: base?.audioMixing ?? {
       speechGain: 1,
-      sfxGain: 0.85,
-      ambientGain: 0.3,
+      sfxGain: 0.2,
+      ambientGain: 0.2,
       duckOnSpeech: p.soundPreset.duckOnSpeech,
     },
+
     exportTarget: base?.exportTarget ?? "remotion",
     format: base?.format ?? "mp4",
     quality: base?.quality ?? "standard",
