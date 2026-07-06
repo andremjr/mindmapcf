@@ -78,7 +78,7 @@ export function buildCameraKeyframes(
     if (!node) return;
 
     const emphasis = b.emphasis ?? 0.5;
-    const near = Math.min(1.3, ZOOM_NEAR + emphasis * 0.05 * movementIntensity);
+    const near = Math.min(1.55, ZOOM_NEAR + emphasis * 0.08 * movementIntensity);
 
     const focusInTime = b.start + LAND;
 
