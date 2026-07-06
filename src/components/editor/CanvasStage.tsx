@@ -440,6 +440,130 @@ function NodeCard({
   );
 }
 
+function MindMapCard({
+  kind, text, color, isActive, isSelected, height,
+}: {
+  kind: string;
+  text: string;
+  color: string;
+  isActive: boolean;
+  isSelected: boolean;
+  height: number;
+}) {
+  const isRoot = kind === "root";
+  const isMain = kind === "mainIdea";
+  const isSub = kind === "subtopic";
+  const isDetail = kind === "detail";
+  const isLegacyHero = kind === "hook" || kind === "conclusion";
+
+  const fontSize =
+    isRoot ? 34
+    : isMain ? 24
+    : isSub ? 20
+    : isDetail ? 17
+    : isLegacyHero ? 34
+    : 22;
+
+  const bg =
+    isRoot ? "linear-gradient(135deg, #0e0e12, #17171d)"
+    : isMain ? "#0d0d11"
+    : isSub ? "#0b0b0f"
+    : "#08080b";
+
+  const borderColor = isActive
+    ? color
+    : isRoot || isMain
+    ? "rgba(255,255,255,0.22)"
+    : "rgba(255,255,255,0.12)";
+
+  const borderWidth = isRoot ? 2 : isMain ? 1.5 : 1;
+  const glow = isActive
+    ? `0 24px 60px ${color}30, 0 0 0 1px ${color}88, inset 0 0 0 1px ${color}22`
+    : "0 10px 24px rgba(0,0,0,0.55)";
+
+  const label =
+    isRoot ? "TEMA CENTRAL"
+    : isMain ? "IDEIA"
+    : isSub ? "SUBTÓPICO"
+    : isDetail ? "DETALHE"
+    : null;
+
+  return (
+    <div
+      style={{
+        background: bg,
+        borderRadius: isRoot ? 26 : 20,
+        border: `${borderWidth}px solid ${borderColor}`,
+        boxShadow: glow,
+        padding: isRoot ? "28px 32px" : isMain ? "20px 26px" : "16px 22px",
+        minHeight: height,
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        outline: isSelected ? `2px solid ${color}` : "none",
+        outlineOffset: 6,
+        position: "relative",
+      }}
+    >
+      {label && (
+        <div
+          style={{
+            fontSize: isRoot ? 11 : 10,
+            letterSpacing: "0.35em",
+            color,
+            marginBottom: isRoot ? 10 : 6,
+            fontWeight: 600,
+            opacity: 0.9,
+          }}
+        >
+          {label}
+        </div>
+      )}
+      <div
+        style={{
+          fontSize,
+          fontWeight: isRoot || isMain || isLegacyHero ? 700 : 500,
+          lineHeight: 1.2,
+          letterSpacing: "-0.015em",
+          color: "#f5f5f5",
+        }}
+      >
+        {text}
+      </div>
+      {/* left connection dot */}
+      {!isRoot && (
+        <div
+          style={{
+            position: "absolute",
+            left: -5,
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: 10,
+            height: 10,
+            borderRadius: 999,
+            background: color,
+            boxShadow: `0 0 10px ${color}aa`,
+          }}
+        />
+      )}
+      {/* right connection dot (has children implied by layout) */}
+      <div
+        style={{
+          position: "absolute",
+          right: -5,
+          top: "50%",
+          transform: "translateY(-50%)",
+          width: 8,
+          height: 8,
+          borderRadius: 999,
+          background: color,
+          opacity: 0.6,
+        }}
+      />
+    </div>
+  );
+}
+
 function EvidenceCard({ node, color, isActive }: { node: TextNode; color: string; isActive: boolean }) {
   const text = node.shortText || node.text;
   return (
