@@ -24,17 +24,29 @@ export const CANVAS = {
   guideX: 380,
   /** X central onde os cards são posicionados (centro do card). */
   contentCx: 1360,
-  /** Deslocamento lateral alternado para dar dinamismo. */
-  alternateOffset: 120,
-  /** Y inicial do primeiro nó. */
+  /** Y inicial do primeiro nó (topo do primeiro card). */
   startY: 340,
-  /** Espaçamento vertical mínimo entre nós (após colisão). */
-  minGap: 220,
-  /** Espaçamento vertical entre capítulos. */
-  chapterGap: 820,
   /** Padding safe area (horizontal). */
   safePadX: 160,
+
+  // ----- Regras de espaçamento vertical (spec do usuário) -----
+  /** Espaçamento vertical mínimo padrão. */
+  gapMin: 220,
+  /** Espaçamento vertical quando muda de capítulo. */
+  gapChapter: 700,
+  /** Espaçamento adicional para nós de evidência. */
+  gapEvidence: 360,
+  /** Espaçamento adicional para nós de gancho (hook). */
+  gapHook: 420,
+  /** Incremento usado ao resolver colisões (empurra para baixo). */
+  collisionStep: 120,
+  /** Padding usado no teste de colisão (safe area em torno do card). */
+  collisionPad: 40,
 } as const;
+
+/** Offsets laterais alternados (dão respiro e leve fluxo visual). */
+const X_ALTERNATION = [0, -70, +90, -40, +60, -20];
+
 
 /** Paleta de cores por capítulo (documentário investigativo moderno). */
 const CHAPTER_PALETTE = [
@@ -96,24 +108,69 @@ function pickNodeKind(
   return "statement";
 }
 
-/** Dimensões base do card por tipo. */
-function cardDimensions(kind: NodeKind, text: string): { width: number; height: number } {
+/**
+ * ETAPA 1 — Medição do nó.
+ *
+ * Estima largura/altura com base em: nº de caracteres, nº de palavras, tipo,
+ * tamanho da fonte, padding e largura máxima. Determinístico.
+ */
+export function measureNode(
+  kind: NodeKind,
+  text: string,
+): { width: number; height: number; fontSize: number; padding: number; lines: number } {
+  // Largura por tipo (max width). Cards grandes e legíveis.
   const widths: Record<NodeKind, number> = {
-    hook: 1100,
-    statement: 900,
-    evidence: 980,
-    quote: 820,
-    transition: 760,
-    conclusion: 1040,
+    hook: 1180,
+    statement: 980,
+    evidence: 1060,
+    quote: 900,
+    transition: 820,
+    conclusion: 1120,
   };
+  // Font-size do corpo por tipo.
+  const fontSizes: Record<NodeKind, number> = {
+    hook: 54,
+    statement: 40,
+    evidence: 38,
+    quote: 44,
+    transition: 32,
+    conclusion: 50,
+  };
+  // Padding interno vertical (soma topo+base).
+  const paddings: Record<NodeKind, number> = {
+    hook: 180,
+    statement: 140,
+    evidence: 240, // header de "documento" ocupa mais
+    quote: 200,   // aspas grandes
+    transition: 130,
+    conclusion: 180,
+  };
+
   const width = widths[kind];
-  // Estimativa de altura por caracteres/linha.
-  const charsPerLine = Math.max(20, Math.floor(width / 22));
-  const lines = Math.max(1, Math.ceil(text.length / charsPerLine));
-  const lineH = kind === "hook" ? 88 : kind === "conclusion" ? 74 : kind === "quote" ? 68 : 58;
-  const paddingY = kind === "evidence" ? 220 : kind === "hook" || kind === "conclusion" ? 150 : 110;
-  const height = lines * lineH + paddingY;
-  return { width, height: Math.max(160, height) };
+  const fontSize = fontSizes[kind];
+  const padding = paddings[kind];
+
+  const clean = (text ?? "").trim();
+  const charCount = clean.length;
+  const wordCount = clean.split(/\s+/).filter(Boolean).length;
+
+  // Largura útil interna (descontando padding horizontal ~ 96 px total).
+  const innerWidth = width - 96;
+  // Caracteres por linha proporcional à fonte (regra empírica ~ 0.55 * fontSize/char).
+  const avgCharW = fontSize * 0.55;
+  const charsPerLine = Math.max(12, Math.floor(innerWidth / avgCharW));
+
+  // Estimativa por caracteres...
+  const linesByChars = Math.ceil(charCount / charsPerLine);
+  // ...e por palavras (evita subestimar quando há muitas palavras curtas).
+  const wordsPerLine = Math.max(3, Math.floor(charsPerLine / 5.2));
+  const linesByWords = Math.ceil(wordCount / wordsPerLine);
+  const lines = Math.max(1, linesByChars, linesByWords);
+
+  const lineHeight = Math.round(fontSize * 1.32);
+  const height = Math.max(180, lines * lineHeight + padding);
+
+  return { width, height, fontSize, padding, lines };
 }
 
 /** Zoom-alvo da câmera por tipo. */
@@ -127,6 +184,15 @@ function zoomFor(kind: NodeKind): number {
     case "conclusion": return 0.9;
   }
 }
+
+/** Gap vertical acima do nó atual, conforme spec. */
+function gapAbove(kind: NodeKind, isChapterStart: boolean): number {
+  if (isChapterStart) return CANVAS.gapChapter;
+  if (kind === "hook") return CANVAS.gapHook;
+  if (kind === "evidence") return CANVAS.gapEvidence;
+  return CANVAS.gapMin;
+}
+
 
 /** Detecta palavras a destacar dentro de um texto. Máx 3. */
 function extractEmphasisWords(text: string, blockKeywords: string[] = []): string[] {
@@ -242,144 +308,285 @@ interface LayoutOptions {
 
 const MARKER_ROTATION: MarkerStyle[] = ["vline", "dot", "bracket", "dot"];
 
+export interface NodeDebugInfo {
+  id: string;
+  blockId: string;
+  kind: NodeKind;
+  chapterIndex: number;
+  isChapterStart: boolean;
+  gapApplied: number;
+  targetY: number;
+  finalY: number;
+  x: number;
+  width: number;
+  height: number;
+  chars: number;
+  words: number;
+  lines: number;
+  collisionsDetected: number;
+  collisionsResolved: number;
+}
+
+export interface LayoutDebug {
+  totalNodes: number;
+  totalCollisionsDetected: number;
+  totalCollisionsResolved: number;
+  chaptersCount: number;
+  canvasHeight: number;
+  nodes: NodeDebugInfo[];
+}
+
 export interface LayoutResult {
   nodes: TextNode[];
   chapters: Chapter[];
+  debug: LayoutDebug;
 }
 
-/** Retorna nós + capítulos + valida contra sobreposições. */
+/**
+ * Layout determinístico em duas etapas.
+ *
+ * ETAPA 1 — mede todos os nós (largura/altura estimadas por chars, palavras,
+ * tipo, fonte, padding e maxWidth).
+ * ETAPA 2 — posiciona sequencialmente com a fórmula
+ *   nextY = prev.y + prev.height + gap
+ * onde `gap` respeita: mudança de capítulo (700), hook (420), evidence (360)
+ * ou mínimo (220). Depois roda resolução de colisão empurrando em passos de
+ * 120 px até não haver sobreposição.
+ */
 export function autoLayoutFull(
   blocks: TranscriptBlock[],
   _opts: LayoutOptions = {},
 ): LayoutResult {
-  if (blocks.length === 0) return { nodes: [], chapters: [] };
+  if (blocks.length === 0) {
+    return {
+      nodes: [],
+      chapters: [],
+      debug: {
+        totalNodes: 0, totalCollisionsDetected: 0, totalCollisionsResolved: 0,
+        chaptersCount: 0, canvasHeight: 0, nodes: [],
+      },
+    };
+  }
 
   const chapterGroups = detectChapters(blocks);
-  const chapters: Chapter[] = [];
-  const nodes: TextNode[] = [];
 
-  let currentY = CANVAS.startY;
-  let previousBoxes: Box[] = [];
-
+  // Mapa blockIdx -> chapterIndex, para saber se é início de capítulo.
+  const chapterOf = new Map<number, number>();
+  const chapterFirstBlock = new Map<number, number>();
   chapterGroups.forEach((group, cIdx) => {
-    const color = CHAPTER_PALETTE[cIdx % CHAPTER_PALETTE.length];
-    const chapterStartY = currentY;
-    const chapterBlocks = group.map((i) => blocks[i]);
-    const chapter: Chapter = {
-      index: cIdx,
-      title: CHAPTER_TITLES[cIdx] ?? `CAPÍTULO ${cIdx + 1}`,
-      color,
-      startTime: chapterBlocks[0].start,
-      endTime: chapterBlocks[chapterBlocks.length - 1].end,
-      startY: chapterStartY,
-      endY: chapterStartY, // preenchido depois
-      blockIds: chapterBlocks.map((b) => b.id),
-    };
-
-    group.forEach((blockIdx, iInChapter) => {
-      const block = blocks[blockIdx];
-      const kind = pickNodeKind(block, blockIdx, blocks.length);
-      const { width, height } = cardDimensions(kind, block.shortText || block.text);
-
-      // Alternância lateral suave — cria dinamismo sem quebrar a leitura.
-      const parity = blockIdx % 4;
-      const offset =
-        parity === 0 ? 0
-        : parity === 1 ? -CANVAS.alternateOffset * 0.4
-        : parity === 2 ? CANVAS.alternateOffset * 0.6
-        : -CANVAS.alternateOffset * 0.2;
-      const cx = CANVAS.contentCx + offset;
-
-      // Y inicial candidato — mais respiro para hook/evidence/conclusion.
-      const kindGap =
-        kind === "hook" ? 260
-        : kind === "conclusion" ? 260
-        : kind === "evidence" ? 220
-        : kind === "transition" ? 200
-        : kind === "quote" ? 180
-        : 160;
-      currentY += kindGap;
-
-      let candidate: Box = {
-        x: cx - width / 2,
-        y: currentY - height / 2,
-        w: width,
-        h: height,
-      };
-
-      // Resolve colisão: empurra para baixo até caber.
-      let guard = 0;
-      while (previousBoxes.some((p) => overlaps(p, candidate)) && guard < 200) {
-        candidate = { ...candidate, y: candidate.y + 40 };
-        guard++;
-      }
-
-      // Trava dentro do canvas horizontal.
-      const halfW = width / 2;
-      const minCx = CANVAS.guideX + 140 + halfW;
-      const maxCx = CANVAS.width - CANVAS.safePadX - halfW;
-      const finalCx = Math.min(Math.max(cx, minCx), maxCx);
-      candidate.x = finalCx - width / 2;
-
-      const finalY = candidate.y + height / 2;
-      previousBoxes.push(candidate);
-      currentY = candidate.y + height; // próximo começa abaixo do card atual
-
-      // Variante tipográfica derivada.
-      const variant: TextNode["variant"] =
-        kind === "hook" ? "headline"
-        : kind === "conclusion" ? "headline"
-        : kind === "evidence" ? "body"
-        : kind === "transition" ? "caption"
-        : kind === "quote" ? "accent"
-        : "body";
-
-      const cameraZoom = zoomFor(kind);
-      const node: TextNode = {
-        id: `n_${block.id}`,
-        blockId: block.id,
-        text: block.text,
-        shortText: block.shortText,
-        type: block.type,
-        x: finalCx,
-        y: finalY,
-        z: 0,
-        scale: 1,
-        opacity: 1,
-        blur: 0,
-        rotation: 0,
-        markerStyle: MARKER_ROTATION[blockIdx % MARKER_ROTATION.length],
-        fontWeight: kind === "hook" || kind === "conclusion" ? 700 : 500,
-        variant,
-        width,
-        height,
-        nodeKind: kind,
-        emphasisWords: extractEmphasisWords(block.text, block.keywords),
-        chapterIndex: cIdx,
-        chapterColor: color,
-        accentColor: color,
-        startTime: block.start,
-        endTime: block.end,
-        cameraTarget: {
-          x: finalCx,
-          y: finalY,
-          zoom: cameraZoom,
-        },
-      };
-      nodes.push(node);
-      void iInChapter;
+    group.forEach((bIdx, i) => {
+      chapterOf.set(bIdx, cIdx);
+      if (i === 0) chapterFirstBlock.set(cIdx, bIdx);
     });
-
-    // Fecha capítulo, adiciona espaçamento para o próximo.
-    chapter.endY = currentY;
-    chapters.push(chapter);
-    currentY += CANVAS.chapterGap;
   });
 
-  // Validação final: se algo colidir (não deveria), empurra iterativamente.
+  // ---------- ETAPA 1 · Medição ----------
+  type Measured = {
+    block: TranscriptBlock;
+    blockIdx: number;
+    kind: NodeKind;
+    width: number;
+    height: number;
+    chars: number;
+    words: number;
+    lines: number;
+    chapterIndex: number;
+    isChapterStart: boolean;
+  };
+  const measured: Measured[] = blocks.map((block, idx) => {
+    const kind = pickNodeKind(block, idx, blocks.length);
+    const text = block.shortText || block.text || "";
+    const m = measureNode(kind, text);
+    return {
+      block,
+      blockIdx: idx,
+      kind,
+      width: m.width,
+      height: m.height,
+      chars: text.length,
+      words: text.split(/\s+/).filter(Boolean).length,
+      lines: m.lines,
+      chapterIndex: chapterOf.get(idx) ?? 0,
+      isChapterStart: chapterFirstBlock.get(chapterOf.get(idx) ?? 0) === idx,
+    };
+  });
+
+  // ---------- ETAPA 2 · Posicionamento sequencial ----------
+  const nodes: TextNode[] = [];
+  const boxes: Box[] = []; // em coords TOP-LEFT
+  const debugNodes: NodeDebugInfo[] = [];
+  let totalCollisionsDetected = 0;
+  let totalCollisionsResolved = 0;
+
+  // "cursor" mantém a posição do TOPO do próximo card.
+  // Para o primeiro: topo = CANVAS.startY (nada acima).
+  let prevBottom = CANVAS.startY; // "bottom" virtual do nó anterior
+  let firstPlaced = false;
+
+  for (const m of measured) {
+    const gap = firstPlaced ? gapAbove(m.kind, m.isChapterStart) : 0;
+    const targetTop = firstPlaced ? prevBottom + gap : CANVAS.startY;
+
+    // Alternância lateral leve — fluxo, sem quebrar leitura.
+    const offset = X_ALTERNATION[m.blockIdx % X_ALTERNATION.length];
+    let cx = CANVAS.contentCx + offset;
+    const halfW = m.width / 2;
+    const minCx = CANVAS.guideX + 140 + halfW;
+    const maxCx = CANVAS.width - CANVAS.safePadX - halfW;
+    cx = Math.min(Math.max(cx, minCx), maxCx);
+
+    let top = targetTop;
+    let candidate: Box = { x: cx - halfW, y: top, w: m.width, h: m.height };
+
+    // Resolução de colisão — empurra em passos de 120 px.
+    let localDetected = 0;
+    let localResolved = 0;
+    let guard = 0;
+    while (
+      boxes.some((p) => overlaps(p, candidate, CANVAS.collisionPad)) &&
+      guard < 300
+    ) {
+      localDetected++;
+      top += CANVAS.collisionStep;
+      candidate = { ...candidate, y: top };
+      guard++;
+      // Se a próxima iteração já não colide, contamos como resolvido.
+      if (!boxes.some((p) => overlaps(p, candidate, CANVAS.collisionPad))) {
+        localResolved++;
+      }
+    }
+    totalCollisionsDetected += localDetected;
+    totalCollisionsResolved += localResolved;
+
+    boxes.push(candidate);
+    const finalCy = top + m.height / 2;
+    prevBottom = top + m.height;
+    firstPlaced = true;
+
+    const variant: TextNode["variant"] =
+      m.kind === "hook" ? "headline"
+      : m.kind === "conclusion" ? "headline"
+      : m.kind === "evidence" ? "body"
+      : m.kind === "transition" ? "caption"
+      : m.kind === "quote" ? "accent"
+      : "body";
+
+    const color = CHAPTER_PALETTE[m.chapterIndex % CHAPTER_PALETTE.length];
+    const node: TextNode = {
+      id: `n_${m.block.id}`,
+      blockId: m.block.id,
+      text: m.block.text,
+      shortText: m.block.shortText,
+      type: m.block.type,
+      x: cx,
+      y: finalCy,
+      z: 0,
+      scale: 1,
+      opacity: 1,
+      blur: 0,
+      rotation: 0,
+      markerStyle: MARKER_ROTATION[m.blockIdx % MARKER_ROTATION.length],
+      fontWeight: m.kind === "hook" || m.kind === "conclusion" ? 700 : 500,
+      variant,
+      width: m.width,
+      height: m.height,
+      nodeKind: m.kind,
+      emphasisWords: extractEmphasisWords(m.block.text, m.block.keywords),
+      chapterIndex: m.chapterIndex,
+      chapterColor: color,
+      accentColor: color,
+      startTime: m.block.start,
+      endTime: m.block.end,
+      cameraTarget: { x: cx, y: finalCy, zoom: zoomFor(m.kind) },
+    };
+    nodes.push(node);
+    debugNodes.push({
+      id: node.id,
+      blockId: m.block.id,
+      kind: m.kind,
+      chapterIndex: m.chapterIndex,
+      isChapterStart: m.isChapterStart,
+      gapApplied: gap,
+      targetY: targetTop,
+      finalY: top,
+      x: cx,
+      width: m.width,
+      height: m.height,
+      chars: m.chars,
+      words: m.words,
+      lines: m.lines,
+      collisionsDetected: localDetected,
+      collisionsResolved: localResolved,
+    });
+  }
+
+  // Capítulos derivados dos nós já posicionados.
+  const chapters: Chapter[] = chapterGroups.map((group, cIdx) => {
+    const chapterNodes = nodes.filter((n) => n.chapterIndex === cIdx);
+    const firstBlock = blocks[group[0]];
+    const lastBlock = blocks[group[group.length - 1]];
+    const startY = chapterNodes.length
+      ? Math.min(...chapterNodes.map((n) => n.y - (n.height ?? 0) / 2))
+      : 0;
+    const endY = chapterNodes.length
+      ? Math.max(...chapterNodes.map((n) => n.y + (n.height ?? 0) / 2))
+      : 0;
+    return {
+      index: cIdx,
+      title: CHAPTER_TITLES[cIdx] ?? `CAPÍTULO ${cIdx + 1}`,
+      color: CHAPTER_PALETTE[cIdx % CHAPTER_PALETTE.length],
+      startTime: firstBlock.start,
+      endTime: lastBlock.end,
+      startY,
+      endY,
+      blockIds: group.map((i) => blocks[i].id),
+    };
+  });
+
+  // Validação final: garante zero colisões (empurra o que sobrar).
   const validated = enforceNoOverlap(nodes);
-  return { nodes: validated, chapters };
+
+  // Debug + log.
+  const canvasHeight = validated.reduce(
+    (max, n) => Math.max(max, n.y + (n.height ?? 0) / 2),
+    0,
+  );
+  const debug: LayoutDebug = {
+    totalNodes: validated.length,
+    totalCollisionsDetected,
+    totalCollisionsResolved,
+    chaptersCount: chapters.length,
+    canvasHeight,
+    nodes: debugNodes,
+  };
+  if (typeof console !== "undefined") {
+    // Painel de debug via console — visível no dev tools.
+    // eslint-disable-next-line no-console
+    console.groupCollapsed(
+      `[layout] ${validated.length} nós · ${chapters.length} caps · colisões: ${totalCollisionsDetected} detectadas / ${totalCollisionsResolved} resolvidas`,
+    );
+    // eslint-disable-next-line no-console
+    console.table(
+      debugNodes.map((d) => ({
+        id: d.id,
+        kind: d.kind,
+        cap: d.chapterIndex,
+        x: Math.round(d.x),
+        y: Math.round(d.finalY),
+        w: d.width,
+        h: d.height,
+        lines: d.lines,
+        gap: d.gapApplied,
+        col: `${d.collisionsDetected}/${d.collisionsResolved}`,
+      })),
+    );
+    // eslint-disable-next-line no-console
+    console.groupEnd();
+  }
+
+  return { nodes: validated, chapters, debug };
 }
+
 
 /** Backwards-compat: mesma assinatura antiga. */
 export function autoLayout(
@@ -389,24 +596,33 @@ export function autoLayout(
   return autoLayoutFull(blocks, opts).nodes;
 }
 
-/** Força não-sobreposição empurrando nós posteriores para baixo. */
+/**
+ * Força não-sobreposição empurrando nós posteriores em passos de 120 px.
+ * Loop até que nenhum par colida.
+ */
 function enforceNoOverlap(nodes: TextNode[]): TextNode[] {
   const out = nodes.map((n) => ({ ...n }));
-  for (let i = 0; i < out.length; i++) {
-    for (let j = 0; j < i; j++) {
-      const a = bbox(out[j]);
-      const b = bbox(out[i]);
-      if (overlaps(a, b)) {
-        const push = (a.y + a.h + 60) - b.y;
-        if (push > 0) {
-          out[i].y += push;
-          if (out[i].cameraTarget) out[i].cameraTarget = { ...out[i].cameraTarget!, y: out[i].y };
+  const step = CANVAS.collisionStep;
+  let iterations = 0;
+  let changed = true;
+  while (changed && iterations < 500) {
+    changed = false;
+    iterations++;
+    for (let i = 0; i < out.length; i++) {
+      for (let j = 0; j < i; j++) {
+        if (overlaps(bbox(out[j]), bbox(out[i]), CANVAS.collisionPad)) {
+          out[i].y += step;
+          if (out[i].cameraTarget) {
+            out[i].cameraTarget = { ...out[i].cameraTarget!, y: out[i].y };
+          }
+          changed = true;
         }
       }
     }
   }
   return out;
 }
+
 
 /** Bounding box (para "ver mapa completo" e câmera). */
 export function nodesBounds(nodes: TextNode[]) {

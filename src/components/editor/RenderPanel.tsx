@@ -70,12 +70,14 @@ export function RenderPanel({ project }: { project: Project }) {
             <Download className="size-3.5" /> Baixar JSON
           </button>
           <button
+            disabled={!ok}
             onClick={() => downloadRendererZip(project)}
-            className="flex items-center gap-2 px-3 py-2 rounded bg-primary text-primary-foreground text-xs hover:bg-primary/90"
-            title="Baixa o projeto Remotion completo (.zip) com seu project.json embutido"
+            className="flex items-center gap-2 px-3 py-2 rounded bg-primary text-primary-foreground text-xs hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
+            title={ok ? "Baixa o projeto Remotion completo (.zip) com seu project.json embutido" : "Corrija os erros de validação (ex.: sobreposição no canvas) antes de baixar"}
           >
             <Package className="size-3.5" /> Baixar Renderizador (.zip)
           </button>
+
         </div>
       </header>
 

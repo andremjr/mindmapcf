@@ -32,6 +32,8 @@ import type {
   Chapter,
 } from "./types";
 import { SFX_ASSETS, getAssetById } from "./sfxAssets";
+import { validateCanvasLayout } from "./layoutEngine";
+
 
 export interface RenderExport {
   schemaVersion: 1;
@@ -157,8 +159,20 @@ export function validateExport(x: RenderExport): ValidationIssue[] {
   }
   if (x.renderConfig.fps < 12 || x.renderConfig.fps > 120)
     issues.push({ level: "warning", message: `FPS fora do intervalo recomendado (12–120).` });
+
+  // Bloqueia render se houver sobreposição no canvas.
+  const layoutCheck = validateCanvasLayout(x.textNodes, x.chapters ?? []);
+  if (layoutCheck.overlaps.length > 0) {
+    const sample = layoutCheck.overlaps.slice(0, 3)
+      .map((o) => `${o.a}↔${o.b}`).join(", ");
+    issues.push({
+      level: "error",
+      message: `Layout com ${layoutCheck.overlaps.length} sobreposição(ões) — rode "Gerar layout" novamente. Ex.: ${sample}`,
+    });
+  }
   return issues;
 }
+
 
 export function downloadJson(filename: string, data: unknown) {
   if (typeof window === "undefined") return;
