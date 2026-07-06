@@ -62,6 +62,9 @@ export interface TextNode {
   cameraTarget?: CameraTarget;
   startTime?: number;
   endTime?: number;
+  parentId?: string;
+  depth?: number;
+  childIds?: string[];
 }
 
 export interface TranscriptBlock {
