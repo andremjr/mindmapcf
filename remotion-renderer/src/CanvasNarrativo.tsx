@@ -26,7 +26,7 @@ function warnOnce(key: string, msg: string) {
   console.warn(`[CanvasNarrativo] ${msg}`);
 }
 
-const GUIDE_X = 380;
+// Legacy guide column; no longer used by tree layout.
 
 function resolvePublic(p?: string | null): string | null {
   if (!p) return null;
