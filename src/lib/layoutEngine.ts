@@ -108,24 +108,69 @@ function pickNodeKind(
   return "statement";
 }
 
-/** Dimensões base do card por tipo. */
-function cardDimensions(kind: NodeKind, text: string): { width: number; height: number } {
+/**
+ * ETAPA 1 — Medição do nó.
+ *
+ * Estima largura/altura com base em: nº de caracteres, nº de palavras, tipo,
+ * tamanho da fonte, padding e largura máxima. Determinístico.
+ */
+export function measureNode(
+  kind: NodeKind,
+  text: string,
+): { width: number; height: number; fontSize: number; padding: number; lines: number } {
+  // Largura por tipo (max width). Cards grandes e legíveis.
   const widths: Record<NodeKind, number> = {
-    hook: 1100,
-    statement: 900,
-    evidence: 980,
-    quote: 820,
-    transition: 760,
-    conclusion: 1040,
+    hook: 1180,
+    statement: 980,
+    evidence: 1060,
+    quote: 900,
+    transition: 820,
+    conclusion: 1120,
   };
+  // Font-size do corpo por tipo.
+  const fontSizes: Record<NodeKind, number> = {
+    hook: 54,
+    statement: 40,
+    evidence: 38,
+    quote: 44,
+    transition: 32,
+    conclusion: 50,
+  };
+  // Padding interno vertical (soma topo+base).
+  const paddings: Record<NodeKind, number> = {
+    hook: 180,
+    statement: 140,
+    evidence: 240, // header de "documento" ocupa mais
+    quote: 200,   // aspas grandes
+    transition: 130,
+    conclusion: 180,
+  };
+
   const width = widths[kind];
-  // Estimativa de altura por caracteres/linha.
-  const charsPerLine = Math.max(20, Math.floor(width / 22));
-  const lines = Math.max(1, Math.ceil(text.length / charsPerLine));
-  const lineH = kind === "hook" ? 88 : kind === "conclusion" ? 74 : kind === "quote" ? 68 : 58;
-  const paddingY = kind === "evidence" ? 220 : kind === "hook" || kind === "conclusion" ? 150 : 110;
-  const height = lines * lineH + paddingY;
-  return { width, height: Math.max(160, height) };
+  const fontSize = fontSizes[kind];
+  const padding = paddings[kind];
+
+  const clean = (text ?? "").trim();
+  const charCount = clean.length;
+  const wordCount = clean.split(/\s+/).filter(Boolean).length;
+
+  // Largura útil interna (descontando padding horizontal ~ 96 px total).
+  const innerWidth = width - 96;
+  // Caracteres por linha proporcional à fonte (regra empírica ~ 0.55 * fontSize/char).
+  const avgCharW = fontSize * 0.55;
+  const charsPerLine = Math.max(12, Math.floor(innerWidth / avgCharW));
+
+  // Estimativa por caracteres...
+  const linesByChars = Math.ceil(charCount / charsPerLine);
+  // ...e por palavras (evita subestimar quando há muitas palavras curtas).
+  const wordsPerLine = Math.max(3, Math.floor(charsPerLine / 5.2));
+  const linesByWords = Math.ceil(wordCount / wordsPerLine);
+  const lines = Math.max(1, linesByChars, linesByWords);
+
+  const lineHeight = Math.round(fontSize * 1.32);
+  const height = Math.max(180, lines * lineHeight + padding);
+
+  return { width, height, fontSize, padding, lines };
 }
 
 /** Zoom-alvo da câmera por tipo. */
@@ -139,6 +184,15 @@ function zoomFor(kind: NodeKind): number {
     case "conclusion": return 0.9;
   }
 }
+
+/** Gap vertical acima do nó atual, conforme spec. */
+function gapAbove(kind: NodeKind, isChapterStart: boolean): number {
+  if (isChapterStart) return CANVAS.gapChapter;
+  if (kind === "hook") return CANVAS.gapHook;
+  if (kind === "evidence") return CANVAS.gapEvidence;
+  return CANVAS.gapMin;
+}
+
 
 /** Detecta palavras a destacar dentro de um texto. Máx 3. */
 function extractEmphasisWords(text: string, blockKeywords: string[] = []): string[] {
