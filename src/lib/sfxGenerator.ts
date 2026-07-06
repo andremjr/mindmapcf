@@ -69,7 +69,7 @@ export function generateSfx({
           {
             time: Math.max(0, k.time - 0.15),
             kind: big ? "whoosh_deep" : "whoosh_soft",
-            volume: 0.5 + preset.intensity * 0.3,
+            volume: 0.18 + preset.intensity * 0.08,
             nodeId: k.targetNodeId,
             trigger: "camera_move" as SfxTrigger,
           },
@@ -83,7 +83,7 @@ export function generateSfx({
           {
             time: k.time + Math.max(0.1, k.duration * 0.6),
             kind: "focus_click",
-            volume: 0.4 + preset.intensity * 0.2,
+            volume: 0.12 + preset.intensity * 0.05,
             nodeId: k.targetNodeId,
             trigger: "node_focus",
           },
@@ -97,7 +97,7 @@ export function generateSfx({
           {
             time: Math.max(0, k.time - 0.1),
             kind: "zoom_riser",
-            volume: 0.45 + preset.intensity * 0.3,
+            volume: 0.14 + preset.intensity * 0.08,
             nodeId: k.targetNodeId,
             trigger: "zoom_in",
           },
@@ -120,7 +120,7 @@ export function generateSfx({
         {
           time: b.start + 0.05,
           kind: "low_impact",
-          volume: 0.55 + b.emphasis * 0.3,
+          volume: 0.22 + b.emphasis * 0.1,
           blockId: b.id,
           trigger: "strong_idea",
         },
@@ -135,7 +135,7 @@ export function generateSfx({
         {
           time: b.start + Math.min(0.6, b.duration * 0.3),
           kind: "text_pop",
-          volume: 0.45 + b.emphasis * 0.2,
+          volume: 0.15 + b.emphasis * 0.06,
           blockId: b.id,
           trigger: "text_emphasis",
         },
@@ -144,6 +144,7 @@ export function generateSfx({
       );
     }
   });
+
 
   // 4) Aplicar frequência (sortear quais eventos manter)
   // Mantemos sempre eventos de strong_idea; reduzimos os demais.
