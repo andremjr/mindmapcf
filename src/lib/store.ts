@@ -208,7 +208,7 @@ export const useStore = create<State & Actions>()(
       regenerateLayout: (projectId, seed) =>
         set((s) => {
           let firstNode: TextNode | undefined;
-          const projects = s.projects.map((p) => {
+          const projects: Project[] = s.projects.map((p): Project => {
             if (p.id !== projectId) return p;
             const { nodes, chapters } = autoLayoutFull(p.blocks, {
               seed: seed ?? Math.floor(Math.random() * 999),
