@@ -12,16 +12,18 @@ interface BuildOptions {
 }
 
 /**
- * Constrói keyframes de câmera com movimento "zoom in / zoom out" por frase.
+ * Constrói keyframes de câmera com o padrão pedido:
+ *   • Durante a frase, a câmera fica PARADA e travada em zoom no nó atual.
+ *   • Só se move entre uma frase e a próxima, num movimento curto
+ *     (≤ 1s) do tipo "zoom out → pan → zoom in".
+ *   • Usa os primeiros ~0.5s da frase apenas para *terminar* de aterrissar
+ *     no nó — depois disso, trava até quase o final da frase.
  *
- * Para cada bloco (uma frase = um nó) geramos DOIS keyframes:
- *   • "approach" (t = block.start - approachDur): posicionado no nó, com zoom
- *     baixo (afastado). Entre o keyframe anterior e este, a câmera afasta e
- *     translada até o próximo nó.
- *   • "focus"   (t = block.start): mesmo nó, com zoom alto. A câmera aperta
- *     no card exatamente quando a frase começa a ser dita — sincronia total.
- *
- * O resultado é o vaivém pedido: foca → afasta e caminha → foca no próximo.
+ * Por bloco emitimos:
+ *   A) `focus_in`  em b.start + LAND        → NEAR no nó (chegada)
+ *   B) `focus_hold` em max(A+ε, next.start − LAND) → NEAR no nó (imóvel)
+ *   C) `mid`       (entre B e o próximo A)  → FAR no ponto médio (zoom-out
+ *                                              + pan curto → próximo nó)
  */
 export function buildCameraKeyframes(
   blocks: TranscriptBlock[],
@@ -35,83 +37,109 @@ export function buildCameraKeyframes(
   const rootNode = nodes.find((n) => n.nodeKind === "root");
   const firstStart = blocks[0]?.start ?? 0;
 
-  // Constantes de zoom (mesmo comportamento para todos os nós — vaivém consistente).
-  const ZOOM_FAR = 0.55;   // afastado — entre-frases
-  const ZOOM_NEAR = 1.15;  // apertado — durante a frase
+  const ZOOM_FAR = 0.6;
+  const ZOOM_NEAR = 1.15;
+  const LAND = 0.5;           // margem para terminar de focar no nó
+  const MAX_MOVE = 1.0;       // duração máxima do movimento entre frases
 
-  // 1) Abertura no root (tema central), afastado.
+  // 1) Abertura no root.
   if (rootNode) {
     keyframes.push({
       id: "cam_root",
       time: 0,
       targetNodeId: rootNode.id,
-      x: rootNode.x + 220, y: rootNode.y, zoom: 0.5,
+      x: rootNode.x + 220, y: rootNode.y, zoom: 0.55,
       rotation: 0,
-      duration: Math.max(1.0, Math.min(firstStart, 2.0)),
+      duration: 0.8,
       easing: "ease-in-out",
       focusIntensity: 0.35,
       depthIntensity: 0.6,
     });
+    // Mantém o root parado até ~0.5s antes da primeira frase começar.
+    const rootHoldAt = Math.max(0.4, firstStart - LAND);
+    if (rootHoldAt > 0.4) {
+      keyframes.push({
+        id: "cam_root_hold",
+        time: rootHoldAt,
+        targetNodeId: rootNode.id,
+        x: rootNode.x + 220, y: rootNode.y, zoom: 0.55,
+        rotation: 0,
+        duration: 0.1,
+        easing: "linear",
+        focusIntensity: 0.35,
+        depthIntensity: 0.6,
+      });
+    }
   }
 
   blocks.forEach((b, idx) => {
     const node = nodeByBlock.get(b.id);
     if (!node) return;
 
-    const prevStart = idx === 0 ? 0 : blocks[idx - 1].start;
-    const window = Math.max(0.4, b.start - prevStart);
-    // Tempo dedicado ao "afastar + caminhar" antes de aterrissar no nó.
-    const approachDur = Math.min(0.9, Math.max(0.35, window * 0.45));
-
-    // A) Keyframe de aproximação — chega ao nó ainda afastado.
-    const approachTime = Math.max(prevStart + 0.05, b.start - approachDur);
-    keyframes.push({
-      id: `cam_out_${b.id}`,
-      time: approachTime,
-      targetNodeId: node.id,
-      x: node.x, y: node.y,
-      zoom: ZOOM_FAR,
-      rotation: 0,
-      duration: approachDur,
-      easing: "ease-in-out",
-      focusIntensity: 0.4,
-      depthIntensity: 0.8,
-    });
-
-    // B) Keyframe de foco — aperta o zoom EXATAMENTE no start da frase.
     const emphasis = b.emphasis ?? 0.5;
-    const zoomIn = ZOOM_NEAR + emphasis * 0.08 * movementIntensity;
+    const near = Math.min(1.3, ZOOM_NEAR + emphasis * 0.05 * movementIntensity);
+
+    const focusInTime = b.start + LAND;
+
+    // A) Aterrissa no nó — trava zoom aqui.
     keyframes.push({
       id: `cam_in_${b.id}`,
-      time: b.start,
+      time: focusInTime,
       targetNodeId: node.id,
-      x: node.x, y: node.y,
-      zoom: Math.min(1.35, zoomIn),
+      x: node.x, y: node.y, zoom: near,
       rotation: 0,
-      duration: approachDur,
+      duration: LAND,
       easing: "ease-out",
-      focusIntensity: 0.7 + emphasis * 0.3,
+      focusIntensity: 0.75 + emphasis * 0.25,
       depthIntensity: 0.55,
     });
 
-    // C) Mantém o foco firme até quase o fim da fala (sem drift).
-    if (b.duration > 1.4) {
+    // B) Segura o foco parado (mesma pose) até ~0.5s antes da próxima frase.
+    const next = blocks[idx + 1];
+    const holdEndTime = next
+      ? Math.max(focusInTime + 0.1, next.start - LAND)
+      : Math.max(focusInTime + 0.2, b.end);
+
+    if (holdEndTime > focusInTime + 0.05) {
       keyframes.push({
         id: `cam_hold_${b.id}`,
-        time: b.end - 0.15,
+        time: holdEndTime,
         targetNodeId: node.id,
-        x: node.x, y: node.y,
-        zoom: Math.min(1.35, zoomIn),
+        x: node.x, y: node.y, zoom: near,
         rotation: 0,
-        duration: 0.2,
+        duration: 0.1,
         easing: "linear",
-        focusIntensity: 0.7 + emphasis * 0.3,
+        focusIntensity: 0.75 + emphasis * 0.25,
         depthIntensity: 0.55,
       });
     }
+
+    // C) Ponto médio da transição para a próxima frase — zoom out + pan curto.
+    if (next) {
+      const nextNode = nodeByBlock.get(next.id);
+      if (nextNode) {
+        const nextFocusIn = next.start + LAND;
+        // Duração total do movimento (hold → próximo focus_in), limitada a 1s.
+        const moveWindow = Math.min(MAX_MOVE, nextFocusIn - holdEndTime);
+        // Ponto médio no tempo — pouco antes do start da próxima frase.
+        const midT = holdEndTime + moveWindow / 2;
+        keyframes.push({
+          id: `cam_mid_${b.id}`,
+          time: midT,
+          x: (node.x + nextNode.x) / 2,
+          y: (node.y + nextNode.y) / 2,
+          zoom: ZOOM_FAR,
+          rotation: 0,
+          duration: moveWindow / 2,
+          easing: "ease-in-out",
+          focusIntensity: 0.4,
+          depthIntensity: 0.75,
+        });
+      }
+    }
   });
 
-  // Reveal final — mapa completo.
+  // Reveal final do mapa.
   if (nodes.length > 0 && blocks.length > 0) {
     const last = blocks[blocks.length - 1];
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -122,12 +150,12 @@ export function buildCameraKeyframes(
     }
     keyframes.push({
       id: "cam_final",
-      time: last.end + 0.2,
+      time: last.end + 0.3,
       x: (minX + maxX) / 2,
       y: (minY + maxY) / 2,
       zoom: 0.4,
       rotation: 0,
-      duration: 1.8,
+      duration: 1.6,
       easing: "ease-in-out",
       focusIntensity: 0.3,
       depthIntensity: 1,
