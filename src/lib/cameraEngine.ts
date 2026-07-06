@@ -21,58 +21,98 @@ export function buildCameraKeyframes(
   nodes: TextNode[],
   opts: BuildOptions = {},
 ): CameraKeyframe[] {
-  const { movementIntensity = 0.5, wideShotEvery = 0 } = opts;
+  const { movementIntensity = 0.5 } = opts;
   const nodeByBlock = new Map(nodes.map((n) => [n.blockId, n]));
   const keyframes: CameraKeyframe[] = [];
 
-  blocks.forEach((b, i) => {
+  const rootNode = nodes.find((n) => n.nodeKind === "root");
+  const firstStart = blocks[0]?.start ?? 0;
+
+  // 1) Root reveal — showcase the whole left side of the mind map.
+  if (rootNode) {
+    const tgt = rootNode.cameraTarget ?? { x: rootNode.x, y: rootNode.y, zoom: 0.55 };
+    keyframes.push({
+      id: "cam_root",
+      time: 0,
+      targetNodeId: rootNode.id,
+      x: tgt.x, y: tgt.y, zoom: tgt.zoom,
+      rotation: 0,
+      duration: Math.max(1.2, Math.min(firstStart, 2.5)),
+      easing: "cinematic",
+      focusIntensity: 0.4,
+      depthIntensity: 0.6,
+    });
+  }
+
+  let prevChapter: number | undefined;
+
+  blocks.forEach((b) => {
     const node = nodeByBlock.get(b.id);
     if (!node) return;
 
-    const tgt = node.cameraTarget ?? { x: node.x, y: node.y, zoom: 1 };
-    const zoomBoost = 1 + b.emphasis * 0.06 * movementIntensity;
-    const zoom = Math.max(0.55, Math.min(1.25, tgt.zoom * zoomBoost));
-    const dur = Math.max(1.4, Math.min(b.duration * 0.9, 3.4));
+    // Branch overview when entering a new main idea group.
+    if (node.chapterIndex !== undefined && prevChapter !== node.chapterIndex) {
+      const mainIdea = nodes.find(
+        (n) => n.nodeKind === "mainIdea" && n.chapterIndex === node.chapterIndex,
+      );
+      if (mainIdea) {
+        keyframes.push({
+          id: `cam_branch_${node.chapterIndex}`,
+          time: Math.max(0, b.start - 0.4),
+          targetNodeId: mainIdea.id,
+          x: mainIdea.x + 260,
+          y: mainIdea.y,
+          zoom: 0.7,
+          rotation: 0,
+          duration: 1.2,
+          easing: "ease-in-out",
+          focusIntensity: 0.35,
+          depthIntensity: 0.8,
+        });
+      }
+      prevChapter = node.chapterIndex;
+    }
 
-    // Micro-easing: cinematográfico para maioria, ease-in-out para transições.
-    const easing: CameraEase =
-      node.nodeKind === "transition" ? "ease-in-out" : "cinematic";
+    const tgt = node.cameraTarget ?? { x: node.x, y: node.y, zoom: 1 };
+    const zoomBoost = 1 + (b.emphasis ?? 0.5) * 0.06 * movementIntensity;
+    const zoom = Math.max(0.5, Math.min(1.3, tgt.zoom * zoomBoost));
+    const dur = Math.max(1.2, Math.min(b.duration * 0.9, 3.0));
 
     keyframes.push({
       id: `cam_${b.id}`,
       time: b.start,
       targetNodeId: node.id,
-      x: tgt.x,
-      y: tgt.y,
-      zoom,
+      x: tgt.x, y: tgt.y, zoom,
       rotation: 0,
       duration: dur,
-      easing,
-      focusIntensity: 0.6 + b.emphasis * 0.4,
+      easing: "cinematic",
+      focusIntensity: 0.6 + (b.emphasis ?? 0.5) * 0.4,
       depthIntensity: 0.55,
     });
-
-    // Wide-shot ocasional em mudança de capítulo (se pedido).
-    if (
-      wideShotEvery > 0 &&
-      i > 0 &&
-      nodes[i - 1]?.chapterIndex !== node.chapterIndex &&
-      (b.start - (keyframes[keyframes.length - 2]?.time ?? 0)) >= wideShotEvery
-    ) {
-      keyframes.push({
-        id: `cam_wide_${b.id}`,
-        time: Math.max(0, b.start - 0.6),
-        x: tgt.x,
-        y: tgt.y - 220,
-        zoom: 0.7,
-        rotation: 0,
-        duration: 1.6,
-        easing: "ease-in-out",
-        focusIntensity: 0.2,
-        depthIntensity: 1,
-      });
-    }
   });
+
+  // Final full-map reveal.
+  if (nodes.length > 0 && blocks.length > 0) {
+    const last = blocks[blocks.length - 1];
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const n of nodes) {
+      const w = n.width ?? 320, h = n.height ?? 100;
+      minX = Math.min(minX, n.x - w / 2); maxX = Math.max(maxX, n.x + w / 2);
+      minY = Math.min(minY, n.y - h / 2); maxY = Math.max(maxY, n.y + h / 2);
+    }
+    keyframes.push({
+      id: "cam_final",
+      time: last.end + 0.1,
+      x: (minX + maxX) / 2,
+      y: (minY + maxY) / 2,
+      zoom: 0.4,
+      rotation: 0,
+      duration: 2,
+      easing: "cinematic",
+      focusIntensity: 0.3,
+      depthIntensity: 1,
+    });
+  }
 
   return keyframes.sort((a, b) => a.time - b.time);
 }
