@@ -265,7 +265,7 @@ function buildTree(blocks: TranscriptBlock[]): TNode {
     chapterIndex: 0,
     chapterColor: "#ffffff",
     text: rootText,
-    shortText: shortenText(rootText, "root"),
+    shortText: rootText,
     w: rootSize.w,
     h: rootSize.h,
     x: 0, y: 0,
