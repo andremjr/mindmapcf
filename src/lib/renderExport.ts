@@ -29,6 +29,7 @@ import type {
   SfxAsset,
   SfxEvent,
   RenderAspect,
+  Chapter,
 } from "./types";
 import { SFX_ASSETS, getAssetById } from "./sfxAssets";
 
@@ -46,6 +47,7 @@ export interface RenderExport {
   soundPreset: Project["soundPreset"];
   renderConfig: RenderConfig;
   assetRegistry: SfxAsset[];
+  chapters: Chapter[];
 }
 
 export interface ValidationIssue {
