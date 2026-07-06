@@ -1,21 +1,19 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import type { Project, TextNode, CameraKeyframe } from "@/lib/types";
+import type { Project, TextNode, Chapter } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { cameraAt, activeBlockAt } from "@/lib/cameraEngine";
+import { CANVAS, validateCanvasLayout } from "@/lib/layoutEngine";
 
 interface Props {
   project: Project;
+  debug?: boolean;
 }
 
 /**
- * Canvas infinito textual.
- * - pan: arrastar área vazia
- * - zoom: wheel (com Ctrl/⌘ acelera)
- * - drag node: arrastar texto
- * - clique nó: seleciona
- * - auto-camera: enquanto playing && autoCamera, viewport segue keyframes
+ * Canvas Narrativo v2 — plano vertical infinito com linha guia colorida,
+ * capítulos, cards por tipo e câmera cinematográfica.
  */
-export function CanvasStage({ project }: Props) {
+export function CanvasStage({ project, debug = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 1200, h: 700 });
   const playback = useStore((s) => s.playback);
@@ -25,6 +23,7 @@ export function CanvasStage({ project }: Props) {
 
   const preset = project.visualPreset;
   const safeArea = project.safeArea ?? "16:9";
+  const chapters = project.chapters ?? [];
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -36,7 +35,6 @@ export function CanvasStage({ project }: Props) {
     return () => ro.disconnect();
   }, []);
 
-  // Bloco/keyframe ativo no tempo atual.
   const activeBlockIdx = useMemo(
     () => activeBlockAt(project.blocks, playback.time),
     [project.blocks, playback.time],
@@ -52,13 +50,14 @@ export function CanvasStage({ project }: Props) {
     setViewport({ x: cam.x, y: cam.y, zoom: cam.zoom, rotation: cam.rotation });
   }, [playback.time, playback.autoCamera, playback.playing, project.camera, setViewport]);
 
+  // Validação (debug)
+  const validation = useMemo(
+    () => (debug ? validateCanvasLayout(project.nodes, chapters) : null),
+    [debug, project.nodes, chapters],
+  );
+
   // Pan / wheel zoom.
-  const panStartRef = useRef<{
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-  } | null>(null);
+  const panStartRef = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null);
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
@@ -91,7 +90,6 @@ export function CanvasStage({ project }: Props) {
     setViewport({ zoom: next });
   };
 
-  // Conversão "screen -> world" e drag de nós.
   const screenToWorld = useCallback(
     (sx: number, sy: number) => {
       const rect = containerRef.current?.getBoundingClientRect();
@@ -106,12 +104,14 @@ export function CanvasStage({ project }: Props) {
     [playback.viewport],
   );
 
+  void size;
+
   return (
     <div
       ref={containerRef}
       className="relative h-full w-full overflow-hidden select-none cursor-grab active:cursor-grabbing"
       style={{
-        background: preset.backgroundGradient ?? preset.backgroundColor,
+        background: preset.backgroundGradient ?? preset.backgroundColor ?? "#08090c",
         color: preset.textColor,
         fontFamily: preset.fontFamily,
       }}
@@ -121,74 +121,52 @@ export function CanvasStage({ project }: Props) {
       onPointerCancel={onPointerUp}
       onWheel={onWheel}
     >
-      <GridLayer style={preset.gridStyle} viewport={playback.viewport} />
+      {/* Fundo com leve ruído/grid */}
+      <BackgroundLayer preset={preset} viewport={playback.viewport} />
 
-      <div
-        className="absolute inset-0"
-        style={{
-          perspective: `${1400 - preset.depthIntensity * 400}px`,
-          perspectiveOrigin: "50% 45%",
-        }}
-      >
+      <div className="absolute inset-0">
         <div
           className="absolute left-1/2 top-1/2 will-change-transform"
           style={{
             transform: `translate3d(${-playback.viewport.x * playback.viewport.zoom}px, ${
               -playback.viewport.y * playback.viewport.zoom
-            }px, 0) scale(${playback.viewport.zoom}) rotate(${playback.viewport.rotation}deg)`,
+            }px, 0) scale(${playback.viewport.zoom})`,
             transformOrigin: "0 0",
             transition: playback.playing
               ? `transform ${1.6 / Math.max(playback.speed, 0.25)}s cubic-bezier(0.16,0.84,0.24,1)`
               : "transform 0.32s cubic-bezier(0.22,0.61,0.36,1)",
           }}
         >
-          {/* Conectores entre vizinhos. */}
-          <ConnectorLayer nodes={project.nodes} preset={preset} activeNodeId={activeNodeId} />
+          {/* Linha guia vertical + capítulos */}
+          <GuideLine chapters={chapters} nodes={project.nodes} />
 
-          {project.nodes.map((n, i) => {
-            const activeIdx = project.nodes.findIndex((x) => x.id === activeNodeId);
-            const relation: "active" | "past" | "future" =
-              i === activeIdx ? "active" : i < activeIdx ? "past" : "future";
-            return (
-              <NodeView
-                key={n.id}
-                node={n}
-                isActive={n.id === activeNodeId}
-                isSelected={n.id === playback.selectedNodeId}
-                relation={relation}
-                preset={preset}
-                onSelect={() => setSelected(n.id)}
-                onDrag={(dx, dy) => moveNode(project.id, n.id, n.x + dx, n.y + dy)}
-                screenToWorld={screenToWorld}
-                zoom={playback.viewport.zoom}
-              />
-            );
-          })}
+          {project.nodes.map((n) => (
+            <NodeCard
+              key={n.id}
+              node={n}
+              isActive={n.id === activeNodeId}
+              isSelected={n.id === playback.selectedNodeId}
+              debug={debug}
+              onSelect={() => setSelected(n.id)}
+              onDrag={(dx, dy) => moveNode(project.id, n.id, n.x + dx, n.y + dy)}
+              zoom={playback.viewport.zoom}
+            />
+          ))}
         </div>
       </div>
 
       {/* Safe area overlay. */}
       <SafeAreaOverlay area={safeArea} />
 
-      {/* Vignette + grain. */}
+      {/* Vignette */}
       <div
         className="pointer-events-none absolute inset-0"
         style={{
           background: `radial-gradient(ellipse at center, transparent ${
-            70 - preset.vignette * 30
-          }%, oklch(0 0 0 / ${0.4 + preset.vignette * 0.45}) 100%)`,
+            70 - (preset.vignette ?? 0.6) * 30
+          }%, rgba(0,0,0,${0.45 + (preset.vignette ?? 0.6) * 0.4}) 100%)`,
         }}
       />
-      {preset.grain > 0.02 && (
-        <div
-          className="pointer-events-none absolute inset-0 mix-blend-overlay"
-          style={{
-            opacity: preset.grain * 0.5,
-            backgroundImage:
-              "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.55'/></svg>\")",
-          }}
-        />
-      )}
 
       {project.nodes.length === 0 && (
         <div className="absolute inset-0 grid place-items-center pointer-events-none">
@@ -199,150 +177,202 @@ export function CanvasStage({ project }: Props) {
           </div>
         </div>
       )}
+
+      {debug && validation && <DebugPanel validation={validation} chapters={chapters.length} nodes={project.nodes.length} duration={project.durationSec} />}
+      {debug && <span className="pointer-events-none absolute top-2 left-2 text-[10px] tracking-widest text-amber-400/80 z-20">DEBUG</span>}
+
+      {/* Ajuda de gestos */}
+      <div className="pointer-events-none absolute right-2 bottom-2 text-[10px] text-muted-foreground/60 text-mono z-10">
+        arraste / scroll = pan/zoom
+      </div>
+      {void screenToWorld && null}
     </div>
   );
 }
 
-function GridLayer({
-  style,
+// ---------------- Background ----------------
+
+function BackgroundLayer({
+  preset,
   viewport,
 }: {
-  style: Project["visualPreset"]["gridStyle"];
+  preset: Project["visualPreset"];
   viewport: { x: number; y: number; zoom: number };
 }) {
-  if (style === "none") return null;
-  const cell = 60 * viewport.zoom;
+  const cell = 80 * viewport.zoom;
   const ox = -viewport.x * viewport.zoom;
   const oy = -viewport.y * viewport.zoom;
-
-  if (style === "dots") {
-    return (
-      <div
-        className="absolute inset-0 pointer-events-none opacity-40"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle, oklch(1 0 0 / 0.08) 1px, transparent 1px)",
-          backgroundSize: `${cell}px ${cell}px`,
-          backgroundPosition: `${ox}px ${oy}px`,
-        }}
-      />
-    );
-  }
-  if (style === "lines3d") {
-    return (
-      <div
-        className="absolute inset-0 pointer-events-none opacity-30"
-        style={{
-          backgroundImage:
-            "linear-gradient(oklch(0.78 0.16 220 / 0.08) 1px, transparent 1px), linear-gradient(90deg, oklch(0.78 0.16 220 / 0.08) 1px, transparent 1px)",
-          backgroundSize: `${cell}px ${cell}px`,
-          backgroundPosition: `${ox}px ${oy}px`,
-          maskImage: "radial-gradient(ellipse at center, black 30%, transparent 75%)",
-        }}
-      />
-    );
-  }
   return (
-    <div
-      className="absolute inset-0 pointer-events-none opacity-25"
-      style={{
-        backgroundImage:
-          "linear-gradient(oklch(1 0 0 / 0.05) 1px, transparent 1px), linear-gradient(90deg, oklch(1 0 0 / 0.05) 1px, transparent 1px)",
-        backgroundSize: `${cell}px ${cell}px`,
-        backgroundPosition: `${ox}px ${oy}px`,
-      }}
-    />
+    <>
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.05]"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle, rgba(255,255,255,0.7) 1px, transparent 1px)",
+          backgroundSize: `${cell}px ${cell}px`,
+          backgroundPosition: `${ox}px ${oy}px`,
+        }}
+      />
+      {(preset.grain ?? 0.1) > 0.02 && (
+        <div
+          className="pointer-events-none absolute inset-0 mix-blend-overlay"
+          style={{
+            opacity: (preset.grain ?? 0.1) * 0.4,
+            backgroundImage:
+              "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='0.55'/></svg>\")",
+          }}
+        />
+      )}
+    </>
   );
 }
 
-function ConnectorLayer({
+// ---------------- Guide line + chapters ----------------
+
+function GuideLine({
+  chapters,
   nodes,
-  preset,
-  activeNodeId,
 }: {
+  chapters: Chapter[];
   nodes: TextNode[];
-  preset: Project["visualPreset"];
-  activeNodeId?: string;
 }) {
-  if (preset.connectorStyle === "none" || nodes.length < 2) return null;
-  const b = nodes.reduce(
-    (acc, n) => ({
-      minX: Math.min(acc.minX, n.x),
-      minY: Math.min(acc.minY, n.y),
-      maxX: Math.max(acc.maxX, n.x),
-      maxY: Math.max(acc.maxY, n.y),
-    }),
-    { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity },
-  );
-  const pad = 600;
-  const w = b.maxX - b.minX + pad * 2;
-  const h = b.maxY - b.minY + pad * 2;
-  const ox = b.minX - pad;
-  const oy = b.minY - pad;
-
-  const dash =
-    preset.connectorStyle === "investigation"
-      ? "0"
-      : preset.connectorStyle === "tech"
-      ? "2 6"
-      : "0";
-  const stroke =
-    preset.connectorStyle === "investigation"
-      ? preset.accentColor
-      : preset.connectorStyle === "tech"
-      ? preset.secondaryAccentColor
-      : `color-mix(in oklab, ${preset.mutedTextColor} 60%, transparent)`;
+  if (nodes.length === 0) return null;
+  const x = CANVAS.guideX;
+  const startY = Math.min(...nodes.map((n) => (n.y ?? 0) - (n.height ?? 200) / 2)) - 120;
+  const endY = Math.max(...nodes.map((n) => (n.y ?? 0) + (n.height ?? 200) / 2)) + 120;
 
   return (
-    <svg
-      className="absolute pointer-events-none"
-      style={{ left: ox, top: oy, width: w, height: h }}
-      viewBox={`${ox} ${oy} ${w} ${h}`}
-    >
-      {nodes.slice(1).map((n, i) => {
-        const prev = nodes[i];
-        const isActive = n.id === activeNodeId || prev.id === activeNodeId;
-        const mid = { x: (prev.x + n.x) / 2, y: (prev.y + n.y) / 2 - 40 };
-        return (
-          <path
-            key={n.id}
-            d={`M ${prev.x} ${prev.y} Q ${mid.x} ${mid.y} ${n.x} ${n.y}`}
-            fill="none"
-            stroke={stroke}
-            strokeWidth={isActive ? 1 : 0.6}
-            strokeDasharray={dash}
-            opacity={isActive ? 0.45 : 0.08}
-            style={{ transition: "opacity 0.8s ease, stroke-width 0.8s ease" }}
-          />
-        );
-      })}
-    </svg>
+    <div className="absolute" style={{ left: 0, top: 0, pointerEvents: "none" }}>
+      {/* Segmentos coloridos por capítulo (fallback: cinza se sem capítulos) */}
+      {chapters.length > 0 ? (
+        chapters.map((c) => (
+          <div key={c.index}>
+            <div
+              style={{
+                position: "absolute",
+                left: x - 1,
+                top: c.startY - 40,
+                width: 2,
+                height: Math.max(30, c.endY - c.startY + 80),
+                background: `linear-gradient(180deg, ${c.color}00, ${c.color}, ${c.color}00)`,
+                boxShadow: `0 0 24px ${c.color}55`,
+                borderRadius: 2,
+              }}
+            />
+            {/* Marker + label */}
+            <div
+              style={{
+                position: "absolute",
+                left: x - 7,
+                top: c.startY - 10,
+                width: 14,
+                height: 14,
+                borderRadius: 999,
+                background: c.color,
+                boxShadow: `0 0 20px ${c.color}, 0 0 0 4px rgba(0,0,0,0.6)`,
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                left: x + 22,
+                top: c.startY - 18,
+                fontSize: 13,
+                letterSpacing: "0.3em",
+                fontWeight: 600,
+                color: c.color,
+                textShadow: `0 0 12px ${c.color}66`,
+              }}
+            >
+              {`CAP. ${String(c.index + 1).padStart(2, "0")} · ${c.title}`}
+            </div>
+          </div>
+        ))
+      ) : (
+        <div
+          style={{
+            position: "absolute",
+            left: x - 1,
+            top: startY,
+            width: 2,
+            height: endY - startY,
+            background: "linear-gradient(180deg, transparent, rgba(255,255,255,0.25), transparent)",
+          }}
+        />
+      )}
+
+      {/* Bolinhas conectando os nós */}
+      {nodes.map((n) => (
+        <div
+          key={`dot_${n.id}`}
+          style={{
+            position: "absolute",
+            left: x - 4,
+            top: n.y - 4,
+            width: 8,
+            height: 8,
+            borderRadius: 999,
+            background: n.chapterColor ?? "#888",
+            opacity: 0.9,
+            boxShadow: `0 0 12px ${n.chapterColor ?? "#888"}aa`,
+          }}
+        />
+      ))}
+    </div>
   );
 }
 
-function NodeView({
+// ---------------- Node card ----------------
+
+function highlightText(text: string, words: string[] = [], color: string) {
+  if (!words.length) return text;
+  const pattern = new RegExp(
+    `\\b(${words.map((w) => w.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")).join("|")})\\b`,
+    "gi",
+  );
+  const parts = text.split(pattern);
+  return parts.map((p, i) =>
+    words.some((w) => w.toLowerCase() === p.toLowerCase()) ? (
+      <span
+        key={i}
+        style={{
+          color,
+          fontWeight: 700,
+          background: `linear-gradient(180deg, transparent 62%, ${color}30 62%, ${color}30 92%, transparent 92%)`,
+          padding: "0 4px",
+        }}
+      >
+        {p}
+      </span>
+    ) : (
+      <span key={i}>{p}</span>
+    ),
+  );
+}
+
+function NodeCard({
   node,
   isActive,
   isSelected,
-  relation,
-  preset,
+  debug,
   onSelect,
   onDrag,
-  screenToWorld: _screenToWorld,
   zoom,
 }: {
   node: TextNode;
   isActive: boolean;
   isSelected: boolean;
-  relation: "active" | "past" | "future";
-  preset: Project["visualPreset"];
+  debug: boolean;
   onSelect: () => void;
   onDrag: (dx: number, dy: number) => void;
-  screenToWorld: (x: number, y: number) => { x: number; y: number };
   zoom: number;
 }) {
-  void _screenToWorld;
   const draggingRef = useRef<{ sx: number; sy: number } | null>(null);
+  const kind = node.nodeKind ?? "statement";
+  const color = node.chapterColor ?? node.accentColor ?? "#ff9f43";
+  const width = node.width ?? 900;
+  const height = node.height ?? 200;
+  const text = node.shortText || node.text;
 
   const onPointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
@@ -364,47 +394,17 @@ function NodeView({
     draggingRef.current = null;
   };
 
-  // Hierarquia temporal — câmera trata ativo como protagonista absoluto.
-  const depth = node.z * 60 * preset.depthIntensity;
-  const stateOpacity =
-    relation === "active" ? 1 : relation === "past" ? 0.18 : 0.28;
-  const stateBlur =
-    relation === "active"
-      ? 0
-      : (relation === "past" ? 6 : 4) * preset.blurIntensity;
-  const depthBlur = Math.abs(node.z) * 1.4 * preset.blurIntensity;
-  const stateScale =
-    relation === "active"
-      ? node.scale * 1.04
-      : node.scale * (1 - Math.abs(node.z) * 0.08) * 0.92;
+  const fontSize =
+    kind === "hook" ? 76
+    : kind === "conclusion" ? 60
+    : kind === "quote" ? 52
+    : kind === "transition" ? 44
+    : kind === "evidence" ? 40
+    : 48;
 
-  // Tipografia cinematográfica — protagonista grande, contexto pequeno.
-  const baseSize =
-    node.variant === "headline"
-      ? 96
-      : node.variant === "accent"
-      ? 68
-      : node.variant === "caption"
-      ? 22
-      : 52;
-  const fontSize = isActive ? baseSize : Math.round(baseSize * 0.78);
-
-  const color =
-    relation === "active"
-      ? node.accentColor ??
-        (node.variant === "accent" ? preset.accentColor : preset.textColor)
-      : preset.textColor;
-
-  const marker = node.markerStyle ?? preset.markerStyle;
-  const glow = isActive
-    ? `0 0 ${28 + preset.glowIntensity * 36}px color-mix(in oklab, ${preset.accentColor} ${
-        24 + preset.glowIntensity * 40
-      }%, transparent)`
-    : "none";
-
-  // Marcadores discretos — só ativos recebem cor de destaque.
-  const markerColor = isActive ? preset.accentColor : preset.mutedTextColor;
-  const markerOpacity = isActive ? 0.85 : 0.35;
+  const baseBg = "#111114";
+  const borderColor = isActive ? color : "rgba(255,255,255,0.08)";
+  const glow = isActive ? `0 20px 60px ${color}30, 0 0 0 1px ${color}66` : "0 8px 24px rgba(0,0,0,0.5)";
 
   return (
     <div
@@ -415,118 +415,295 @@ function NodeView({
       onPointerCancel={onPointerUp}
       className="absolute cursor-pointer"
       style={{
-        left: node.x,
-        top: node.y,
-        transform: `translate3d(-50%, -50%, ${depth}px) rotate(${node.rotation * (isActive ? 1 : 0.35)}deg) scale(${stateScale})`,
-        opacity: node.opacity * stateOpacity,
-        filter:
-          stateBlur + depthBlur > 0.1
-            ? `blur(${stateBlur + depthBlur}px)`
-            : undefined,
-        transition:
-          "opacity 0.9s cubic-bezier(0.22,0.61,0.36,1), filter 0.9s cubic-bezier(0.22,0.61,0.36,1), transform 1.1s cubic-bezier(0.16,0.84,0.24,1)",
-        maxWidth: isActive ? 880 : 640,
+        left: node.x - width / 2,
+        top: node.y - height / 2,
+        width,
+        minHeight: height,
+        opacity: isActive ? 1 : 0.55,
+        filter: isActive ? "none" : "blur(0.3px)",
+        transition: "opacity 0.9s cubic-bezier(0.22,0.61,0.36,1), filter 0.9s",
         zIndex: isActive ? 10 : 1,
       }}
     >
-      <div
-        className="relative px-6 py-3"
-        style={{
-          color,
-          textShadow: glow,
-          outline: isSelected ? `1px solid ${preset.accentColor}` : "none",
-          outlineOffset: 12,
-        }}
-      >
-        {marker === "bracket" && (
-          <>
-            <span
-              aria-hidden
-              className="absolute -left-4 top-2 bottom-2"
-              style={{
-                width: 14,
-                borderLeft: `1px solid ${markerColor}`,
-                borderTop: `1px solid ${markerColor}`,
-                borderBottom: `1px solid ${markerColor}`,
-                opacity: markerOpacity,
-              }}
-            />
-            <span
-              aria-hidden
-              className="absolute -right-4 top-2 bottom-2"
-              style={{
-                width: 14,
-                borderRight: `1px solid ${markerColor}`,
-                borderTop: `1px solid ${markerColor}`,
-                borderBottom: `1px solid ${markerColor}`,
-                opacity: markerOpacity,
-              }}
-            />
-          </>
-        )}
-        {marker === "vline" && (
-          <span
-            className="absolute -left-4 top-2 bottom-2"
-            style={{
-              width: 2,
-              background: markerColor,
-              opacity: markerOpacity,
-            }}
-          />
-        )}
-        {marker === "arrow" && isActive && (
-          <span
-            className="absolute -left-6 top-1/2 -translate-y-1/2 text-base"
-            style={{ color: preset.accentColor, opacity: 0.85 }}
-          >
-            →
-          </span>
-        )}
-        {marker === "dot" && (
-          <span
-            className="absolute -left-4 top-1/2 -translate-y-1/2 size-1.5 rounded-full"
-            style={{ background: markerColor, opacity: markerOpacity }}
-          />
-        )}
+      {/* Card específico por tipo */}
+      {kind === "evidence" ? (
+        <EvidenceCard node={node} color={color} isActive={isActive} />
+      ) : kind === "quote" ? (
+        <QuoteCard text={text} color={color} isActive={isActive} width={width} />
+      ) : kind === "transition" ? (
+        <TransitionCard text={text} color={color} isActive={isActive} />
+      ) : (
         <div
           style={{
-            fontSize,
-            fontWeight: isActive ? Math.max(node.fontWeight, 500) : 400,
-            lineHeight: 1.05,
-            letterSpacing: "-0.025em",
-            whiteSpace: "pre-wrap",
+            background: kind === "hook" || kind === "conclusion"
+              ? `linear-gradient(135deg, ${baseBg}, #16161a)`
+              : baseBg,
+            borderRadius: 24,
+            border: `1px solid ${borderColor}`,
+            boxShadow: glow,
+            padding: "36px 44px",
+            minHeight: height,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            outline: isSelected ? `2px solid ${color}` : "none",
+            outlineOffset: 8,
           }}
         >
-          {node.shortText || node.text}
-        </div>
-        {isActive && node.variant !== "caption" && (
+          {kind === "hook" && (
+            <div
+              style={{
+                fontSize: 13,
+                letterSpacing: "0.35em",
+                color,
+                marginBottom: 20,
+                fontWeight: 600,
+              }}
+            >
+              ▍ GANCHO
+            </div>
+          )}
+          {kind === "conclusion" && (
+            <div
+              style={{
+                fontSize: 13,
+                letterSpacing: "0.35em",
+                color,
+                marginBottom: 20,
+                fontWeight: 600,
+              }}
+            >
+              ▍ CONCLUSÃO
+            </div>
+          )}
           <div
-            className="mt-3 text-[10px] uppercase tracking-[0.42em]"
-            style={{ color: preset.mutedTextColor, opacity: 0.6 }}
+            style={{
+              fontSize,
+              fontWeight: kind === "hook" || kind === "conclusion" ? 700 : 500,
+              lineHeight: 1.12,
+              letterSpacing: "-0.025em",
+              color: "#f5f5f5",
+            }}
           >
-            {node.type}
+            {highlightText(text, node.emphasisWords, color)}
           </div>
-        )}
+        </div>
+      )}
+
+      {debug && (
+        <div
+          className="pointer-events-none absolute"
+          style={{
+            inset: 0,
+            border: `1px dashed ${color}`,
+            borderRadius: 24,
+          }}
+        >
+          <div
+            style={{
+              position: "absolute",
+              top: -18,
+              left: 0,
+              fontSize: 10,
+              color,
+              fontFamily: "ui-monospace, monospace",
+            }}
+          >
+            #{node.id} · {kind} · t={node.startTime?.toFixed(1)}–{node.endTime?.toFixed(1)} · cap={node.chapterIndex}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EvidenceCard({ node, color, isActive }: { node: TextNode; color: string; isActive: boolean }) {
+  const text = node.shortText || node.text;
+  return (
+    <div
+      style={{
+        background: "#141418",
+        borderRadius: 20,
+        border: `1px solid ${isActive ? color : "rgba(255,255,255,0.1)"}`,
+        boxShadow: isActive ? `0 20px 60px ${color}30` : "0 8px 24px rgba(0,0,0,0.5)",
+        overflow: "hidden",
+      }}
+    >
+      <div
+        style={{
+          background: "#1c1c22",
+          borderBottom: `1px solid ${color}55`,
+          padding: "16px 28px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <div style={{ fontSize: 12, letterSpacing: "0.3em", color, fontWeight: 600 }}>
+          ▍ FONTE / DOCUMENTO
+        </div>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: "ui-monospace, monospace" }}>
+          REF · {node.blockId.slice(0, 6).toUpperCase()}
+        </div>
+      </div>
+      <div style={{ padding: "32px 36px" }}>
+        <div
+          style={{
+            fontSize: 20,
+            color: "rgba(255,255,255,0.5)",
+            marginBottom: 14,
+            letterSpacing: "0.05em",
+            textTransform: "uppercase",
+          }}
+        >
+          Trecho documental
+        </div>
+        <div
+          style={{
+            fontSize: 40,
+            fontWeight: 500,
+            lineHeight: 1.2,
+            letterSpacing: "-0.02em",
+            color: "#f5f5f5",
+          }}
+        >
+          {highlightText(text, node.emphasisWords, color)}
+        </div>
       </div>
     </div>
   );
 }
 
-function SafeAreaOverlay({ area }: { area: "16:9" | "9:16" | "1:1" }) {
-  const aspect = area === "16:9" ? 16 / 9 : area === "9:16" ? 9 / 16 : 1;
+function QuoteCard({ text, color, isActive, width }: { text: string; color: string; isActive: boolean; width: number }) {
+  return (
+    <div
+      style={{
+        background: "#0f0f13",
+        borderRadius: 24,
+        border: `1px solid ${isActive ? color + "aa" : "rgba(255,255,255,0.08)"}`,
+        padding: "44px 56px",
+        boxShadow: isActive ? `0 20px 60px ${color}25` : "0 8px 24px rgba(0,0,0,0.5)",
+        position: "relative",
+      }}
+    >
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          top: 6,
+          left: 22,
+          fontSize: 130,
+          color: color + "44",
+          fontFamily: "serif",
+          lineHeight: 1,
+        }}
+      >
+        “
+      </div>
+      <div
+        style={{
+          fontSize: width > 900 ? 56 : 48,
+          fontWeight: 500,
+          lineHeight: 1.18,
+          letterSpacing: "-0.02em",
+          fontStyle: "italic",
+          color: "#f5f5f5",
+          paddingLeft: 30,
+        }}
+      >
+        {text}
+      </div>
+    </div>
+  );
+}
+
+function TransitionCard({ text, color, isActive }: { text: string; color: string; isActive: boolean }) {
+  return (
+    <div
+      style={{
+        padding: "24px 40px",
+        borderLeft: `3px solid ${color}`,
+        color: isActive ? "#f5f5f5" : "rgba(245,245,245,0.7)",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 12,
+          letterSpacing: "0.4em",
+          color,
+          marginBottom: 12,
+          fontWeight: 600,
+        }}
+      >
+        ⏵ TRANSIÇÃO
+      </div>
+      <div
+        style={{
+          fontSize: 44,
+          fontWeight: 500,
+          lineHeight: 1.15,
+          letterSpacing: "-0.02em",
+          textShadow: isActive ? `0 0 30px ${color}44` : "none",
+        }}
+      >
+        {text}
+      </div>
+    </div>
+  );
+}
+
+// ---------------- Safe area ----------------
+
+function SafeAreaOverlay({ area }: { area: string }) {
+  const [w, h] = area === "9:16" ? [9, 16] : area === "1:1" ? [1, 1] : [16, 9];
   return (
     <div className="pointer-events-none absolute inset-0 grid place-items-center">
       <div
-        className="border border-dashed"
         style={{
-          aspectRatio: String(aspect),
-          height: aspect >= 1 ? "78%" : "92%",
-          maxWidth: "92%",
-          borderColor: "oklch(1 0 0 / 0.06)",
+          aspectRatio: `${w} / ${h}`,
+          height: "78%",
+          border: "1px dashed rgba(255,255,255,0.08)",
+          borderRadius: 4,
         }}
       />
     </div>
   );
 }
 
-export type { CameraKeyframe };
+// ---------------- Debug panel ----------------
+
+function DebugPanel({
+  validation,
+  chapters,
+  nodes,
+  duration,
+}: {
+  validation: ReturnType<typeof validateCanvasLayout>;
+  chapters: number;
+  nodes: number;
+  duration: number;
+}) {
+  return (
+    <div className="absolute top-2 right-2 z-20 surface-card px-3 py-2 text-[10px] text-mono space-y-0.5">
+      <div className="text-muted-foreground">DEBUG · CANVAS</div>
+      <div>nós: <strong>{nodes}</strong></div>
+      <div>capítulos: <strong>{chapters}</strong></div>
+      <div>duração: <strong>{duration.toFixed(1)}s</strong></div>
+      <div>altura: <strong>{validation.totalHeight.toFixed(0)}px</strong></div>
+      <div
+        style={{
+          color: validation.ok ? "#34d399" : "#ff4d6d",
+          fontWeight: 700,
+          marginTop: 4,
+        }}
+      >
+        {validation.ok
+          ? "✓ sem sobreposições"
+          : `⚠ ${validation.overlaps.length} colisões`}
+      </div>
+      {validation.outOfCanvas.length > 0 && (
+        <div style={{ color: "#ff9f43" }}>fora do canvas: {validation.outOfCanvas.length}</div>
+      )}
+    </div>
+  );
+}
