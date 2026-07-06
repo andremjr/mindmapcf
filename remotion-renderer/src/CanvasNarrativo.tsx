@@ -13,7 +13,6 @@ import type {
   CanvasNarrativoExport,
   TextNode,
   TranscriptBlock,
-  Chapter,
   NodeKind,
 } from "./types";
 import { cameraAt } from "./cameraEngine";
