@@ -108,6 +108,19 @@ export function CanvasToolbar({
           </button>
         ))}
       </div>
+
+      {onToggleDebug && (
+        <button
+          onClick={onToggleDebug}
+          className={`surface-card flex items-center gap-1.5 px-2 py-1.5 text-[11px] rounded transition ${
+            debug ? "text-amber-400" : "text-muted-foreground hover:text-foreground"
+          }`}
+          title="Mostrar debug do canvas"
+        >
+          <Bug className="size-3.5" />
+          <span>Debug</span>
+        </button>
+      )}
     </div>
   );
 }
