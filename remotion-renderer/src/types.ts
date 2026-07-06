@@ -10,6 +10,26 @@ export type CameraEase =
 
 export type NodeVariant = "headline" | "body" | "caption" | "accent";
 export type MarkerStyle = "bracket" | "vline" | "arrow" | "dot" | "none";
+export type NodeKind =
+  | "hook"
+  | "statement"
+  | "evidence"
+  | "quote"
+  | "transition"
+  | "conclusion";
+
+export interface CameraTarget { x: number; y: number; zoom: number; }
+
+export interface Chapter {
+  index: number;
+  title: string;
+  color: string;
+  startTime: number;
+  endTime: number;
+  startY: number;
+  endY: number;
+  blockIds: string[];
+}
 
 export interface TextNode {
   id: string;
@@ -28,6 +48,16 @@ export interface TextNode {
   markerStyle?: MarkerStyle;
   fontWeight?: number;
   variant?: NodeVariant;
+  width?: number;
+  height?: number;
+  nodeKind?: NodeKind;
+  emphasisWords?: string[];
+  subtitle?: string;
+  chapterIndex?: number;
+  chapterColor?: string;
+  cameraTarget?: CameraTarget;
+  startTime?: number;
+  endTime?: number;
 }
 
 export interface TranscriptBlock {
