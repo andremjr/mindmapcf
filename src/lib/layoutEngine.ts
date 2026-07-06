@@ -308,144 +308,285 @@ interface LayoutOptions {
 
 const MARKER_ROTATION: MarkerStyle[] = ["vline", "dot", "bracket", "dot"];
 
+export interface NodeDebugInfo {
+  id: string;
+  blockId: string;
+  kind: NodeKind;
+  chapterIndex: number;
+  isChapterStart: boolean;
+  gapApplied: number;
+  targetY: number;
+  finalY: number;
+  x: number;
+  width: number;
+  height: number;
+  chars: number;
+  words: number;
+  lines: number;
+  collisionsDetected: number;
+  collisionsResolved: number;
+}
+
+export interface LayoutDebug {
+  totalNodes: number;
+  totalCollisionsDetected: number;
+  totalCollisionsResolved: number;
+  chaptersCount: number;
+  canvasHeight: number;
+  nodes: NodeDebugInfo[];
+}
+
 export interface LayoutResult {
   nodes: TextNode[];
   chapters: Chapter[];
+  debug: LayoutDebug;
 }
 
-/** Retorna nós + capítulos + valida contra sobreposições. */
+/**
+ * Layout determinístico em duas etapas.
+ *
+ * ETAPA 1 — mede todos os nós (largura/altura estimadas por chars, palavras,
+ * tipo, fonte, padding e maxWidth).
+ * ETAPA 2 — posiciona sequencialmente com a fórmula
+ *   nextY = prev.y + prev.height + gap
+ * onde `gap` respeita: mudança de capítulo (700), hook (420), evidence (360)
+ * ou mínimo (220). Depois roda resolução de colisão empurrando em passos de
+ * 120 px até não haver sobreposição.
+ */
 export function autoLayoutFull(
   blocks: TranscriptBlock[],
   _opts: LayoutOptions = {},
 ): LayoutResult {
-  if (blocks.length === 0) return { nodes: [], chapters: [] };
+  if (blocks.length === 0) {
+    return {
+      nodes: [],
+      chapters: [],
+      debug: {
+        totalNodes: 0, totalCollisionsDetected: 0, totalCollisionsResolved: 0,
+        chaptersCount: 0, canvasHeight: 0, nodes: [],
+      },
+    };
+  }
 
   const chapterGroups = detectChapters(blocks);
-  const chapters: Chapter[] = [];
-  const nodes: TextNode[] = [];
 
-  let currentY = CANVAS.startY;
-  let previousBoxes: Box[] = [];
-
+  // Mapa blockIdx -> chapterIndex, para saber se é início de capítulo.
+  const chapterOf = new Map<number, number>();
+  const chapterFirstBlock = new Map<number, number>();
   chapterGroups.forEach((group, cIdx) => {
-    const color = CHAPTER_PALETTE[cIdx % CHAPTER_PALETTE.length];
-    const chapterStartY = currentY;
-    const chapterBlocks = group.map((i) => blocks[i]);
-    const chapter: Chapter = {
-      index: cIdx,
-      title: CHAPTER_TITLES[cIdx] ?? `CAPÍTULO ${cIdx + 1}`,
-      color,
-      startTime: chapterBlocks[0].start,
-      endTime: chapterBlocks[chapterBlocks.length - 1].end,
-      startY: chapterStartY,
-      endY: chapterStartY, // preenchido depois
-      blockIds: chapterBlocks.map((b) => b.id),
-    };
-
-    group.forEach((blockIdx, iInChapter) => {
-      const block = blocks[blockIdx];
-      const kind = pickNodeKind(block, blockIdx, blocks.length);
-      const { width, height } = cardDimensions(kind, block.shortText || block.text);
-
-      // Alternância lateral suave — cria dinamismo sem quebrar a leitura.
-      const parity = blockIdx % 4;
-      const offset =
-        parity === 0 ? 0
-        : parity === 1 ? -CANVAS.alternateOffset * 0.4
-        : parity === 2 ? CANVAS.alternateOffset * 0.6
-        : -CANVAS.alternateOffset * 0.2;
-      const cx = CANVAS.contentCx + offset;
-
-      // Y inicial candidato — mais respiro para hook/evidence/conclusion.
-      const kindGap =
-        kind === "hook" ? 260
-        : kind === "conclusion" ? 260
-        : kind === "evidence" ? 220
-        : kind === "transition" ? 200
-        : kind === "quote" ? 180
-        : 160;
-      currentY += kindGap;
-
-      let candidate: Box = {
-        x: cx - width / 2,
-        y: currentY - height / 2,
-        w: width,
-        h: height,
-      };
-
-      // Resolve colisão: empurra para baixo até caber.
-      let guard = 0;
-      while (previousBoxes.some((p) => overlaps(p, candidate)) && guard < 200) {
-        candidate = { ...candidate, y: candidate.y + 40 };
-        guard++;
-      }
-
-      // Trava dentro do canvas horizontal.
-      const halfW = width / 2;
-      const minCx = CANVAS.guideX + 140 + halfW;
-      const maxCx = CANVAS.width - CANVAS.safePadX - halfW;
-      const finalCx = Math.min(Math.max(cx, minCx), maxCx);
-      candidate.x = finalCx - width / 2;
-
-      const finalY = candidate.y + height / 2;
-      previousBoxes.push(candidate);
-      currentY = candidate.y + height; // próximo começa abaixo do card atual
-
-      // Variante tipográfica derivada.
-      const variant: TextNode["variant"] =
-        kind === "hook" ? "headline"
-        : kind === "conclusion" ? "headline"
-        : kind === "evidence" ? "body"
-        : kind === "transition" ? "caption"
-        : kind === "quote" ? "accent"
-        : "body";
-
-      const cameraZoom = zoomFor(kind);
-      const node: TextNode = {
-        id: `n_${block.id}`,
-        blockId: block.id,
-        text: block.text,
-        shortText: block.shortText,
-        type: block.type,
-        x: finalCx,
-        y: finalY,
-        z: 0,
-        scale: 1,
-        opacity: 1,
-        blur: 0,
-        rotation: 0,
-        markerStyle: MARKER_ROTATION[blockIdx % MARKER_ROTATION.length],
-        fontWeight: kind === "hook" || kind === "conclusion" ? 700 : 500,
-        variant,
-        width,
-        height,
-        nodeKind: kind,
-        emphasisWords: extractEmphasisWords(block.text, block.keywords),
-        chapterIndex: cIdx,
-        chapterColor: color,
-        accentColor: color,
-        startTime: block.start,
-        endTime: block.end,
-        cameraTarget: {
-          x: finalCx,
-          y: finalY,
-          zoom: cameraZoom,
-        },
-      };
-      nodes.push(node);
-      void iInChapter;
+    group.forEach((bIdx, i) => {
+      chapterOf.set(bIdx, cIdx);
+      if (i === 0) chapterFirstBlock.set(cIdx, bIdx);
     });
-
-    // Fecha capítulo, adiciona espaçamento para o próximo.
-    chapter.endY = currentY;
-    chapters.push(chapter);
-    currentY += CANVAS.chapterGap;
   });
 
-  // Validação final: se algo colidir (não deveria), empurra iterativamente.
+  // ---------- ETAPA 1 · Medição ----------
+  type Measured = {
+    block: TranscriptBlock;
+    blockIdx: number;
+    kind: NodeKind;
+    width: number;
+    height: number;
+    chars: number;
+    words: number;
+    lines: number;
+    chapterIndex: number;
+    isChapterStart: boolean;
+  };
+  const measured: Measured[] = blocks.map((block, idx) => {
+    const kind = pickNodeKind(block, idx, blocks.length);
+    const text = block.shortText || block.text || "";
+    const m = measureNode(kind, text);
+    return {
+      block,
+      blockIdx: idx,
+      kind,
+      width: m.width,
+      height: m.height,
+      chars: text.length,
+      words: text.split(/\s+/).filter(Boolean).length,
+      lines: m.lines,
+      chapterIndex: chapterOf.get(idx) ?? 0,
+      isChapterStart: chapterFirstBlock.get(chapterOf.get(idx) ?? 0) === idx,
+    };
+  });
+
+  // ---------- ETAPA 2 · Posicionamento sequencial ----------
+  const nodes: TextNode[] = [];
+  const boxes: Box[] = []; // em coords TOP-LEFT
+  const debugNodes: NodeDebugInfo[] = [];
+  let totalCollisionsDetected = 0;
+  let totalCollisionsResolved = 0;
+
+  // "cursor" mantém a posição do TOPO do próximo card.
+  // Para o primeiro: topo = CANVAS.startY (nada acima).
+  let prevBottom = CANVAS.startY; // "bottom" virtual do nó anterior
+  let firstPlaced = false;
+
+  for (const m of measured) {
+    const gap = firstPlaced ? gapAbove(m.kind, m.isChapterStart) : 0;
+    const targetTop = firstPlaced ? prevBottom + gap : CANVAS.startY;
+
+    // Alternância lateral leve — fluxo, sem quebrar leitura.
+    const offset = X_ALTERNATION[m.blockIdx % X_ALTERNATION.length];
+    let cx = CANVAS.contentCx + offset;
+    const halfW = m.width / 2;
+    const minCx = CANVAS.guideX + 140 + halfW;
+    const maxCx = CANVAS.width - CANVAS.safePadX - halfW;
+    cx = Math.min(Math.max(cx, minCx), maxCx);
+
+    let top = targetTop;
+    let candidate: Box = { x: cx - halfW, y: top, w: m.width, h: m.height };
+
+    // Resolução de colisão — empurra em passos de 120 px.
+    let localDetected = 0;
+    let localResolved = 0;
+    let guard = 0;
+    while (
+      boxes.some((p) => overlaps(p, candidate, CANVAS.collisionPad)) &&
+      guard < 300
+    ) {
+      localDetected++;
+      top += CANVAS.collisionStep;
+      candidate = { ...candidate, y: top };
+      guard++;
+      // Se a próxima iteração já não colide, contamos como resolvido.
+      if (!boxes.some((p) => overlaps(p, candidate, CANVAS.collisionPad))) {
+        localResolved++;
+      }
+    }
+    totalCollisionsDetected += localDetected;
+    totalCollisionsResolved += localResolved;
+
+    boxes.push(candidate);
+    const finalCy = top + m.height / 2;
+    prevBottom = top + m.height;
+    firstPlaced = true;
+
+    const variant: TextNode["variant"] =
+      m.kind === "hook" ? "headline"
+      : m.kind === "conclusion" ? "headline"
+      : m.kind === "evidence" ? "body"
+      : m.kind === "transition" ? "caption"
+      : m.kind === "quote" ? "accent"
+      : "body";
+
+    const color = CHAPTER_PALETTE[m.chapterIndex % CHAPTER_PALETTE.length];
+    const node: TextNode = {
+      id: `n_${m.block.id}`,
+      blockId: m.block.id,
+      text: m.block.text,
+      shortText: m.block.shortText,
+      type: m.block.type,
+      x: cx,
+      y: finalCy,
+      z: 0,
+      scale: 1,
+      opacity: 1,
+      blur: 0,
+      rotation: 0,
+      markerStyle: MARKER_ROTATION[m.blockIdx % MARKER_ROTATION.length],
+      fontWeight: m.kind === "hook" || m.kind === "conclusion" ? 700 : 500,
+      variant,
+      width: m.width,
+      height: m.height,
+      nodeKind: m.kind,
+      emphasisWords: extractEmphasisWords(m.block.text, m.block.keywords),
+      chapterIndex: m.chapterIndex,
+      chapterColor: color,
+      accentColor: color,
+      startTime: m.block.start,
+      endTime: m.block.end,
+      cameraTarget: { x: cx, y: finalCy, zoom: zoomFor(m.kind) },
+    };
+    nodes.push(node);
+    debugNodes.push({
+      id: node.id,
+      blockId: m.block.id,
+      kind: m.kind,
+      chapterIndex: m.chapterIndex,
+      isChapterStart: m.isChapterStart,
+      gapApplied: gap,
+      targetY: targetTop,
+      finalY: top,
+      x: cx,
+      width: m.width,
+      height: m.height,
+      chars: m.chars,
+      words: m.words,
+      lines: m.lines,
+      collisionsDetected: localDetected,
+      collisionsResolved: localResolved,
+    });
+  }
+
+  // Capítulos derivados dos nós já posicionados.
+  const chapters: Chapter[] = chapterGroups.map((group, cIdx) => {
+    const chapterNodes = nodes.filter((n) => n.chapterIndex === cIdx);
+    const firstBlock = blocks[group[0]];
+    const lastBlock = blocks[group[group.length - 1]];
+    const startY = chapterNodes.length
+      ? Math.min(...chapterNodes.map((n) => n.y - (n.height ?? 0) / 2))
+      : 0;
+    const endY = chapterNodes.length
+      ? Math.max(...chapterNodes.map((n) => n.y + (n.height ?? 0) / 2))
+      : 0;
+    return {
+      index: cIdx,
+      title: CHAPTER_TITLES[cIdx] ?? `CAPÍTULO ${cIdx + 1}`,
+      color: CHAPTER_PALETTE[cIdx % CHAPTER_PALETTE.length],
+      startTime: firstBlock.start,
+      endTime: lastBlock.end,
+      startY,
+      endY,
+      blockIds: group.map((i) => blocks[i].id),
+    };
+  });
+
+  // Validação final: garante zero colisões (empurra o que sobrar).
   const validated = enforceNoOverlap(nodes);
-  return { nodes: validated, chapters };
+
+  // Debug + log.
+  const canvasHeight = validated.reduce(
+    (max, n) => Math.max(max, n.y + (n.height ?? 0) / 2),
+    0,
+  );
+  const debug: LayoutDebug = {
+    totalNodes: validated.length,
+    totalCollisionsDetected,
+    totalCollisionsResolved,
+    chaptersCount: chapters.length,
+    canvasHeight,
+    nodes: debugNodes,
+  };
+  if (typeof console !== "undefined") {
+    // Painel de debug via console — visível no dev tools.
+    // eslint-disable-next-line no-console
+    console.groupCollapsed(
+      `[layout] ${validated.length} nós · ${chapters.length} caps · colisões: ${totalCollisionsDetected} detectadas / ${totalCollisionsResolved} resolvidas`,
+    );
+    // eslint-disable-next-line no-console
+    console.table(
+      debugNodes.map((d) => ({
+        id: d.id,
+        kind: d.kind,
+        cap: d.chapterIndex,
+        x: Math.round(d.x),
+        y: Math.round(d.finalY),
+        w: d.width,
+        h: d.height,
+        lines: d.lines,
+        gap: d.gapApplied,
+        col: `${d.collisionsDetected}/${d.collisionsResolved}`,
+      })),
+    );
+    // eslint-disable-next-line no-console
+    console.groupEnd();
+  }
+
+  return { nodes: validated, chapters, debug };
 }
+
 
 /** Backwards-compat: mesma assinatura antiga. */
 export function autoLayout(
