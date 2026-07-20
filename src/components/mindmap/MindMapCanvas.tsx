@@ -15,10 +15,13 @@ interface Props {
   children: React.ReactNode;
   animated?: boolean;
   pendingEdge?: PendingEdge | null;
+  /** Effective accent color per node id (parent→child edge uses child's color). */
+  colorById?: Map<string, string>;
   onBackgroundPointerDown?: (e: React.PointerEvent) => void;
   onWheel?: (e: React.WheelEvent) => void;
   onBackgroundDoubleClick?: (e: React.MouseEvent) => void;
 }
+
 
 /**
  * Infinite pannable/zoomable canvas.
@@ -33,12 +36,14 @@ export const MindMapCanvas = forwardRef<HTMLDivElement, Props>(function MindMapC
     children,
     animated,
     pendingEdge,
+    colorById,
     onBackgroundPointerDown,
     onWheel,
     onBackgroundDoubleClick,
   },
   ref,
 ) {
+
   const { x, y, zoom } = viewport;
   const cx = containerSize.w / 2;
   const cy = containerSize.h / 2;
@@ -111,15 +116,22 @@ export const MindMapCanvas = forwardRef<HTMLDivElement, Props>(function MindMapC
           style={{ left: minX, top: minY, width: svgW, height: svgH, overflow: "visible" }}
           viewBox={`${minX} ${minY} ${svgW} ${svgH}`}
         >
-          {edges.map(({ from, to }, i) => (
-            <path
-              key={i}
-              d={edgePath(from, to)}
-              stroke="color-mix(in oklch, var(--primary) 55%, transparent)"
-              strokeWidth={2}
-              fill="none"
-            />
-          ))}
+          {edges.map(({ from, to }, i) => {
+            const c = colorById?.get(to.id);
+            const stroke = c
+              ? `color-mix(in oklch, ${c} 70%, transparent)`
+              : "color-mix(in oklch, var(--primary) 55%, transparent)";
+            return (
+              <path
+                key={i}
+                d={edgePath(from, to)}
+                stroke={stroke}
+                strokeWidth={2}
+                fill="none"
+              />
+            );
+          })}
+
           {pendingEdge && (() => {
             const from = nodeById.get(pendingEdge.fromId);
             if (!from) return null;

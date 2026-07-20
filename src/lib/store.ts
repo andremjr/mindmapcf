@@ -32,6 +32,17 @@ interface Actions {
   deleteNode: (projectId: string, nodeId: string) => void;
   setParent: (projectId: string, nodeId: string, parentId: string | null) => void;
   toggleCollapsed: (projectId: string, nodeId: string) => void;
+  /**
+   * Set a node's accent color. When `cascade` is true, clears the `color`
+   * from every descendant so the whole branch takes this color via
+   * inheritance (see buildColorMap).
+   */
+  setNodeColor: (
+    projectId: string,
+    nodeId: string,
+    color: string | undefined,
+    cascade?: boolean,
+  ) => void;
   autoLayout: (projectId: string) => void;
 
   setViewport: (projectId: string, v: { x: number; y: number; zoom: number }) => void;
@@ -353,6 +364,26 @@ export const useStore = create<State & Actions>()((set) => ({
             }
           : p,
       ),
+    })),
+
+  setNodeColor: (projectId, nodeId, color, cascade) =>
+    set((s) => ({
+      projects: s.projects.map((p) => {
+        if (p.id !== projectId) return p;
+        const descendants = cascade
+          ? new Set(descendantIds(p.nodes, nodeId))
+          : null;
+        return {
+          ...p,
+          nodes: p.nodes.map((n) => {
+            if (n.id === nodeId) return { ...n, color };
+            if (descendants && descendants.has(n.id))
+              return { ...n, color: undefined };
+            return n;
+          }),
+          updatedAt: new Date().toISOString(),
+        };
+      }),
     })),
 
   autoLayout: (projectId) =>

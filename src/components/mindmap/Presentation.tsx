@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, X, Download } from "lucide-react";
 import type { Project } from "@/lib/types";
 import { presentationOrder, descendantIds } from "@/lib/store";
+import { buildColorMap } from "@/lib/nodeColors";
 import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
 import { RecorderHUD } from "./RecorderHUD";
@@ -110,6 +111,8 @@ export function Presentation({
     }
     return new Set(project.nodes.map((n) => n.id).filter((id) => !hidden.has(id)));
   }, [project.nodes]);
+
+  const colorMap = useMemo(() => buildColorMap(project.nodes), [project.nodes]);
 
   const activeId = order[idx];
   const activeNode = project.nodes.find((n) => n.id === activeId);
@@ -364,6 +367,7 @@ export function Presentation({
             visibleIds={visibleIds}
             viewport={viewport}
             containerSize={size}
+            colorById={colorMap}
           >
             {project.nodes.map((n) => {
               if (!visibleIds.has(n.id)) return null;
@@ -375,6 +379,7 @@ export function Presentation({
                   selected={false}
                   editing={false}
                   active={n.id === activeId}
+                  effectiveColor={colorMap.get(n.id)}
                   presentation
                   onSelect={() => {}}
                   onStartEdit={() => {}}

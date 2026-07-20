@@ -17,11 +17,13 @@ import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
 import { ImportDialog } from "./ImportDialog";
 import { importFromText } from "@/lib/mindmapImport";
+import { buildColorMap } from "@/lib/nodeColors";
 import { toast } from "sonner";
 
 import { pickMediaAndStore } from "@/lib/imageStorage";
 import { startRecording } from "@/lib/screenRecorder";
 import { RECORD_FORMATS, saveRecordFormat, type RecordFormat } from "@/lib/recordFormats";
+
 
 
 
@@ -34,6 +36,7 @@ export function MindMapEditor({ project }: { project: Project }) {
   const runAutoLayout = useStore((s) => s.autoLayout);
   const renameProject = useStore((s) => s.renameProject);
   const replaceProjectNodes = useStore((s) => s.replaceProjectNodes);
+  const setNodeColor = useStore((s) => s.setNodeColor);
   const setViewportPersist = useStore((s) => s.setViewport);
   const navigate = useNavigate();
 
@@ -92,6 +95,9 @@ export function MindMapEditor({ project }: { project: Project }) {
     }
     return m;
   }, [project.nodes]);
+
+  const colorMap = useMemo(() => buildColorMap(project.nodes), [project.nodes]);
+
 
   // --- Pan background ---
   const panRef = useRef<{ sx: number; sy: number; vx: number; vy: number } | null>(null);
@@ -457,6 +463,7 @@ export function MindMapEditor({ project }: { project: Project }) {
               viewport={viewport}
               containerSize={size}
               pendingEdge={pendingEdge}
+              colorById={colorMap}
               onBackgroundPointerDown={onBgPointerDown}
               onWheel={onWheel}
               onBackgroundDoubleClick={handleBgDoubleClick}
@@ -480,6 +487,8 @@ export function MindMapEditor({ project }: { project: Project }) {
                       childCount={childCounts.get(n.id) ?? 0}
                       selected={selectedId === n.id}
                       editing={editingId === n.id}
+                      effectiveColor={colorMap.get(n.id)}
+                      hasDescendants={(childCounts.get(n.id) ?? 0) > 0}
                       onSelect={() => setSelectedId(n.id)}
                       onStartEdit={() => {
                         setSelectedId(n.id);
@@ -528,8 +537,9 @@ export function MindMapEditor({ project }: { project: Project }) {
                           alert("Não foi possível adicionar esse vídeo.");
                         }
                       }}
-
-
+                      onSetColor={(color, cascade) =>
+                        setNodeColor(project.id, n.id, color, cascade)
+                      }
                     />
                   </div>
                 );

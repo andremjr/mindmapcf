@@ -7,9 +7,13 @@ import {
   ChevronDown,
   AlertTriangle,
   Film,
+  Palette,
+  Check,
 } from "lucide-react";
 import type { MindNode } from "@/lib/types";
 import { resolveImage, requestImageAccess } from "@/lib/imageStorage";
+import { NODE_COLOR_PALETTE, DEFAULT_ACCENT } from "@/lib/nodeColors";
+
 
 
 interface Props {
@@ -19,6 +23,10 @@ interface Props {
   editing: boolean;
   presentation?: boolean;
   active?: boolean;
+  /** Resolved accent color (inherits from ancestors — computed by parent). */
+  effectiveColor?: string;
+  /** Whether this node has any descendants (used to enable branch-cascade). */
+  hasDescendants?: boolean;
   onSelect: () => void;
   onStartEdit: () => void;
   onEndEdit: () => void;
@@ -30,7 +38,9 @@ interface Props {
   onToggleCollapsed?: () => void;
   onPickImage?: () => void;
   onPickVideo?: () => void;
+  onSetColor?: (color: string | undefined, cascade: boolean) => void;
 }
+
 
 export function NodeCard({
   node,
@@ -39,6 +49,8 @@ export function NodeCard({
   editing,
   presentation,
   active,
+  effectiveColor,
+  hasDescendants,
   onSelect,
   onStartEdit,
   onEndEdit,
@@ -50,8 +62,11 @@ export function NodeCard({
   onToggleCollapsed,
   onPickImage,
   onPickVideo,
+  onSetColor,
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [colorMenuOpen, setColorMenuOpen] = useState(false);
+  const [cascade, setCascade] = useState(true);
 
 
   useEffect(() => {
@@ -62,15 +77,40 @@ export function NodeCard({
   }, [editing]);
 
   const w = node.width ?? 260;
-  const accent = node.color ?? "var(--primary)";
+  const accent = effectiveColor ?? node.color ?? DEFAULT_ACCENT;
   const isRoot = !node.parentId;
+  const isThemed = accent !== DEFAULT_ACCENT;
+
+  // When themed, tint the whole border with the accent. When on the default
+  // accent, keep the muted chrome so the map doesn't look like every card is
+  // "selected".
+  const borderStyle: React.CSSProperties = isThemed
+    ? {
+        borderColor: presentation && !active ? undefined : accent,
+        boxShadow:
+          presentation && active
+            ? `0 0 0 2px ${accent}66, 0 30px 80px -20px rgba(0,0,0,0.85)`
+            : selected
+              ? `0 0 0 1px ${accent}, 0 10px 30px -14px rgba(0,0,0,0.5)`
+              : undefined,
+        borderLeftColor: isRoot ? accent : undefined,
+        borderLeftWidth: isRoot ? 4 : 1,
+      }
+    : {
+        borderLeftColor: isRoot ? accent : undefined,
+        borderLeftWidth: isRoot ? 4 : 1,
+      };
 
   const chromeClass = presentation
     ? active
-      ? "border-primary/80 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)] ring-2 ring-primary/40"
+      ? isThemed
+        ? "shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]"
+        : "border-primary/80 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)] ring-2 ring-primary/40"
       : "border-border/20 opacity-25 blur-[1.5px]"
     : selected
-      ? "border-primary shadow-[0_10px_30px_-14px_rgba(0,0,0,0.5)]"
+      ? isThemed
+        ? "shadow-[0_10px_30px_-14px_rgba(0,0,0,0.5)]"
+        : "border-primary shadow-[0_10px_30px_-14px_rgba(0,0,0,0.5)]"
       : "border-border/60 hover:border-border";
 
   return (
@@ -83,8 +123,7 @@ export function NodeCard({
         top: node.y,
         width: w,
         transform: "translateY(-50%)",
-        borderLeftColor: isRoot ? accent : undefined,
-        borderLeftWidth: isRoot ? 4 : 1,
+        ...borderStyle,
       }}
       onPointerDown={(e) => {
         if (presentation) return;
@@ -98,6 +137,7 @@ export function NodeCard({
         onStartEdit();
       }}
     >
+
       <NodeMedia
         node={node}
         presentation={presentation}
@@ -218,6 +258,14 @@ export function NodeCard({
             <Film className="size-3" />
             Vídeo
           </button>
+          <button
+            onClick={() => setColorMenuOpen((v) => !v)}
+            className="px-2 py-1 text-xs rounded hover:bg-muted flex items-center gap-1"
+            title="Cor do nó"
+          >
+            <Palette className="size-3" style={{ color: isThemed ? accent : undefined }} />
+            Cor
+          </button>
 
           <div className="h-4 w-px bg-border mx-1" />
           <button
@@ -228,6 +276,62 @@ export function NodeCard({
           </button>
         </div>
       )}
+
+      {/* Color picker popover */}
+      {selected && !presentation && !editing && colorMenuOpen && (
+        <div
+          data-nodrag
+          className="absolute left-1/2 -translate-x-1/2 -bottom-[168px] z-20 w-[240px] rounded-lg border border-border/60 bg-popover p-3 shadow-xl"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-2">
+            Cor do nó
+          </div>
+          <div className="grid grid-cols-5 gap-1.5 mb-2">
+            {NODE_COLOR_PALETTE.map((c) => {
+              const isCurrent = (node.color ?? "").toLowerCase() === c.value.toLowerCase();
+              return (
+                <button
+                  key={c.value}
+                  onClick={() => {
+                    onSetColor?.(c.value, cascade && !!hasDescendants);
+                    setColorMenuOpen(false);
+                  }}
+                  className="relative size-8 rounded-full border border-border/60 hover:scale-110 transition-transform"
+                  style={{ backgroundColor: c.value }}
+                  title={c.name}
+                  aria-label={c.name}
+                >
+                  {isCurrent && (
+                    <Check className="size-4 text-white absolute inset-0 m-auto drop-shadow" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {hasDescendants && (
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer mb-2">
+              <input
+                type="checkbox"
+                checked={cascade}
+                onChange={(e) => setCascade(e.target.checked)}
+                className="accent-primary"
+              />
+              Aplicar a toda a ramificação
+            </label>
+          )}
+          <button
+            onClick={() => {
+              onSetColor?.(undefined, false);
+              setColorMenuOpen(false);
+            }}
+            className="w-full text-xs rounded-md px-2 py-1.5 border border-border/60 hover:bg-muted"
+          >
+            {node.color ? "Limpar cor deste nó" : "Sem cor personalizada"}
+          </button>
+        </div>
+      )}
+
     </div>
   );
 }
