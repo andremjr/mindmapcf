@@ -289,7 +289,7 @@ export const useStore = create<State & Actions>()(
             const toRemove = new Set([nodeId, ...descendantIds(p.nodes, nodeId)]);
             return {
               ...p,
-              nodes: p.nodes.filter((n) => !toRemove.has(n.id)),
+              nodes: reflowTree(p.nodes.filter((n) => !toRemove.has(n.id))),
               updatedAt: new Date().toISOString(),
             };
           }),
