@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Project } from "@/lib/types";
 import { resolveImage } from "@/lib/imageStorage";
 import { importFromText, buildImportedProject } from "@/lib/mindmapImport";
+import { ImportDialog } from "@/components/mindmap/ImportDialog";
 import { toast } from "sonner";
 
 function ProjectThumb({ project }: { project: Project }) {
@@ -93,7 +94,7 @@ function ProjectsDashboard() {
   const { session } = useAuth();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   // Auth gate + Supabase sync are owned by the /projects layout route.
   if (!session) return null;
@@ -113,13 +114,13 @@ function ProjectsDashboard() {
         toast.error("Arquivo vazio ou não reconhecido.");
         return;
       }
-      // Use filename (without extension) as fallback title.
       const base = file.name.replace(/\.[^.]+$/, "");
       const project = buildImportedProject({
         ...imported,
         title: imported.title && imported.title !== "Mapa importado" ? imported.title : base,
       });
       const id = importProject(project);
+      setImportOpen(false);
       toast.success(`Mapa importado com ${imported.nodes.length} nós.`);
       navigate({ to: "/projects/$id", params: { id } });
     } catch (err) {
@@ -157,21 +158,10 @@ function ProjectsDashboard() {
             >
               <LogOut className="size-4" /> Sair
             </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".md,.markdown,.json,.txt,text/markdown,application/json,text/plain"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleImportFile(f);
-                e.target.value = "";
-              }}
-            />
             <Button
               variant="outline"
               className="gap-2"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => setImportOpen(true)}
             >
               <Upload className="size-4" /> Importar
             </Button>
