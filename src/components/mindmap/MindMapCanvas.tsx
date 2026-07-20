@@ -1,49 +1,87 @@
 import { forwardRef } from "react";
 import type { MindNode } from "@/lib/types";
 
+interface PendingEdge {
+  fromId: string;
+  toX: number;
+  toY: number;
+}
+
 interface Props {
   nodes: MindNode[];
-  order: string[];
+  visibleIds: Set<string>;
   viewport: { x: number; y: number; zoom: number };
   containerSize: { w: number; h: number };
   children: React.ReactNode;
   animated?: boolean;
+  pendingEdge?: PendingEdge | null;
   onBackgroundPointerDown?: (e: React.PointerEvent) => void;
   onWheel?: (e: React.WheelEvent) => void;
+  onBackgroundDoubleClick?: (e: React.MouseEvent) => void;
 }
 
 /**
  * Infinite pannable/zoomable canvas.
- * Applies a transform that centers `viewport.x/y` in the container at zoom `viewport.zoom`.
+ * Draws parent→child edges as horizontal-bias curves.
  */
 export const MindMapCanvas = forwardRef<HTMLDivElement, Props>(function MindMapCanvas(
-  { nodes, order, viewport, containerSize, children, animated, onBackgroundPointerDown, onWheel },
+  {
+    nodes,
+    visibleIds,
+    viewport,
+    containerSize,
+    children,
+    animated,
+    pendingEdge,
+    onBackgroundPointerDown,
+    onWheel,
+    onBackgroundDoubleClick,
+  },
   ref,
 ) {
   const { x, y, zoom } = viewport;
   const cx = containerSize.w / 2;
   const cy = containerSize.h / 2;
 
-  // Build connectors between consecutive nodes in presentation order.
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
-  const pairs: [MindNode, MindNode][] = [];
-  for (let i = 0; i < order.length - 1; i++) {
-    const a = nodeById.get(order[i]);
-    const b = nodeById.get(order[i + 1]);
-    if (a && b) pairs.push([a, b]);
+  const edges: Array<{ from: MindNode; to: MindNode }> = [];
+  for (const n of nodes) {
+    if (!visibleIds.has(n.id)) continue;
+    if (!n.parentId) continue;
+    const p = nodeById.get(n.parentId);
+    if (!p || !visibleIds.has(p.id)) continue;
+    edges.push({ from: p, to: n });
   }
 
-  // Compute a wide SVG canvas that covers all nodes.
-  const pad = 4000;
-  let minX = -pad, minY = -pad, maxX = pad, maxY = pad;
+  // SVG bounds covering nodes + slack.
+  const pad = 5000;
+  let minX = -pad,
+    minY = -pad,
+    maxX = pad,
+    maxY = pad;
   for (const n of nodes) {
-    minX = Math.min(minX, n.x - 800);
-    maxX = Math.max(maxX, n.x + 800);
-    minY = Math.min(minY, n.y - 800);
-    maxY = Math.max(maxY, n.y + 800);
+    minX = Math.min(minX, n.x - 1000);
+    maxX = Math.max(maxX, n.x + 1000);
+    minY = Math.min(minY, n.y - 1000);
+    maxY = Math.max(maxY, n.y + 1000);
   }
   const svgW = maxX - minX;
   const svgH = maxY - minY;
+
+  function edgePath(a: MindNode, b: MindNode) {
+    const aw = a.width ?? 260;
+    const bw = b.width ?? 260;
+    const goingRight = b.x >= a.x;
+    const ax = a.x + (goingRight ? aw / 2 : -aw / 2);
+    const bx = b.x + (goingRight ? -bw / 2 : bw / 2);
+    const ay = a.y;
+    const by = b.y;
+    const dx = Math.abs(bx - ax);
+    const c = Math.max(40, dx * 0.5);
+    const c1x = ax + (goingRight ? c : -c);
+    const c2x = bx + (goingRight ? -c : c);
+    return `M ${ax} ${ay} C ${c1x} ${ay}, ${c2x} ${by}, ${bx} ${by}`;
+  }
 
   return (
     <div
@@ -51,12 +89,13 @@ export const MindMapCanvas = forwardRef<HTMLDivElement, Props>(function MindMapC
       className="absolute inset-0 overflow-hidden select-none"
       style={{
         backgroundImage:
-          "radial-gradient(circle at 1px 1px, color-mix(in oklch, var(--border) 50%, transparent) 1px, transparent 0)",
+          "radial-gradient(circle at 1px 1px, color-mix(in oklch, var(--border) 45%, transparent) 1px, transparent 0)",
         backgroundSize: `${24 * zoom}px ${24 * zoom}px`,
         backgroundPosition: `${cx - x * zoom}px ${cy - y * zoom}px`,
       }}
       onPointerDown={onBackgroundPointerDown}
       onWheel={onWheel}
+      onDoubleClick={onBackgroundDoubleClick}
     >
       <div
         className="absolute left-0 top-0"
@@ -67,25 +106,41 @@ export const MindMapCanvas = forwardRef<HTMLDivElement, Props>(function MindMapC
           willChange: "transform",
         }}
       >
-        {/* Connectors */}
         <svg
           className="absolute pointer-events-none"
           style={{ left: minX, top: minY, width: svgW, height: svgH, overflow: "visible" }}
           viewBox={`${minX} ${minY} ${svgW} ${svgH}`}
         >
-          {pairs.map(([a, b], i) => {
-            const dx = (b.x - a.x) * 0.5;
+          {edges.map(({ from, to }, i) => (
+            <path
+              key={i}
+              d={edgePath(from, to)}
+              stroke="color-mix(in oklch, var(--primary) 55%, transparent)"
+              strokeWidth={2}
+              fill="none"
+            />
+          ))}
+          {pendingEdge && (() => {
+            const from = nodeById.get(pendingEdge.fromId);
+            if (!from) return null;
+            const fw = from.width ?? 260;
+            const goingRight = pendingEdge.toX >= from.x;
+            const ax = from.x + (goingRight ? fw / 2 : -fw / 2);
+            const ay = from.y;
+            const bx = pendingEdge.toX;
+            const by = pendingEdge.toY;
+            const dx = Math.abs(bx - ax);
+            const c = Math.max(40, dx * 0.5);
             return (
               <path
-                key={i}
-                d={`M ${a.x} ${a.y} C ${a.x + dx} ${a.y}, ${b.x - dx} ${b.y}, ${b.x} ${b.y}`}
-                stroke="color-mix(in oklch, var(--primary) 35%, transparent)"
+                d={`M ${ax} ${ay} C ${ax + (goingRight ? c : -c)} ${ay}, ${bx + (goingRight ? -c : c)} ${by}, ${bx} ${by}`}
+                stroke="color-mix(in oklch, var(--primary) 90%, transparent)"
                 strokeWidth={2}
+                strokeDasharray="6 6"
                 fill="none"
-                strokeDasharray="6 8"
               />
             );
-          })}
+          })()}
         </svg>
 
         {children}
