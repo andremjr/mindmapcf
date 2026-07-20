@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Plus, Network, Trash2, Clock, LogOut, Upload } from "lucide-react";
+import { Plus, Network, Trash2, Clock, LogOut, Upload, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -97,7 +97,7 @@ function ProjectsDashboard() {
   const deleteProject = useStore((s) => s.deleteProject);
   const navigate = useNavigate();
   const { session } = useAuth();
-  const { isPro, loading: subscriptionLoading } = useSubscription(session?.user.id);
+  const { isPro, loading: subscriptionLoading, subscription } = useSubscription(session?.user.id);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [importOpen, setImportOpen] = useState(false);
@@ -169,13 +169,21 @@ function ProjectsDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="rounded-full border border-border/60 px-2 py-1 text-xs text-muted-foreground hidden md:inline-flex">
-              {subscriptionLoading ? "Plano…" : isPro ? "Pro" : `Grátis ${projects.length}/${FREE_MAP_LIMIT}`}
-            </span>
-            {!isPro && !subscriptionLoading && (
-              <Button variant="secondary" size="sm" onClick={() => setUpgradeOpen(true)}>
-                Plano Pro
+            {isPro ? (
+              <Button asChild variant="secondary" size="sm" className="gap-1">
+                <Link to="/account"><Crown className="size-3.5" /> Minha conta</Link>
               </Button>
+            ) : (
+              <>
+                <span className="rounded-full border border-border/60 px-2 py-1 text-xs text-muted-foreground hidden md:inline-flex">
+                  {subscriptionLoading ? "Plano…" : `Grátis ${projects.length}/${FREE_MAP_LIMIT}`}
+                </span>
+                {!subscriptionLoading && (
+                  <Button variant="secondary" size="sm" onClick={() => setUpgradeOpen(true)}>
+                    Plano Pro
+                  </Button>
+                )}
+              </>
             )}
             <span className="text-xs text-muted-foreground hidden sm:inline">
               {session.user.email}
@@ -226,6 +234,13 @@ function ProjectsDashboard() {
 
         </div>
       </header>
+
+      {subscription?.status === "past_due" && (
+        <div className="border-b border-orange-500/40 bg-orange-500/10 px-6 py-3 text-center text-sm text-orange-200">
+          Pagamento pendente na sua assinatura.{" "}
+          <Link to="/account" className="underline font-medium">Atualizar cartão</Link>
+        </div>
+      )}
 
       <main className="mx-auto max-w-6xl px-6 py-10">
         <div className="mb-6">

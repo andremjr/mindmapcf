@@ -1,8 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Check, Loader2, Network } from "lucide-react";
+import { ArrowLeft, Check, Crown, Loader2, Network } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
+import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "sonner";
 
 const PLANS = [
@@ -24,11 +25,16 @@ export const Route = createFileRoute("/pricing")({
 function PricingPage() {
   const { user, loading } = useAuth();
   const { openCheckout, loadingPriceId } = usePaddleCheckout();
+  const { isPro } = useSubscription(user?.id);
   const navigate = useNavigate();
 
   async function subscribe(priceId: string) {
     if (!user) {
       navigate({ to: "/auth" });
+      return;
+    }
+    if (isPro) {
+      navigate({ to: "/account" });
       return;
     }
     try {
@@ -63,6 +69,13 @@ function PricingPage() {
           <p className="mt-3 text-muted-foreground">
             Comece grátis com 3 mapas e 30 nós por mapa. Assine para criar mapas e nós ilimitados, com apresentação e gravação completas.
           </p>
+          {isPro && (
+            <div className="mt-6 flex items-center gap-3 rounded-lg border border-primary/40 bg-primary/5 p-4 text-sm">
+              <Crown className="size-4 text-primary" />
+              <div className="flex-1">Você já é Pro. Para trocar de plano, atualizar cartão ou cancelar, acesse sua conta.</div>
+              <Button size="sm" onClick={() => navigate({ to: "/account" })}>Minha conta</Button>
+            </div>
+          )}
         </div>
 
         <div className="mt-8 grid gap-4 md:grid-cols-3">
