@@ -103,6 +103,7 @@ function ProjectsDashboard() {
   const [title, setTitle] = useState("");
   const [importOpen, setImportOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [avatarsOpen, setAvatarsOpen] = useState(false);
 
   // Auth gate + Supabase sync are owned by the /projects layout route.
   if (!session) return null;
