@@ -235,6 +235,13 @@ function ProjectsDashboard() {
         </div>
       </header>
 
+      {subscription?.status === "past_due" && (
+        <div className="border-b border-orange-500/40 bg-orange-500/10 px-6 py-3 text-center text-sm text-orange-200">
+          Pagamento pendente na sua assinatura.{" "}
+          <Link to="/account" className="underline font-medium">Atualizar cartão</Link>
+        </div>
+      )}
+
       <main className="mx-auto max-w-6xl px-6 py-10">
         <div className="mb-6">
           <h2 className="text-2xl font-semibold">Seus mapas</h2>
