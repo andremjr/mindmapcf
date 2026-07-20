@@ -55,8 +55,8 @@ export function NodeCard({
 
   const chromeClass = presentation
     ? active
-      ? "border-primary/70 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.7)]"
-      : "border-border/30 opacity-70"
+      ? "border-primary/80 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)] ring-2 ring-primary/40"
+      : "border-border/20 opacity-25 blur-[1.5px]"
     : selected
       ? "border-primary shadow-[0_10px_30px_-14px_rgba(0,0,0,0.5)]"
       : "border-border/60 hover:border-border";
