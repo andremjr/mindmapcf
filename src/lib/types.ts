@@ -7,6 +7,8 @@ export interface ImageRef {
   name: string;
   size: number;
   lastModified: number;
+  /** Media kind. Missing = image (backwards compatible). */
+  kind?: "image" | "video";
 }
 
 export interface MindNode {
