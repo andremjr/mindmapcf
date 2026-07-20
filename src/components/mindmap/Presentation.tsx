@@ -262,23 +262,12 @@ export function Presentation({
         </MindMapCanvas>
       </div>
 
-      {/* Recording HUD */}
-      {recording && recState?.state === "recording" && (
-        <div className="absolute top-4 left-4 z-20 flex items-center gap-2 rounded-full bg-card/80 backdrop-blur border border-destructive/50 pl-2 pr-3 py-1.5 text-sm shadow-lg">
-          <Circle className="size-3 fill-destructive text-destructive animate-pulse" />
-          <span className="font-mono tabular-nums text-foreground">
-            REC {formatDuration(elapsedMs)}
-          </span>
-          <button
-            onClick={exit}
-            className="ml-2 flex items-center gap-1 rounded-full bg-destructive/90 hover:bg-destructive text-destructive-foreground px-2 py-0.5 text-xs font-medium"
-            aria-label="Parar gravação"
-            title="Parar gravação (R)"
-          >
-            <Square className="size-3 fill-current" /> Parar
-          </button>
-        </div>
+      {/* Recording HUD — opens in a Document PiP window when supported so it
+          isn't captured by the screen recording. */}
+      {recording && recState?.state === "recording" && recState.startedAt != null && (
+        <RecorderHUD startedAt={recState.startedAt} onStop={exit} />
       )}
+
 
       <div
         className={`absolute top-4 right-4 z-10 transition-opacity duration-300 ${
