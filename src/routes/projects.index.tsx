@@ -19,6 +19,11 @@ import { resolveImage } from "@/lib/imageStorage";
 import { importFromText, buildImportedProject } from "@/lib/mindmapImport";
 import { ImportDialog } from "@/components/mindmap/ImportDialog";
 import { toast } from "sonner";
+import { useSubscription } from "@/hooks/useSubscription";
+import { UpgradeDialog } from "@/components/UpgradeDialog";
+
+const FREE_MAP_LIMIT = 3;
+const FREE_NODE_LIMIT = 30;
 
 function ProjectThumb({ project }: { project: Project }) {
   const root = project.nodes.find((n) => !n.parentId) ?? project.nodes[0];
@@ -92,14 +97,22 @@ function ProjectsDashboard() {
   const deleteProject = useStore((s) => s.deleteProject);
   const navigate = useNavigate();
   const { session } = useAuth();
+  const { isPro, loading: subscriptionLoading } = useSubscription(session?.user.id);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [importOpen, setImportOpen] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   // Auth gate + Supabase sync are owned by the /projects layout route.
   if (!session) return null;
 
   function handleCreate() {
+    if (!isPro && projects.length >= FREE_MAP_LIMIT) {
+      setOpen(false);
+      setUpgradeOpen(true);
+      toast.error("O plano grátis permite até 3 mapas mentais.");
+      return;
+    }
     const id = createProject(title);
     setOpen(false);
     setTitle("");
@@ -112,6 +125,18 @@ function ProjectsDashboard() {
       const imported = importFromText(text, file.name);
       if (imported.nodes.length === 0) {
         toast.error("Arquivo vazio ou não reconhecido.");
+        return;
+      }
+      if (!isPro && projects.length >= FREE_MAP_LIMIT) {
+        setImportOpen(false);
+        setUpgradeOpen(true);
+        toast.error("O plano grátis permite até 3 mapas mentais.");
+        return;
+      }
+      if (!isPro && imported.nodes.length > FREE_NODE_LIMIT) {
+        setImportOpen(false);
+        setUpgradeOpen(true);
+        toast.error("O plano grátis permite importar mapas com até 30 nós.");
         return;
       }
       const base = file.name.replace(/\.[^.]+$/, "");
@@ -144,6 +169,14 @@ function ProjectsDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <span className="rounded-full border border-border/60 px-2 py-1 text-xs text-muted-foreground hidden md:inline-flex">
+              {subscriptionLoading ? "Plano…" : isPro ? "Pro" : `Grátis ${projects.length}/${FREE_MAP_LIMIT}`}
+            </span>
+            {!isPro && !subscriptionLoading && (
+              <Button variant="secondary" size="sm" onClick={() => setUpgradeOpen(true)}>
+                Plano Pro
+              </Button>
+            )}
             <span className="text-xs text-muted-foreground hidden sm:inline">
               {session.user.email}
             </span>
@@ -167,7 +200,7 @@ function ProjectsDashboard() {
             </Button>
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
-                <Button className="gap-2">
+                <Button className="gap-2" disabled={!isPro && projects.length >= FREE_MAP_LIMIT}>
                   <Plus className="size-4" /> Novo mapa
                 </Button>
               </DialogTrigger>
@@ -239,6 +272,11 @@ function ProjectsDashboard() {
         open={importOpen}
         onClose={() => setImportOpen(false)}
         onFile={handleImportFile}
+      />
+      <UpgradeDialog
+        open={upgradeOpen}
+        onOpenChange={setUpgradeOpen}
+        user={session.user}
       />
     </div>
   );

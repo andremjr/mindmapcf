@@ -23,6 +23,11 @@ import { toast } from "sonner";
 import { pickMediaAndStore } from "@/lib/imageStorage";
 import { startRecording } from "@/lib/screenRecorder";
 import { RECORD_FORMATS, saveRecordFormat, type RecordFormat } from "@/lib/recordFormats";
+import { useAuth } from "@/hooks/useAuth";
+import { useSubscription } from "@/hooks/useSubscription";
+import { UpgradeDialog } from "@/components/UpgradeDialog";
+
+const FREE_NODE_LIMIT = 30;
 
 
 
@@ -39,6 +44,8 @@ export function MindMapEditor({ project }: { project: Project }) {
   const setNodeColor = useStore((s) => s.setNodeColor);
   const setViewportPersist = useStore((s) => s.setViewport);
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { isPro } = useSubscription(user?.id);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 1200, h: 800 });
@@ -50,6 +57,26 @@ export function MindMapEditor({ project }: { project: Project }) {
     | null
   >(null);
   const [dropTargetId, setDropTargetId] = useState<string | undefined>();
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  function canAddMoreNodes() {
+    return isPro || project.nodes.length < FREE_NODE_LIMIT;
+  }
+
+  function showNodeLimit() {
+    setUpgradeOpen(true);
+    toast.error("O plano grátis permite até 30 nós por mapa.");
+  }
+
+  function addNodeGuarded(
+    patch?: Partial<MindNode> & { parentId?: string | null },
+  ): string | null {
+    if (!canAddMoreNodes()) {
+      showNodeLimit();
+      return null;
+    }
+    return addNode(project.id, patch);
+  }
 
   useLayoutEffect(() => {
     if (!containerRef.current) return;
@@ -232,7 +259,8 @@ export function MindMapEditor({ project }: { project: Project }) {
       } else {
         // Create new child at drop position
         const w = screenToWorld(e.clientX, e.clientY);
-        const id = addNode(project.id, { parentId: from, x: w.x, y: w.y });
+        const id = addNodeGuarded({ parentId: from, x: w.x, y: w.y });
+        if (!id) return;
         setSelectedId(id);
         setEditingId(id);
       }
@@ -244,7 +272,7 @@ export function MindMapEditor({ project }: { project: Project }) {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [pendingEdge, project.id, screenToWorld, setParent, addNode]);
+  }, [pendingEdge, project.id, screenToWorld, setParent, addNode, isPro, project.nodes.length]);
 
   function startConnect(node: MindNode, e: React.PointerEvent) {
     setSelectedId(node.id);
@@ -267,7 +295,8 @@ export function MindMapEditor({ project }: { project: Project }) {
 
       if (e.key === "Tab") {
         e.preventDefault();
-        const id = addNode(project.id, { parentId: selectedId });
+        const id = addNodeGuarded({ parentId: selectedId });
+        if (!id) return;
         setSelectedId(id);
         setEditingId(id);
       } else if (e.key === "Enter") {
@@ -276,11 +305,13 @@ export function MindMapEditor({ project }: { project: Project }) {
         if (!sel) return;
         if (!sel.parentId) {
           // Root: Enter adds a child instead of a sibling.
-          const id = addNode(project.id, { parentId: sel.id });
+          const id = addNodeGuarded({ parentId: sel.id });
+          if (!id) return;
           setSelectedId(id);
           setEditingId(id);
         } else {
-          const id = addNode(project.id, { parentId: sel.parentId });
+          const id = addNodeGuarded({ parentId: sel.parentId });
+          if (!id) return;
           setSelectedId(id);
           setEditingId(id);
         }
@@ -300,12 +331,13 @@ export function MindMapEditor({ project }: { project: Project }) {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selectedId, project.id, project.nodes, addNode, deleteNode, toggleCollapsed]);
+  }, [selectedId, project.id, project.nodes, addNode, deleteNode, toggleCollapsed, isPro]);
 
   function handleAdd() {
     // Add a child of selected, or a new root if none selected.
     const parentId = selectedId ?? null;
-    const id = addNode(project.id, { parentId });
+    const id = addNodeGuarded({ parentId });
+    if (!id) return;
     setSelectedId(id);
     setEditingId(id);
   }
@@ -332,6 +364,12 @@ export function MindMapEditor({ project }: { project: Project }) {
       const imported = importFromText(text, file.name);
       if (imported.nodes.length === 0) {
         toast.error("Arquivo vazio ou não reconhecido.");
+        return;
+      }
+      if (!isPro && imported.nodes.length > FREE_NODE_LIMIT) {
+        setImportOpen(false);
+        setUpgradeOpen(true);
+        toast.error("O plano grátis permite importar mapas com até 30 nós.");
         return;
       }
       const base = file.name.replace(/\.[^.]+$/, "");
@@ -395,7 +433,8 @@ export function MindMapEditor({ project }: { project: Project }) {
   function handleBgDoubleClick(e: React.MouseEvent) {
     if ((e.target as HTMLElement).closest("[data-node]")) return;
     const w = screenToWorld(e.clientX, e.clientY);
-    const id = addNode(project.id, { parentId: null, x: w.x, y: w.y });
+    const id = addNodeGuarded({ parentId: null, x: w.x, y: w.y });
+    if (!id) return;
     setSelectedId(id);
     setEditingId(id);
   }
@@ -414,6 +453,15 @@ export function MindMapEditor({ project }: { project: Project }) {
           className="bg-transparent outline-none font-semibold text-sm min-w-0 flex-1 max-w-md"
         />
         <div className="ml-auto flex items-center gap-2">
+          {!isPro && (
+            <button
+              onClick={() => setUpgradeOpen(true)}
+              className="rounded-full border border-border/60 px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+              title="Limite do plano grátis"
+            >
+              {project.nodes.length}/{FREE_NODE_LIMIT} nós
+            </button>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -426,7 +474,7 @@ export function MindMapEditor({ project }: { project: Project }) {
           <Button variant="ghost" size="sm" onClick={fitAll} className="gap-2">
             <Maximize className="size-4" /> Ver tudo
           </Button>
-          <Button variant="secondary" size="sm" onClick={handleAdd} className="gap-2">
+          <Button variant="secondary" size="sm" onClick={handleAdd} className="gap-2" disabled={!canAddMoreNodes()}>
             <Plus className="size-4" /> Nó
           </Button>
           <Button
@@ -504,7 +552,8 @@ export function MindMapEditor({ project }: { project: Project }) {
                       onDragStart={(e) => onNodeDragStart(n, e)}
                       onStartConnect={(e) => startConnect(n, e)}
                       onAddChild={() => {
-                        const id = addNode(project.id, { parentId: n.id });
+                        const id = addNodeGuarded({ parentId: n.id });
+                        if (!id) return;
                         setSelectedId(id);
                         setEditingId(id);
                       }}
@@ -703,6 +752,7 @@ export function MindMapEditor({ project }: { project: Project }) {
           </div>
         </div>
       )}
+      <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} user={user} />
     </div>
   );
 }

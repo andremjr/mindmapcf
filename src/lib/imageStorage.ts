@@ -149,13 +149,13 @@ async function currentUserId() {
   return data.user.id;
 }
 
-function makeStoragePath(userId: string, file: File) {
-  return `${userId}/${crypto.randomUUID()}-${sanitizeFileName(file.name)}`;
+function makeStoragePath(userId: string, name: string) {
+  return `${userId}/${crypto.randomUUID()}-${sanitizeFileName(name)}`;
 }
 
-async function uploadToStorage(file: File) {
+async function uploadToStorage(file: Blob, name = "arquivo") {
   const userId = await currentUserId();
-  const storagePath = makeStoragePath(userId, file);
+  const storagePath = makeStoragePath(userId, name);
   const { error } = await supabase.storage.from(BUCKET).upload(storagePath, file, {
     contentType: file.type || undefined,
     upsert: false,
@@ -204,7 +204,7 @@ export async function pickMediaAndStore(
         excludeAcceptAllOption: false,
       });
       const file = await handle.getFile();
-      const storagePath = await uploadToStorage(file);
+      const storagePath = await uploadToStorage(file, file.name);
       const ref: ImageRef = {
         id,
         storagePath,
@@ -223,7 +223,7 @@ export async function pickMediaAndStore(
   }
   const file = await pickFileFallback(mime);
   if (!file) return null;
-  const storagePath = await uploadToStorage(file);
+  const storagePath = await uploadToStorage(file, file.name);
   const ref: ImageRef = {
     id,
     storagePath,
@@ -352,7 +352,7 @@ export async function requestImageAccess(
   if (entry) {
     const file = await tryReadHandle(entry, true);
     if (file) {
-      const storagePath = entry.storagePath ?? (await uploadToStorage(file));
+      const storagePath = entry.storagePath ?? (await uploadToStorage(file, file.name));
       const nextRef: ImageRef = {
         id,
         storagePath,
@@ -370,7 +370,7 @@ export async function requestImageAccess(
   if (typeof ref === "object") {
     const twin = await findByFingerprint(ref.name, ref.size, ref.lastModified);
     if (twin?.blob) {
-      const storagePath = ref.storagePath ?? (await uploadToStorage(twin.blob as File));
+      const storagePath = ref.storagePath ?? (await uploadToStorage(twin.blob, ref.name));
       const nextRef: ImageRef = {
         id,
         storagePath,
@@ -410,7 +410,7 @@ export async function requestImageAccess(
   }
   if (!file) file = await pickFileFallback(mime);
   if (!file) return null;
-  const storagePath = await uploadToStorage(file);
+  const storagePath = await uploadToStorage(file, file.name);
   const nextRef: ImageRef = {
     id,
     storagePath,
