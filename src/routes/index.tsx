@@ -31,7 +31,7 @@ function LandingPage() {
       <header className="border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <Network className="size-4 text-primary" /> Canvas Narrativo
+            <img src="/favicon.png" alt="Canvas Narrativo" className="size-6" /> Canvas Narrativo
           </div>
           <nav className="flex items-center gap-4 text-sm">
             <Link to="/pricing" className="text-muted-foreground hover:text-foreground">

@@ -160,9 +160,7 @@ function ProjectsDashboard() {
       <header className="border-b border-border/60 backdrop-blur-md bg-background/70 sticky top-0 z-10">
         <div className="mx-auto max-w-6xl px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="size-9 rounded-lg bg-gradient-to-br from-primary to-accent grid place-items-center shadow-lg">
-              <Network className="size-4 text-primary-foreground" />
-            </div>
+            <img src="/favicon.png" alt="Canvas Narrativo" className="size-9 rounded-lg shadow-lg" />
             <div>
               <h1 className="text-base font-semibold">Canvas Narrativo</h1>
               <p className="text-xs text-muted-foreground">Mapas mentais com modo apresentação</p>
