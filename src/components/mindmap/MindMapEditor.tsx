@@ -96,6 +96,9 @@ export function MindMapEditor({ project }: { project: Project }) {
     return m;
   }, [project.nodes]);
 
+  const colorMap = useMemo(() => buildColorMap(project.nodes), [project.nodes]);
+
+
   // --- Pan background ---
   const panRef = useRef<{ sx: number; sy: number; vx: number; vy: number } | null>(null);
   function onBgPointerDown(e: React.PointerEvent) {
