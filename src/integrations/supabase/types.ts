@@ -41,6 +41,42 @@ export type Database = {
         }
         Relationships: []
       }
+      sonic_avatars: {
+        Row: {
+          bg_color: string
+          created_at: string
+          id: string
+          image_ref: Json | null
+          name: string
+          size_pct: number
+          updated_at: string
+          user_id: string
+          wave_color: string
+        }
+        Insert: {
+          bg_color?: string
+          created_at?: string
+          id?: string
+          image_ref?: Json | null
+          name?: string
+          size_pct?: number
+          updated_at?: string
+          user_id: string
+          wave_color?: string
+        }
+        Update: {
+          bg_color?: string
+          created_at?: string
+          id?: string
+          image_ref?: Json | null
+          name?: string
+          size_pct?: number
+          updated_at?: string
+          user_id?: string
+          wave_color?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           cancel_at_period_end: boolean
