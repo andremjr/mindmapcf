@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useParams, useRouterState } from "@tanstack/react-router";
 import { useProject } from "@/lib/store";
 import { MindMapEditor } from "@/components/mindmap/MindMapEditor";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ export const Route = createFileRoute("/projects/$id")({
 
 function EditorRoute() {
   const { id } = useParams({ from: "/projects/$id" });
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
   const project = useProject(id);
 
   // Auth + Supabase hydration guaranteed by /projects layout.
@@ -30,6 +31,8 @@ function EditorRoute() {
       </div>
     );
   }
+
+  if (pathname.endsWith("/present")) return <Outlet />;
 
   return <MindMapEditor project={project} />;
 }
