@@ -38,9 +38,9 @@ function RefundPage() {
             </p>
             <ul className="list-disc pl-6">
               <li><strong>Cartão de crédito:</strong> estorno em 1 a 2 faturas, conforme o banco emissor;</li>
-              <li><strong>Pix:</strong> devolução em até 7 dias úteis;</li>
-              <li><strong>Boleto:</strong> devolução em até 7 dias úteis via Pix ou TED.</li>
+              <li><strong>Pix:</strong> devolução em até 7 dias úteis.</li>
             </ul>
+
           </section>
 
           <section>
