@@ -17,7 +17,7 @@ import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
 import { ImportDialog } from "./ImportDialog";
 import { importFromText } from "@/lib/mindmapImport";
-import { buildColorMap } from "@/lib/nodeColors";
+import { buildColorMap, NODE_COLOR_PALETTE } from "@/lib/nodeColors";
 import { toast } from "sonner";
 
 import { pickMediaAndStore } from "@/lib/imageStorage";
@@ -585,12 +585,61 @@ export function MindMapEditor({ project }: { project: Project }) {
         </main>
 
         {selectedId && (
-          <aside className="w-64 shrink-0 border-l border-border/60 bg-card/40 flex flex-col">
+          <aside className="w-72 shrink-0 border-l border-border/60 bg-card/40 flex flex-col">
             <div className="px-4 py-3 border-b border-border/60">
               <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Nó selecionado</div>
             </div>
             <SelectedPanel
               node={project.nodes.find((n) => n.id === selectedId)}
+              effectiveColor={selectedId ? colorMap.get(selectedId) : undefined}
+              hasChildren={selectedId ? (childCounts.get(selectedId) ?? 0) > 0 : false}
+              onChangeText={(text) =>
+                selectedId && updateNode(project.id, selectedId, { text })
+              }
+              onPickImage={async () => {
+                if (!selectedId) return;
+                try {
+                  const ref = await pickMediaAndStore("image");
+                  if (!ref) return;
+                  updateNode(project.id, selectedId, {
+                    imageRef: ref,
+                    imageName: ref.name,
+                    image: undefined,
+                  });
+                } catch (error) {
+                  console.error("[mindmap] image pick", error);
+                  toast.error("Não foi possível adicionar essa imagem.");
+                }
+              }}
+              onPickVideo={async () => {
+                if (!selectedId) return;
+                try {
+                  const ref = await pickMediaAndStore("video");
+                  if (!ref) return;
+                  updateNode(project.id, selectedId, {
+                    imageRef: ref,
+                    imageName: ref.name,
+                    image: undefined,
+                  });
+                } catch (error) {
+                  console.error("[mindmap] video pick", error);
+                  toast.error("Não foi possível adicionar esse vídeo.");
+                }
+              }}
+              onClearMedia={() =>
+                selectedId &&
+                updateNode(project.id, selectedId, {
+                  imageRef: undefined,
+                  imageName: undefined,
+                  image: undefined,
+                })
+              }
+              onSetColor={(color, cascade) =>
+                selectedId && setNodeColor(project.id, selectedId, color, cascade)
+              }
+              onToggleCollapsed={() =>
+                selectedId && toggleCollapsed(project.id, selectedId)
+              }
               onDetach={() => selectedId && setParent(project.id, selectedId, null)}
               onDelete={() => {
                 if (!selectedId) return;
@@ -660,48 +709,169 @@ export function MindMapEditor({ project }: { project: Project }) {
 
 function SelectedPanel({
   node,
+  effectiveColor,
+  hasChildren,
+  onChangeText,
+  onPickImage,
+  onPickVideo,
+  onClearMedia,
+  onSetColor,
+  onToggleCollapsed,
   onDetach,
   onDelete,
 }: {
   node: MindNode | undefined;
+  effectiveColor: string | undefined;
+  hasChildren: boolean;
+  onChangeText: (text: string) => void;
+  onPickImage: () => void;
+  onPickVideo: () => void;
+  onClearMedia: () => void;
+  onSetColor: (color: string | undefined, cascade: boolean) => void;
+  onToggleCollapsed: () => void;
   onDetach: () => void;
   onDelete: () => void;
 }) {
+  const [cascade, setCascade] = useState(false);
   if (!node) return null;
+  const hasMedia = !!(node.imageRef || node.image);
+  const mediaKind = node.imageRef?.kind ?? (node.image ? "image" : undefined);
+  const ownColor = node.color;
+  const displayColor = ownColor ?? effectiveColor;
+
   return (
-    <div className="flex-1 overflow-auto p-4 space-y-3 text-sm">
-      <div className="rounded-md bg-muted/40 border border-border/50 p-3">
-        <div className="text-xs text-muted-foreground mb-1">Texto</div>
-        <div className="whitespace-pre-wrap text-foreground">
-          {node.text || <span className="italic text-muted-foreground/60">vazio</span>}
+    <div className="flex-1 overflow-auto p-4 space-y-5 text-sm">
+      {/* Text */}
+      <section className="space-y-1.5">
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Texto</div>
+        <textarea
+          value={node.text}
+          onChange={(e) => onChangeText(e.target.value)}
+          rows={4}
+          placeholder="Digite o texto do nó…"
+          className="w-full resize-y rounded-md border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+        />
+      </section>
+
+      {/* Media */}
+      <section className="space-y-2">
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Mídia</div>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={onPickImage}
+            className="rounded-md border border-border/60 hover:border-primary hover:bg-muted/50 px-3 py-2 text-xs"
+          >
+            {mediaKind === "image" ? "Trocar imagem" : "Adicionar imagem"}
+          </button>
+          <button
+            onClick={onPickVideo}
+            className="rounded-md border border-border/60 hover:border-primary hover:bg-muted/50 px-3 py-2 text-xs"
+          >
+            {mediaKind === "video" ? "Trocar vídeo" : "Adicionar vídeo"}
+          </button>
         </div>
-      </div>
-      <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-        <div>
-          <div>Pai</div>
-          <div className="text-foreground">{node.parentId ? "sim" : "raiz"}</div>
+        {hasMedia && (
+          <div className="flex items-center justify-between rounded-md bg-muted/40 border border-border/50 px-3 py-2 text-xs">
+            <span className="truncate text-muted-foreground" title={node.imageName || ""}>
+              {mediaKind === "video" ? "Vídeo" : "Imagem"}
+              {node.imageName ? `: ${node.imageName}` : ""}
+            </span>
+            <button
+              onClick={onClearMedia}
+              className="text-destructive hover:underline shrink-0 ml-2"
+            >
+              Remover
+            </button>
+          </div>
+        )}
+      </section>
+
+      {/* Color */}
+      <section className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Cor</div>
+          {displayColor && (
+            <span
+              className="inline-block size-3 rounded-full border border-border/60"
+              style={{ background: displayColor }}
+              aria-hidden
+            />
+          )}
         </div>
-        <div>
-          <div>Recolhido</div>
-          <div className="text-foreground">{node.collapsed ? "sim" : "não"}</div>
+        <div className="grid grid-cols-5 gap-1.5">
+          {NODE_COLOR_PALETTE.map((c) => {
+            const active = ownColor === c.value;
+            return (
+              <button
+                key={c.value}
+                onClick={() => onSetColor(c.value, cascade)}
+                title={c.name}
+                className={`size-7 rounded-full border transition ${
+                  active
+                    ? "border-foreground ring-2 ring-foreground/30"
+                    : "border-border/60 hover:scale-110"
+                }`}
+                style={{ background: c.value }}
+              />
+            );
+          })}
         </div>
-      </div>
-      <div className="pt-2 space-y-1">
+        {hasChildren && (
+          <label className="flex items-center gap-2 text-xs text-muted-foreground pt-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={cascade}
+              onChange={(e) => setCascade(e.target.checked)}
+              className="accent-primary"
+            />
+            Aplicar a toda a ramificação
+          </label>
+        )}
+        {ownColor && (
+          <button
+            onClick={() => onSetColor(undefined, false)}
+            className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+          >
+            Limpar cor (herdar do pai)
+          </button>
+        )}
+      </section>
+
+      {/* Info + actions */}
+      <section className="space-y-2 pt-2 border-t border-border/60">
+        <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+          <div>
+            <div>Pai</div>
+            <div className="text-foreground">{node.parentId ? "sim" : "raiz"}</div>
+          </div>
+          <div>
+            <div>Recolhido</div>
+            <div className="text-foreground">{node.collapsed ? "sim" : "não"}</div>
+          </div>
+        </div>
+        {hasChildren && (
+          <button
+            onClick={onToggleCollapsed}
+            className="w-full text-left rounded-md px-3 py-2 text-xs hover:bg-muted border border-border/50"
+          >
+            {node.collapsed ? "Expandir filhos" : "Recolher filhos"}
+          </button>
+        )}
         {node.parentId && (
           <button
             onClick={onDetach}
-            className="w-full text-left rounded-md px-3 py-2 text-xs hover:bg-muted"
+            className="w-full text-left rounded-md px-3 py-2 text-xs hover:bg-muted border border-border/50"
           >
             Desconectar do pai (virar raiz)
           </button>
         )}
         <button
           onClick={onDelete}
-          className="w-full text-left rounded-md px-3 py-2 text-xs text-destructive hover:bg-destructive/10 flex items-center gap-2"
+          className="w-full text-left rounded-md px-3 py-2 text-xs text-destructive hover:bg-destructive/10 border border-destructive/30 flex items-center gap-2"
         >
           <Trash2 className="size-3.5" /> Excluir nó (e filhos)
         </button>
-      </div>
+      </section>
     </div>
   );
 }
