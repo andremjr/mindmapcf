@@ -1,27 +1,48 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Circle, Square, Download } from "lucide-react";
 import type { Project } from "@/lib/types";
 import { presentationOrder, descendantIds } from "@/lib/store";
 import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
+import {
+  isRecording,
+  stopRecording,
+  cancelRecording,
+  getRecorderState,
+  subscribeRecorder,
+  type RecordingResult,
+} from "@/lib/screenRecorder";
 
 type Viewport = { x: number; y: number; zoom: number };
 
 const FOCUS_ZOOM = 2.2;
 const TRANSITION_MS = 1100;
 
-// easeInOutCubic
 function ease(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-export function Presentation({ project }: { project: Project }) {
+function formatDuration(ms: number) {
+  const s = Math.floor(ms / 1000);
+  const mm = String(Math.floor(s / 60)).padStart(2, "0");
+  const ss = String(s % 60).padStart(2, "0");
+  return `${mm}:${ss}`;
+}
+
+export function Presentation({
+  project,
+  recording = false,
+}: {
+  project: Project;
+  recording?: boolean;
+}) {
   const navigate = useNavigate();
   const order = presentationOrder(project);
   const [idx, setIdx] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 1280, h: 720 });
+  const [result, setResult] = useState<RecordingResult | null>(null);
 
   useLayoutEffect(() => {
     if (!containerRef.current) return;
@@ -46,8 +67,6 @@ export function Presentation({ project }: { project: Project }) {
   const activeId = order[idx];
   const activeNode = project.nodes.find((n) => n.id === activeId);
 
-  // RAF-driven viewport animation (zoom-out midway → pan → zoom-in).
-  // Start from a wide overview so the first arrow key visibly zooms into node 1.
   const initialVp: Viewport = { x: 0, y: 0, zoom: 0.45 };
   const [viewport, setViewport] = useState<Viewport>(initialVp);
   const rafRef = useRef<number | null>(null);
@@ -60,9 +79,6 @@ export function Presentation({ project }: { project: Project }) {
     const from = viewportRef.current;
     const target: Viewport = { x: activeNode.x, y: activeNode.y, zoom: FOCUS_ZOOM };
 
-    // Camera style based on hierarchical relation to previous node:
-    // - descending to a child OR moving between siblings → straight pan (no zoom arc)
-    // - going back up / jumping across branches / first entry → zoom-out arc
     const prevId = prevIdRef.current;
     const prevNode = prevId ? project.nodes.find((n) => n.id === prevId) : null;
     let useArc = true;
@@ -113,7 +129,31 @@ export function Presentation({ project }: { project: Project }) {
   function prev() {
     setIdx((i) => Math.max(0, i - 1));
   }
-  function exit() {
+  async function exit() {
+    if (isRecording()) {
+      try {
+        const r = await stopRecording();
+        setResult(r);
+        // Trigger download automatically.
+        const a = document.createElement("a");
+        a.href = r.url;
+        a.download = r.filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } catch (e) {
+        console.error("[presentation] stop recording", e);
+      }
+      // Keep the fullscreen exit + navigation for after the modal closes.
+      return;
+    }
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    navigate({ to: "/projects/$id", params: { id: project.id } });
+  }
+
+  function closeResult() {
+    if (result) URL.revokeObjectURL(result.url);
+    setResult(null);
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     navigate({ to: "/projects/$id", params: { id: project.id } });
   }
@@ -125,6 +165,8 @@ export function Presentation({ project }: { project: Project }) {
     }
     return () => {
       if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      // If the component unmounts while recording (rare), throw the recording away.
+      if (isRecording()) cancelRecording().catch(() => {});
     };
   }, []);
 
@@ -142,14 +184,33 @@ export function Presentation({ project }: { project: Project }) {
         setIdx(0);
       } else if (e.key === "End") {
         setIdx(order.length - 1);
+      } else if ((e.key === "r" || e.key === "R") && recording) {
+        e.preventDefault();
+        exit();
       }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order.length]);
+  }, [order.length, recording]);
 
-  // Auto-hide UI chrome after inactivity.
+  // Recording HUD ticker.
+  const [recTick, setRecTick] = useState(0);
+  useEffect(() => {
+    if (!recording) return;
+    const unsub = subscribeRecorder(() => setRecTick((n) => n + 1));
+    const interval = window.setInterval(() => setRecTick((n) => n + 1), 500);
+    return () => {
+      unsub();
+      window.clearInterval(interval);
+    };
+  }, [recording]);
+  const recState = recording ? getRecorderState() : null;
+  const elapsedMs =
+    recState && recState.startedAt ? performance.now() - recState.startedAt : 0;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _tick = recTick;
+
   const [uiVisible, setUiVisible] = useState(true);
   const hideTimer = useRef<number | null>(null);
   useEffect(() => {
@@ -200,6 +261,24 @@ export function Presentation({ project }: { project: Project }) {
         </MindMapCanvas>
       </div>
 
+      {/* Recording HUD */}
+      {recording && recState?.state === "recording" && (
+        <div className="absolute top-4 left-4 z-20 flex items-center gap-2 rounded-full bg-card/80 backdrop-blur border border-destructive/50 pl-2 pr-3 py-1.5 text-sm shadow-lg">
+          <Circle className="size-3 fill-destructive text-destructive animate-pulse" />
+          <span className="font-mono tabular-nums text-foreground">
+            REC {formatDuration(elapsedMs)}
+          </span>
+          <button
+            onClick={exit}
+            className="ml-2 flex items-center gap-1 rounded-full bg-destructive/90 hover:bg-destructive text-destructive-foreground px-2 py-0.5 text-xs font-medium"
+            aria-label="Parar gravação"
+            title="Parar gravação (R)"
+          >
+            <Square className="size-3 fill-current" /> Parar
+          </button>
+        </div>
+      )}
+
       <div
         className={`absolute top-4 right-4 z-10 transition-opacity duration-300 ${
           uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"
@@ -243,6 +322,50 @@ export function Presentation({ project }: { project: Project }) {
       {order.length === 0 && (
         <div className="absolute inset-0 grid place-items-center">
           <p className="text-muted-foreground">Adicione nós antes de apresentar.</p>
+        </div>
+      )}
+
+      {/* Post-recording modal */}
+      {result && (
+        <div className="absolute inset-0 z-30 bg-background/90 backdrop-blur grid place-items-center p-6">
+          <div className="w-full max-w-2xl rounded-2xl border border-border/60 bg-card shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-border/60 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Gravação finalizada</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {result.mimeType} · {formatDuration(result.durationMs)} ·{" "}
+                  {(result.blob.size / 1024 / 1024).toFixed(1)} MB
+                </p>
+              </div>
+              <button
+                onClick={closeResult}
+                className="size-8 grid place-items-center rounded-full hover:bg-muted"
+                aria-label="Fechar"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+            <video
+              src={result.url}
+              controls
+              className="w-full aspect-video bg-black"
+            />
+            <div className="px-6 py-4 flex items-center justify-end gap-2">
+              <button
+                onClick={closeResult}
+                className="px-3 py-2 text-sm rounded-md hover:bg-muted"
+              >
+                Fechar
+              </button>
+              <a
+                href={result.url}
+                download={result.filename}
+                className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:opacity-90"
+              >
+                <Download className="size-4" /> Baixar novamente
+              </a>
+            </div>
+          </div>
         </div>
       )}
     </div>

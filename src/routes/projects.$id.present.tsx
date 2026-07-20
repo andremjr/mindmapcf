@@ -1,9 +1,15 @@
-import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link, useParams, useSearch } from "@tanstack/react-router";
+import { z } from "zod";
 import { useProject } from "@/lib/store";
 import { Presentation } from "@/components/mindmap/Presentation";
 import { Button } from "@/components/ui/button";
 
+const searchSchema = z.object({
+  record: z.union([z.literal("1"), z.literal("0"), z.boolean()]).optional(),
+});
+
 export const Route = createFileRoute("/projects/$id/present")({
+  validateSearch: searchSchema,
   head: () => ({
     meta: [
       { title: `Apresentação — Canvas Narrativo` },
@@ -15,6 +21,7 @@ export const Route = createFileRoute("/projects/$id/present")({
 
 function PresentRoute() {
   const { id } = useParams({ from: "/projects/$id/present" });
+  const search = useSearch({ from: "/projects/$id/present" });
   const project = useProject(id);
 
   if (!project) {
@@ -28,5 +35,6 @@ function PresentRoute() {
     );
   }
 
-  return <Presentation project={project} />;
+  const recording = search.record === "1" || search.record === true;
+  return <Presentation project={project} recording={recording} />;
 }

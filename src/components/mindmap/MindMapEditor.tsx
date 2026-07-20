@@ -7,6 +7,7 @@ import {
   Maximize,
   LayoutGrid,
   Trash2,
+  Circle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MindNode, Project } from "@/lib/types";
@@ -14,7 +15,9 @@ import { useStore, descendantIds } from "@/lib/store";
 import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
 
-import { pickImageAndStore } from "@/lib/imageStorage";
+import { pickMediaAndStore } from "@/lib/imageStorage";
+import { startRecording } from "@/lib/screenRecorder";
+
 
 
 export function MindMapEditor({ project }: { project: Project }) {

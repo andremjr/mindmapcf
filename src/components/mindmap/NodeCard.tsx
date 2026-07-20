@@ -6,6 +6,7 @@ import {
   ChevronRight,
   ChevronDown,
   AlertTriangle,
+  Film,
 } from "lucide-react";
 import type { MindNode } from "@/lib/types";
 import { resolveImage, requestImageAccess } from "@/lib/imageStorage";
@@ -28,6 +29,7 @@ interface Props {
   onAddChild?: () => void;
   onToggleCollapsed?: () => void;
   onPickImage?: () => void;
+  onPickVideo?: () => void;
 }
 
 export function NodeCard({
@@ -47,6 +49,7 @@ export function NodeCard({
   onAddChild,
   onToggleCollapsed,
   onPickImage,
+  onPickVideo,
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -95,10 +98,13 @@ export function NodeCard({
         onStartEdit();
       }}
     >
-      <NodeImage
+      <NodeMedia
         node={node}
         presentation={presentation}
-        onClear={() => onChange({ image: undefined, imageRef: undefined, imageName: undefined })}
+        active={active}
+        onClear={() =>
+          onChange({ image: undefined, imageRef: undefined, imageName: undefined })
+        }
       />
 
       <div className="px-4 py-3">
@@ -205,6 +211,13 @@ export function NodeCard({
             <ImageIcon className="size-3" />
             Imagem
           </button>
+          <button
+            onClick={() => onPickVideo?.()}
+            className="px-2 py-1 text-xs rounded hover:bg-muted flex items-center gap-1"
+          >
+            <Film className="size-3" />
+            Vídeo
+          </button>
 
           <div className="h-4 w-px bg-border mx-1" />
           <button
@@ -219,20 +232,24 @@ export function NodeCard({
   );
 }
 
-function NodeImage({
+function NodeMedia({
   node,
   presentation,
+  active,
   onClear,
 }: {
   node: MindNode;
   presentation?: boolean;
+  active?: boolean;
   onClear: () => void;
 }) {
   const ref = node.imageRef;
   const legacy = node.image;
+  const kind = ref?.kind ?? "image";
   const [url, setUrl] = useState<string | null>(legacy ?? null);
   const [broken, setBroken] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
+  const videoElRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     let alive = true;
@@ -257,6 +274,25 @@ function NodeImage({
     };
   }, [ref?.id, legacy]);
 
+  // Presentation: auto play/pause video when its node becomes active.
+  useEffect(() => {
+    if (kind !== "video") return;
+    const v = videoElRef.current;
+    if (!v) return;
+    if (presentation && active) {
+      try {
+        v.currentTime = 0;
+      } catch {
+        /* seek may fail before metadata loaded */
+      }
+      v.play().catch(() => {
+        /* autoplay may fail without prior gesture; user can hit play manually */
+      });
+    } else {
+      v.pause();
+    }
+  }, [presentation, active, kind, url]);
+
   if (!ref && !legacy) return null;
 
   if (broken && ref) {
@@ -264,7 +300,9 @@ function NodeImage({
       <div className="relative rounded-t-xl border-b border-destructive/40 bg-destructive/10 px-3 py-4 text-xs text-destructive flex items-start gap-2">
         <AlertTriangle className="size-4 shrink-0 mt-0.5" />
         <div className="min-w-0 flex-1">
-          <div className="font-semibold truncate">Imagem indisponível</div>
+          <div className="font-semibold truncate">
+            {kind === "video" ? "Vídeo indisponível" : "Imagem indisponível"}
+          </div>
           <div className="text-destructive/80 truncate" title={ref.name}>
             {ref.name}
           </div>
@@ -292,7 +330,7 @@ function NodeImage({
             data-nodrag
             onClick={onClear}
             className="absolute top-1.5 right-1.5 size-6 grid place-items-center rounded-full bg-background/80 hover:bg-background text-foreground"
-            aria-label="Remover imagem"
+            aria-label="Remover"
           >
             <X className="size-3" />
           </button>
@@ -308,19 +346,30 @@ function NodeImage({
   }
 
   return (
-    <div className="relative">
-      <img
-        src={url}
-        alt=""
-        className="w-full max-h-56 object-cover rounded-t-xl"
-        draggable={false}
-      />
+    <div className="relative" data-nodrag={kind === "video" ? "" : undefined}>
+      {kind === "video" ? (
+        <video
+          ref={videoElRef}
+          src={url}
+          controls
+          playsInline
+          preload="metadata"
+          className="w-full max-h-56 object-contain rounded-t-xl bg-black"
+        />
+      ) : (
+        <img
+          src={url}
+          alt=""
+          className="w-full max-h-56 object-cover rounded-t-xl"
+          draggable={false}
+        />
+      )}
       {!presentation && (
         <button
           data-nodrag
           onClick={onClear}
           className="absolute top-1.5 right-1.5 size-6 grid place-items-center rounded-full bg-background/80 hover:bg-background"
-          aria-label="Remover imagem"
+          aria-label="Remover"
         >
           <X className="size-3" />
         </button>
@@ -328,4 +377,3 @@ function NodeImage({
     </div>
   );
 }
-
