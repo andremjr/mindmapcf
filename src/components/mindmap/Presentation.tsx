@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, X, Download } from "lucide-react";
 import type { Project } from "@/lib/types";
 import { presentationOrder, descendantIds } from "@/lib/store";
+import { buildColorMap } from "@/lib/nodeColors";
 import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
 import { RecorderHUD } from "./RecorderHUD";
