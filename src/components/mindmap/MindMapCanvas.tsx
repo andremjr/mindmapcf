@@ -17,6 +17,8 @@ interface Props {
   pendingEdge?: PendingEdge | null;
   /** Effective accent color per node id (parent→child edge uses child's color). */
   colorById?: Map<string, string>;
+  /** Presentation mode: only the edge terminating at this node id is lit; others dim. */
+  activeEdgeToId?: string | null;
   onBackgroundPointerDown?: (e: React.PointerEvent) => void;
   onWheel?: (e: React.WheelEvent) => void;
   onBackgroundDoubleClick?: (e: React.MouseEvent) => void;
