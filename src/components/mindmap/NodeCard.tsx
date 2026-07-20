@@ -476,3 +476,115 @@ function NodeMedia({
     </div>
   );
 }
+
+function VideoPlayer({
+  url,
+  videoRef,
+}: {
+  url: string;
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+}) {
+  const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [hover, setHover] = useState(false);
+
+  const fmt = (s: number) => {
+    if (!isFinite(s)) return "0:00";
+    const m = Math.floor(s / 60);
+    const r = Math.floor(s % 60);
+    return `${m}:${r.toString().padStart(2, "0")}`;
+  };
+
+  const toggle = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) v.play().catch(() => {});
+    else v.pause();
+  };
+
+  return (
+    <div
+      className="relative w-full rounded-t-xl overflow-hidden bg-black group"
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
+      <video
+        ref={videoRef}
+        src={url}
+        playsInline
+        preload="metadata"
+        onClick={toggle}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onTimeUpdate={(e) => setCurrent(e.currentTarget.currentTime)}
+        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+        onVolumeChange={(e) => setMuted(e.currentTarget.muted)}
+        className="w-full max-h-[420px] object-contain block cursor-pointer"
+      />
+      <div
+        className={`absolute inset-x-0 bottom-0 flex items-center gap-1.5 px-1.5 py-1 bg-gradient-to-t from-black/70 to-transparent transition-opacity ${
+          hover || !playing ? "opacity-100" : "opacity-0"
+        }`}
+      >
+        <button
+          data-nodrag
+          onClick={toggle}
+          className="text-white/95 hover:text-white text-[10px] font-medium w-5 h-5 grid place-items-center rounded"
+          aria-label={playing ? "Pausar" : "Reproduzir"}
+        >
+          {playing ? (
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+              <rect x="6" y="5" width="4" height="14" rx="1" />
+              <rect x="14" y="5" width="4" height="14" rx="1" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          )}
+        </button>
+        <span className="text-[9px] tabular-nums text-white/80 leading-none">
+          {fmt(current)}
+        </span>
+        <input
+          data-nodrag
+          type="range"
+          min={0}
+          max={duration || 0}
+          step={0.01}
+          value={current}
+          onChange={(e) => {
+            const v = videoRef.current;
+            if (v) v.currentTime = Number(e.target.value);
+          }}
+          className="flex-1 h-1 accent-white cursor-pointer"
+        />
+        <span className="text-[9px] tabular-nums text-white/80 leading-none">
+          {fmt(duration)}
+        </span>
+        <button
+          data-nodrag
+          onClick={() => {
+            const v = videoRef.current;
+            if (!v) return;
+            v.muted = !v.muted;
+          }}
+          className="text-white/95 hover:text-white w-5 h-5 grid place-items-center rounded"
+          aria-label={muted ? "Ativar som" : "Silenciar"}
+        >
+          {muted ? (
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+              <path d="M3 9v6h4l5 5V4L7 9H3zm13.6 3l2.7-2.7-1.4-1.4L15.2 10.6 12.5 7.9l-1.4 1.4L13.8 12l-2.7 2.7 1.4 1.4L15.2 13.4l2.7 2.7 1.4-1.4L16.6 12z" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 00-2.5-4v8a4.5 4.5 0 002.5-4z" />
+            </svg>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
