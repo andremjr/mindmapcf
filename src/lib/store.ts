@@ -1,435 +1,147 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type {
-  Project,
-  ProjectStatus,
-  AudioFile,
-  Transcript,
-  TranscriptBlock,
-  TextNode,
-  CameraKeyframe,
-  VisualPreset,
-  SafeArea,
-  SfxEvent,
-  SoundPreset,
-  RenderConfig,
-} from "./types";
-import { buildEmptyProject, buildMockProject } from "./mockProject";
-import { mergeBlocks as mergeFn, splitBlock as splitFn } from "./blockGenerator";
-import { autoLayoutFull, nodesBounds } from "./layoutEngine";
-import { buildCameraKeyframes } from "./cameraEngine";
-import { getPreset } from "./presets";
-import { getSoundPreset } from "./sfxPresets";
-import { generateSfx } from "./sfxGenerator";
+import type { MindNode, Project } from "./types";
 
-interface Viewport {
-  x: number;
-  y: number;
-  zoom: number;
-  rotation: number;
-}
-
-interface Playback {
-  time: number;
-  playing: boolean;
-  speed: number;
-  autoCamera: boolean;
-  selectedNodeId?: string;
-  viewport: Viewport;
-  sfxMuted: boolean;
-  sfxMasterVolume: number;
+function uid(prefix = "id") {
+  return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
 interface State {
   projects: Project[];
-  transcribing: boolean;
-  transcribeError: string | null;
-  playback: Playback;
 }
 
 interface Actions {
   createProject: (title: string) => string;
   deleteProject: (id: string) => void;
-  updateProject: (id: string, patch: Partial<Project>) => void;
-  setStatus: (id: string, status: ProjectStatus) => void;
+  renameProject: (id: string, title: string) => void;
 
-  setAudio: (id: string, audio: AudioFile | undefined) => void;
-  setTranscript: (id: string, transcript: Transcript) => void;
-  setBlocks: (id: string, blocks: TranscriptBlock[]) => void;
+  addNode: (projectId: string, node?: Partial<MindNode>) => string;
+  updateNode: (projectId: string, nodeId: string, patch: Partial<MindNode>) => void;
+  deleteNode: (projectId: string, nodeId: string) => void;
+  reorderNodes: (projectId: string, order: string[]) => void;
 
-  updateBlock: (projectId: string, blockId: string, patch: Partial<TranscriptBlock>) => void;
-  removeBlock: (projectId: string, blockId: string) => void;
-  mergeWithNext: (projectId: string, blockId: string) => void;
-  splitBlockAt: (projectId: string, blockId: string, atChar: number) => void;
-
-  // Canvas
-  regenerateLayout: (projectId: string, seed?: number) => void;
-  setNodes: (projectId: string, nodes: TextNode[]) => void;
-  updateNode: (projectId: string, nodeId: string, patch: Partial<TextNode>) => void;
-  moveNode: (projectId: string, nodeId: string, x: number, y: number) => void;
-
-  // Camera
-  rebuildCamera: (projectId: string) => void;
-  updateCamera: (projectId: string, keyframeId: string, patch: Partial<CameraKeyframe>) => void;
-
-  // Preset
-  setPreset: (projectId: string, presetId: string) => void;
-  updatePreset: (projectId: string, patch: Partial<VisualPreset>) => void;
-  setSafeArea: (projectId: string, area: SafeArea) => void;
-
-  // Playback (runtime)
-  setTime: (t: number) => void;
-  setPlaying: (v: boolean) => void;
-  setSpeed: (v: number) => void;
-  setAutoCamera: (v: boolean) => void;
-  setSelectedNode: (id: string | undefined) => void;
-  setViewport: (v: Partial<Viewport>) => void;
-  resetCamera: () => void;
-
-  // SFX
-  regenerateSfx: (projectId: string) => void;
-  setSfx: (projectId: string, sfx: SfxEvent[]) => void;
-  updateSfxEvent: (projectId: string, eventId: string, patch: Partial<SfxEvent>) => void;
-  toggleSfxEvent: (projectId: string, eventId: string) => void;
-  removeSfxEvent: (projectId: string, eventId: string) => void;
-  setSoundPreset: (projectId: string, presetId: string) => void;
-  updateSoundPreset: (projectId: string, patch: Partial<SoundPreset>) => void;
-  setSfxMuted: (m: boolean) => void;
-  setSfxMasterVolume: (v: number) => void;
-
-  // Render config
-  updateRenderConfig: (projectId: string, patch: Partial<RenderConfig>) => void;
-
-  setTranscribing: (v: boolean) => void;
-  setTranscribeError: (err: string | null) => void;
-
-  reset: () => void;
+  setViewport: (projectId: string, v: { x: number; y: number; zoom: number }) => void;
 }
-
-const INITIAL_PLAYBACK: Playback = {
-  time: 0,
-  playing: false,
-  speed: 1,
-  autoCamera: true,
-  viewport: { x: 0, y: 0, zoom: 1, rotation: 0 },
-  sfxMuted: false,
-  sfxMasterVolume: 0.8,
-};
 
 export const useStore = create<State & Actions>()(
   persist(
-    (set, get) => ({
-      projects: [buildMockProject()],
-      transcribing: false,
-      transcribeError: null,
-      playback: INITIAL_PLAYBACK,
+    (set) => ({
+      projects: [],
 
       createProject: (title) => {
-        const p = buildEmptyProject(title || "Projeto sem título");
-        set((s) => ({ projects: [p, ...s.projects] }));
-        return p.id;
+        const id = uid("prj");
+        const now = new Date().toISOString();
+        const project: Project = {
+          id,
+          title: title.trim() || "Novo mapa mental",
+          createdAt: now,
+          updatedAt: now,
+          nodes: [],
+          order: [],
+          viewport: { x: 0, y: 0, zoom: 1 },
+        };
+        set((s) => ({ projects: [project, ...s.projects] }));
+        return id;
       },
+
       deleteProject: (id) =>
         set((s) => ({ projects: s.projects.filter((p) => p.id !== id) })),
 
-      updateProject: (id, patch) =>
+      renameProject: (id, title) =>
         set((s) => ({
           projects: s.projects.map((p) =>
-            p.id === id ? { ...p, ...patch, updatedAt: new Date().toISOString() } : p,
+            p.id === id ? { ...p, title, updatedAt: new Date().toISOString() } : p,
           ),
         })),
 
-      setStatus: (id, status) => get().updateProject(id, { status }),
-
-      setAudio: (id, audio) => {
-        const status: ProjectStatus = audio ? "audio_uploaded" : "draft";
-        get().updateProject(id, {
-          audio,
-          status,
-          durationSec: audio?.durationSec ?? 0,
-        });
-      },
-
-      setTranscript: (id, transcript) =>
-        get().updateProject(id, { transcript, status: "transcribed" }),
-
-      setBlocks: (id, blocks) =>
-        get().updateProject(id, { blocks, status: "blocks_generated" }),
-
-      updateBlock: (projectId, blockId, patch) =>
-        set((s) => ({
-          projects: s.projects.map((p) =>
-            p.id !== projectId
-              ? p
-              : {
-                  ...p,
-                  updatedAt: new Date().toISOString(),
-                  blocks: p.blocks.map((b) =>
-                    b.id === blockId ? { ...b, ...patch } : b,
-                  ),
-                },
-          ),
-        })),
-
-      removeBlock: (projectId, blockId) =>
-        set((s) => ({
-          projects: s.projects.map((p) =>
-            p.id !== projectId ? p : { ...p, blocks: p.blocks.filter((b) => b.id !== blockId) },
-          ),
-        })),
-
-      mergeWithNext: (projectId, blockId) =>
+      addNode: (projectId, patch) => {
+        const id = uid("n");
         set((s) => ({
           projects: s.projects.map((p) => {
             if (p.id !== projectId) return p;
-            const idx = p.blocks.findIndex((b) => b.id === blockId);
-            if (idx < 0 || idx >= p.blocks.length - 1) return p;
-            const merged = mergeFn(p.blocks[idx], p.blocks[idx + 1]);
-            const next = [...p.blocks];
-            next.splice(idx, 2, merged);
-            return { ...p, blocks: next };
+            // spawn near center of last node (or origin)
+            const last = p.nodes[p.nodes.length - 1];
+            const baseX = patch?.x ?? (last ? last.x + 380 : 0);
+            const baseY = patch?.y ?? (last ? last.y : 0);
+            const node: MindNode = {
+              id,
+              text: patch?.text ?? "Novo nó",
+              x: baseX,
+              y: baseY,
+              width: patch?.width ?? 360,
+              image: patch?.image,
+              imageName: patch?.imageName,
+              color: patch?.color,
+            };
+            return {
+              ...p,
+              nodes: [...p.nodes, node],
+              order: [...p.order, id],
+              updatedAt: new Date().toISOString(),
+            };
           }),
-        })),
-
-      splitBlockAt: (projectId, blockId, atChar) =>
-        set((s) => ({
-          projects: s.projects.map((p) => {
-            if (p.id !== projectId) return p;
-            const idx = p.blocks.findIndex((b) => b.id === blockId);
-            if (idx < 0) return p;
-            const [a, b] = splitFn(p.blocks[idx], atChar);
-            const next = [...p.blocks];
-            next.splice(idx, 1, a, b);
-            return { ...p, blocks: next };
-          }),
-        })),
-
-      // Canvas
-      regenerateLayout: (projectId, seed) => {
-        set((s) => {
-          let firstNode: TextNode | undefined;
-          const projects: Project[] = s.projects.map((p): Project => {
-            if (p.id !== projectId) return p;
-            const { nodes, chapters } = autoLayoutFull(p.blocks, {
-              seed: seed ?? Math.floor(Math.random() * 999),
-            });
-            const camera = buildCameraKeyframes(p.blocks, nodes, {
-              movementIntensity: p.visualPreset.cameraMovementIntensity,
-            });
-            firstNode = nodes[0];
-            return { ...p, nodes, chapters, camera, status: "canvas_generated", updatedAt: new Date().toISOString() };
-          });
-          const playback = firstNode
-            ? { ...s.playback, viewport: { ...s.playback.viewport, x: firstNode.x, y: firstNode.y, zoom: 1 } }
-            : s.playback;
-          return { projects, playback };
-        });
-        // Após regerar o layout, garante que os SFX também sejam recalculados
-        // para que o zip do renderizador contenha os efeitos sonoros.
-        get().regenerateSfx(projectId);
+        }));
+        return id;
       },
-
-
-      setNodes: (projectId, nodes) => get().updateProject(projectId, { nodes }),
 
       updateNode: (projectId, nodeId, patch) =>
         set((s) => ({
           projects: s.projects.map((p) =>
-            p.id !== projectId
-              ? p
-              : {
+            p.id === projectId
+              ? {
                   ...p,
-                  updatedAt: new Date().toISOString(),
                   nodes: p.nodes.map((n) => (n.id === nodeId ? { ...n, ...patch } : n)),
-                },
+                  updatedAt: new Date().toISOString(),
+                }
+              : p,
           ),
         })),
 
-      moveNode: (projectId, nodeId, x, y) =>
+      deleteNode: (projectId, nodeId) =>
         set((s) => ({
           projects: s.projects.map((p) =>
-            p.id !== projectId
-              ? p
-              : { ...p, nodes: p.nodes.map((n) => (n.id === nodeId ? { ...n, x, y } : n)) },
-          ),
-        })),
-
-      // Camera
-      rebuildCamera: (projectId) => {
-        set((s) => ({
-          projects: s.projects.map((p) => {
-            if (p.id !== projectId) return p;
-            const camera = buildCameraKeyframes(p.blocks, p.nodes, {
-              movementIntensity: p.visualPreset.cameraMovementIntensity,
-            });
-            return { ...p, camera, updatedAt: new Date().toISOString() };
-          }),
-        }));
-        // SFX depende de camera/blocks — regenera automaticamente para que o
-        // export/zip do renderizador sempre inclua os efeitos sonoros.
-        get().regenerateSfx(projectId);
-      },
-
-
-      updateCamera: (projectId, keyframeId, patch) =>
-        set((s) => ({
-          projects: s.projects.map((p) =>
-            p.id !== projectId
-              ? p
-              : {
+            p.id === projectId
+              ? {
                   ...p,
-                  camera: p.camera.map((k) => (k.id === keyframeId ? { ...k, ...patch } : k)),
-                },
+                  nodes: p.nodes.filter((n) => n.id !== nodeId),
+                  order: p.order.filter((id) => id !== nodeId),
+                  updatedAt: new Date().toISOString(),
+                }
+              : p,
           ),
         })),
 
-      // Preset
-      setPreset: (projectId, presetId) => {
-        const preset = getPreset(presetId);
-        get().updateProject(projectId, { visualPreset: preset });
-        get().rebuildCamera(projectId);
-      },
-
-      updatePreset: (projectId, patch) =>
+      reorderNodes: (projectId, order) =>
         set((s) => ({
           projects: s.projects.map((p) =>
-            p.id !== projectId ? p : { ...p, visualPreset: { ...p.visualPreset, ...patch } },
+            p.id === projectId ? { ...p, order, updatedAt: new Date().toISOString() } : p,
           ),
         })),
 
-      setSafeArea: (projectId, area) => get().updateProject(projectId, { safeArea: area }),
-
-      // Playback
-      setTime: (t) => set((s) => ({ playback: { ...s.playback, time: t } })),
-      setPlaying: (v) => set((s) => ({ playback: { ...s.playback, playing: v } })),
-      setSpeed: (v) => set((s) => ({ playback: { ...s.playback, speed: v } })),
-      setAutoCamera: (v) => set((s) => ({ playback: { ...s.playback, autoCamera: v } })),
-      setSelectedNode: (id) => set((s) => ({ playback: { ...s.playback, selectedNodeId: id } })),
-      setViewport: (v) =>
-        set((s) => ({ playback: { ...s.playback, viewport: { ...s.playback.viewport, ...v } } })),
-      resetCamera: () =>
-        set((s) => ({
-          playback: { ...s.playback, viewport: { x: 0, y: 0, zoom: 1, rotation: 0 } },
-        })),
-
-      // SFX
-      regenerateSfx: (projectId) =>
-        set((s) => ({
-          projects: s.projects.map((p) => {
-            if (p.id !== projectId) return p;
-            const sfx = generateSfx({
-              blocks: p.blocks,
-              nodes: p.nodes,
-              camera: p.camera,
-              preset: p.soundPreset,
-              durationSec: p.durationSec,
-            });
-            return { ...p, sfx, updatedAt: new Date().toISOString() };
-          }),
-        })),
-
-      setSfx: (projectId, sfx) => get().updateProject(projectId, { sfx }),
-
-      updateSfxEvent: (projectId, eventId, patch) =>
+      setViewport: (projectId, v) =>
         set((s) => ({
           projects: s.projects.map((p) =>
-            p.id !== projectId
-              ? p
-              : { ...p, sfx: p.sfx.map((e) => (e.id === eventId ? { ...e, ...patch } : e)) },
+            p.id === projectId ? { ...p, viewport: v } : p,
           ),
         })),
-
-      toggleSfxEvent: (projectId, eventId) =>
-        set((s) => ({
-          projects: s.projects.map((p) =>
-            p.id !== projectId
-              ? p
-              : {
-                  ...p,
-                  sfx: p.sfx.map((e) =>
-                    e.id === eventId ? { ...e, enabled: e.enabled === false ? true : false } : e,
-                  ),
-                },
-          ),
-        })),
-
-      removeSfxEvent: (projectId, eventId) =>
-        set((s) => ({
-          projects: s.projects.map((p) =>
-            p.id !== projectId ? p : { ...p, sfx: p.sfx.filter((e) => e.id !== eventId) },
-          ),
-        })),
-
-      setSoundPreset: (projectId, presetId) => {
-        const preset = getSoundPreset(presetId);
-        get().updateProject(projectId, { soundPreset: preset });
-        get().regenerateSfx(projectId);
-      },
-
-      updateSoundPreset: (projectId, patch) =>
-        set((s) => ({
-          projects: s.projects.map((p) =>
-            p.id !== projectId ? p : { ...p, soundPreset: { ...p.soundPreset, ...patch } },
-          ),
-        })),
-
-      setSfxMuted: (m) => set((s) => ({ playback: { ...s.playback, sfxMuted: m } })),
-      setSfxMasterVolume: (v) =>
-        set((s) => ({ playback: { ...s.playback, sfxMasterVolume: v } })),
-
-      updateRenderConfig: (projectId, patch) =>
-        set((s) => ({
-          projects: s.projects.map((p) =>
-            p.id !== projectId ? p : { ...p, render: { ...p.render, ...patch } },
-          ),
-        })),
-
-      setTranscribing: (v) => set({ transcribing: v }),
-      setTranscribeError: (err) => set({ transcribeError: err }),
-
-      reset: () =>
-        set({
-          projects: [buildMockProject()],
-          transcribing: false,
-          transcribeError: null,
-          playback: INITIAL_PLAYBACK,
-        }),
     }),
     {
-      name: "canvas-narrativo-store",
-      storage: createJSONStorage(() => {
-        if (typeof window === "undefined") {
-          return {
-            getItem: () => null,
-            setItem: () => {},
-            removeItem: () => {},
-          };
-        }
-        return window.localStorage;
-      }),
+      name: "canvas-narrativo:v2",
+      storage: createJSONStorage(() =>
+        typeof window !== "undefined" ? window.localStorage : (undefined as any),
+      ),
       partialize: (s) => ({ projects: s.projects }),
     },
   ),
 );
 
-export function useProject(id: string | undefined) {
+export function useProject(id: string | undefined): Project | undefined {
   return useStore((s) => s.projects.find((p) => p.id === id));
 }
 
-export function fitViewport(
-  nodes: Pick<TextNode, "x" | "y">[],
-  width = 1200,
-  height = 700,
-  padding = 200,
-): Viewport {
-  const b = nodesBounds(nodes as TextNode[]);
-  const w = b.maxX - b.minX + padding * 2;
-  const h = b.maxY - b.minY + padding * 2;
-  const zoom = Math.min(width / w, height / h, 1);
-  return {
-    x: (b.minX + b.maxX) / 2,
-    y: (b.minY + b.maxY) / 2,
-    zoom,
-    rotation: 0,
-  };
+/** Compute presentation order — persisted order + any nodes not in it (creation order). */
+export function presentationOrder(project: Project): string[] {
+  const set = new Set(project.order);
+  const missing = project.nodes.map((n) => n.id).filter((id) => !set.has(id));
+  return [...project.order.filter((id) => project.nodes.some((n) => n.id === id)), ...missing];
 }
