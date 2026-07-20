@@ -216,9 +216,10 @@ function reflowTree(nodes: MindNode[]): MindNode[] {
 
 export const useStore = create<State & Actions>()((set) => ({
   projects: [],
+  avatars: [],
 
   hydrate: (projects) => set({ projects }),
-  reset: () => set({ projects: [] }),
+  reset: () => set({ projects: [], avatars: [] }),
 
   createProject: (title) => {
     const id = uid("prj");
