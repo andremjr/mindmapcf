@@ -87,16 +87,16 @@ export const Route = createFileRoute("/projects/")({
 function ProjectsDashboard() {
   const projects = useStore((s) => s.projects);
   const createProject = useStore((s) => s.createProject);
+  const importProject = useStore((s) => s.importProject);
   const deleteProject = useStore((s) => s.deleteProject);
   const navigate = useNavigate();
   const { session } = useAuth();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Auth gate + Supabase sync are owned by the /projects layout route.
   if (!session) return null;
-
-
 
   function handleCreate() {
     const id = createProject(title);
@@ -104,6 +104,30 @@ function ProjectsDashboard() {
     setTitle("");
     navigate({ to: "/projects/$id", params: { id } });
   }
+
+  async function handleImportFile(file: File) {
+    try {
+      const text = await file.text();
+      const imported = importFromText(text, file.name);
+      if (imported.nodes.length === 0) {
+        toast.error("Arquivo vazio ou não reconhecido.");
+        return;
+      }
+      // Use filename (without extension) as fallback title.
+      const base = file.name.replace(/\.[^.]+$/, "");
+      const project = buildImportedProject({
+        ...imported,
+        title: imported.title && imported.title !== "Mapa importado" ? imported.title : base,
+      });
+      const id = importProject(project);
+      toast.success(`Mapa importado com ${imported.nodes.length} nós.`);
+      navigate({ to: "/projects/$id", params: { id } });
+    } catch (err) {
+      console.error(err);
+      toast.error("Falha ao importar. Verifique o arquivo .md ou .json.");
+    }
+  }
+
 
   return (
     <div className="min-h-screen bg-background">
