@@ -9,6 +9,7 @@ import {
   Trash2,
   Circle,
   Upload,
+  Mic,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MindNode, Project } from "@/lib/types";
@@ -16,6 +17,7 @@ import { useStore, descendantIds } from "@/lib/store";
 import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
 import { ImportDialog } from "./ImportDialog";
+import { SonicAvatarDialog } from "./SonicAvatarDialog";
 import { importFromText } from "@/lib/mindmapImport";
 import { buildColorMap, NODE_COLOR_PALETTE } from "@/lib/nodeColors";
 import { toast } from "sonner";
@@ -26,6 +28,7 @@ import { RECORD_FORMATS, saveRecordFormat, type RecordFormat } from "@/lib/recor
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
+
 
 const FREE_NODE_LIMIT = 30;
 
@@ -352,11 +355,13 @@ export function MindMapEditor({ project }: { project: Project }) {
 
   const [recordFormatOpen, setRecordFormatOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [avatarOpen, setAvatarOpen] = useState(false);
 
   function handleRecordAndPresent() {
     setViewportPersist(project.id, viewport);
     setRecordFormatOpen(true);
   }
+
 
   async function handleImportFile(file: File) {
     try {
@@ -487,6 +492,16 @@ export function MindMapEditor({ project }: { project: Project }) {
             <Upload className="size-4" /> Importar
           </Button>
           <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setAvatarOpen(true)}
+            className="gap-2"
+            title="Avatar sonoro para gravação"
+          >
+            <Mic className="size-4" />
+            {project.sonicAvatar?.enabled && project.sonicAvatar?.imageRef ? "Avatar ✓" : "Avatar"}
+          </Button>
+          <Button
             variant="outline"
             size="sm"
             onClick={handleRecordAndPresent}
@@ -499,6 +514,7 @@ export function MindMapEditor({ project }: { project: Project }) {
           <Button size="sm" onClick={handlePresent} className="gap-2" disabled={project.nodes.length === 0}>
             <Play className="size-4" /> Apresentar
           </Button>
+
         </div>
       </header>
 
@@ -709,6 +725,13 @@ export function MindMapEditor({ project }: { project: Project }) {
         warning="Importar vai SUBSTITUIR todos os nós do mapa atual. Essa ação não pode ser desfeita."
       />
 
+      <SonicAvatarDialog
+        project={project}
+        open={avatarOpen}
+        onClose={() => setAvatarOpen(false)}
+      />
+
+
       {recordFormatOpen && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur grid place-items-center p-4">
           <div className="w-full max-w-lg rounded-2xl border border-border/60 bg-card shadow-2xl overflow-hidden">
@@ -718,7 +741,20 @@ export function MindMapEditor({ project }: { project: Project }) {
                 A gravação usa <b>Region Capture</b> — só o quadro selecionado entra no vídeo.
                 Controles, timer e navegação ficam fora do quadro e não aparecem no arquivo final.
               </p>
+              <button
+                onClick={() => {
+                  setRecordFormatOpen(false);
+                  setAvatarOpen(true);
+                }}
+                className="mt-3 inline-flex items-center gap-2 text-xs rounded-md border border-border/60 hover:border-primary hover:bg-muted/50 px-3 py-1.5"
+              >
+                <Mic className="size-3.5" />
+                {project.sonicAvatar?.enabled && project.sonicAvatar?.imageRef
+                  ? "Editar avatar sonoro"
+                  : "Adicionar avatar sonoro (opcional)"}
+              </button>
             </div>
+
             <div className="p-3 grid gap-2">
               {RECORD_FORMATS.map((f) => (
                 <button

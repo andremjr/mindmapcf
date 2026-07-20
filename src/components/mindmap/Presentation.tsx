@@ -7,6 +7,9 @@ import { buildColorMap } from "@/lib/nodeColors";
 import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
 import { RecorderHUD } from "./RecorderHUD";
+import { SonicAvatarOverlay } from "./SonicAvatarOverlay";
+import { useStore } from "@/lib/store";
+
 import {
   isRecording,
   stopRecording,
@@ -391,8 +394,20 @@ export function Presentation({
               );
             })}
           </MindMapCanvas>
+
+          {project.sonicAvatar?.enabled && (
+            <SonicAvatarOverlay
+              avatar={project.sonicAvatar}
+              frameSize={size}
+              interactive
+              onMove={(xPct, yPct) => {
+                useStore.getState().setSonicAvatar(project.id, { xPct, yPct });
+              }}
+            />
+          )}
         </div>
       </div>
+
 
       {/* Off-frame controls — always visible during recording. */}
       <div

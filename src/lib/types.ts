@@ -35,6 +35,21 @@ export interface MindNode {
   color?: string;
 }
 
+export interface SonicAvatar {
+  enabled: boolean;
+  imageRef?: ImageRef;
+  imageName?: string;
+  /** Circle background color (hex). Shows behind transparent PNGs. */
+  bgColor: string;
+  /** Sound-wave color (hex). */
+  waveColor: string;
+  /** Diameter in % of the recording frame's shorter side (5–60). */
+  sizePct: number;
+  /** Center X/Y in % of the frame (0-100). */
+  xPct: number;
+  yPct: number;
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -43,5 +58,8 @@ export interface Project {
   nodes: MindNode[];
   /** Persisted last viewport of the editor. */
   viewport?: { x: number; y: number; zoom: number };
+  /** Optional draggable "sonic avatar" shown inside the recording frame. */
+  sonicAvatar?: SonicAvatar;
 }
+
 
