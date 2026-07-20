@@ -1,7 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
 import type { Project } from "@/lib/types";
+
 
 interface Row {
   id: string;
@@ -31,6 +32,8 @@ export function useMindmapSync(userId: string | undefined) {
   const hydrate = useStore((s) => s.hydrate);
   const reset = useStore((s) => s.reset);
   const readyRef = useRef(false);
+  const [hydrated, setHydrated] = useState(false);
+
   const prevRef = useRef<Map<string, Project>>(new Map());
   const knownIdsRef = useRef<Set<string>>(new Set());
 
