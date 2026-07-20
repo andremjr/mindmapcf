@@ -1,10 +1,7 @@
-import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useProject } from "@/lib/store";
 import { MindMapEditor } from "@/components/mindmap/MindMapEditor";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/useAuth";
-import { useMindmapSync } from "@/lib/mindmapSync";
 
 
 export const Route = createFileRoute("/projects/$id")({
@@ -20,21 +17,9 @@ export const Route = createFileRoute("/projects/$id")({
 function EditorRoute() {
   const { id } = useParams({ from: "/projects/$id" });
   const project = useProject(id);
-  const { session, loading } = useAuth();
-  const navigate = useNavigate();
 
-  const { hydrated } = useMindmapSync(session?.user.id);
-
-  useEffect(() => {
-    if (!loading && !session) navigate({ to: "/auth", replace: true });
-  }, [loading, session, navigate]);
-
-  if (loading || !session || !hydrated) {
-    return <div className="min-h-screen grid place-items-center text-sm text-muted-foreground">Carregando…</div>;
-  }
-
+  // Auth + Supabase hydration guaranteed by /projects layout.
   if (!project) {
-
     return (
       <div className="min-h-screen grid place-items-center">
         <div className="rounded-xl border border-border/60 bg-card p-8 text-center max-w-sm">
