@@ -210,6 +210,8 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
     displayStream,
     micStream,
     audioCtx,
+    audioAnalyser,
+    hasMic,
     mimeType,
     startedAt: performance.now(),
     filenameBase: opts.filenameBase || "apresentacao",
