@@ -1,6 +1,15 @@
-import { useEffect, useRef } from "react";
-import { Image as ImageIcon, Trash2, X, ChevronRight, ChevronDown } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Image as ImageIcon,
+  Trash2,
+  X,
+  ChevronRight,
+  ChevronDown,
+  AlertTriangle,
+} from "lucide-react";
 import type { MindNode } from "@/lib/types";
+import { resolveImage, requestImageAccess } from "@/lib/imageStorage";
+
 
 interface Props {
   node: MindNode;
