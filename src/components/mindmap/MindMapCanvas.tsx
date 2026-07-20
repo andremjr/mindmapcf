@@ -122,7 +122,7 @@ export const MindMapCanvas = forwardRef<HTMLDivElement, Props>(function MindMapC
           {edges.map(({ from, to }, i) => {
             const c = colorById?.get(to.id);
             const isActive = activeEdgeToId != null && to.id === activeEdgeToId;
-            const dimMode = activeEdgeToId != null;
+            const dimMode = activeEdgeToId !== undefined;
             const strokeColor = c ?? "var(--primary)";
             const stroke = isActive
               ? strokeColor
