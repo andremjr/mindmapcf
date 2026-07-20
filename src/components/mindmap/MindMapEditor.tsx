@@ -17,6 +17,7 @@ import { NodeCard } from "./NodeCard";
 
 import { pickMediaAndStore } from "@/lib/imageStorage";
 import { startRecording } from "@/lib/screenRecorder";
+import { RECORD_FORMATS, saveRecordFormat, type RecordFormat } from "@/lib/recordFormats";
 
 
 
