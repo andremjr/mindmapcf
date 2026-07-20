@@ -82,7 +82,7 @@ function TermsPage() {
               O contrato de compra e venda é celebrado diretamente entre você e o prestador acima
               identificado. O processamento de pagamentos é feito pela <strong>Kiwify</strong> (Kiwify
               Serviços Digitais Ltda.), que atua como processadora dos meios de pagamento, incluindo
-              cartão de crédito, Pix e boleto.
+              cartão de crédito e Pix.
             </p>
             <p>
               Assinaturas mensais, semestrais e anuais renovam automaticamente ao fim de cada ciclo,

@@ -88,7 +88,7 @@ export function UpgradeDialog({
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Pagamento processado pela Kiwify (cartão, Pix e boleto).
+              Pagamento processado pela Kiwify (cartão e Pix).
             </p>
           </>
         )}
