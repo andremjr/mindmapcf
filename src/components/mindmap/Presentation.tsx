@@ -124,7 +124,30 @@ export function Presentation({
   useEffect(() => {
     if (!activeNode) return;
     const from = viewportRef.current;
-    const target: Viewport = { x: activeNode.x, y: activeNode.y, zoom: FOCUS_ZOOM };
+
+    // Fit-to-frame: measure the active node's natural (unscaled) size and
+    // clamp the focus zoom so it fits inside the current frame with margin.
+    // Wait a frame so images/videos in the node have laid out.
+    let fitZoom = FOCUS_ZOOM;
+    const frameEl = frameRef.current;
+    if (frameEl) {
+      const el = frameEl.querySelector<HTMLElement>(
+        `[data-node-id="${activeNode.id}"]`,
+      );
+      const fw = size.w || frameEl.clientWidth;
+      const fh = size.h || frameEl.clientHeight;
+      if (el && fw > 0 && fh > 0) {
+        const nw = el.offsetWidth;
+        const nh = el.offsetHeight;
+        if (nw > 0 && nh > 0) {
+          const margin = 0.85; // leave 15% breathing room
+          const maxZ = Math.min((fw * margin) / nw, (fh * margin) / nh);
+          fitZoom = Math.min(FOCUS_ZOOM, maxZ);
+        }
+      }
+    }
+
+    const target: Viewport = { x: activeNode.x, y: activeNode.y, zoom: fitZoom };
 
     const prevId = prevIdRef.current;
     const prevNode = prevId ? project.nodes.find((n) => n.id === prevId) : null;
@@ -141,7 +164,7 @@ export function Presentation({
     const dy = target.y - from.y;
     const dist = Math.hypot(dx, dy);
     const midZoom = useArc
-      ? Math.max(0.55, FOCUS_ZOOM - Math.min(0.85, dist / 1200))
+      ? Math.max(0.55, target.zoom - Math.min(0.85, dist / 1200))
       : from.zoom;
 
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -168,7 +191,8 @@ export function Presentation({
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId]);
+  }, [activeId, size.w, size.h]);
+
 
   function next() {
     setIdx((i) => Math.min(order.length - 1, i + 1));
