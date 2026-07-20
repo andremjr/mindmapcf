@@ -207,10 +207,9 @@ export function Presentation({
     };
   }, [recording]);
   const recState = recording ? getRecorderState() : null;
-  const elapsedMs =
-    recState && recState.startedAt ? performance.now() - recState.startedAt : 0;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _tick = recTick;
+
 
   const [uiVisible, setUiVisible] = useState(true);
   const hideTimer = useRef<number | null>(null);
