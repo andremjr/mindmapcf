@@ -494,13 +494,20 @@ export function MindMapEditor({ project }: { project: Project }) {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setAvatarOpen(true)}
+            onClick={() => {
+              if (!isPro) {
+                setUpgradeOpen(true);
+                return;
+              }
+              setAvatarOpen(true);
+            }}
             className="gap-2"
-            title="Avatar sonoro para gravação"
+            title={isPro ? "Escolher avatar sonoro para gravação" : "Recurso Pro"}
           >
             <Mic className="size-4" />
-            {project.sonicAvatar?.enabled && project.sonicAvatar?.imageRef ? "Avatar ✓" : "Avatar"}
+            {project.sonicAvatar?.avatarId && project.sonicAvatar?.enabled ? "Avatar ✓" : "Avatar"}
           </Button>
+
           <Button
             variant="outline"
             size="sm"
