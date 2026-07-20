@@ -366,6 +366,26 @@ export const useStore = create<State & Actions>()((set) => ({
       ),
     })),
 
+  setNodeColor: (projectId, nodeId, color, cascade) =>
+    set((s) => ({
+      projects: s.projects.map((p) => {
+        if (p.id !== projectId) return p;
+        const descendants = cascade
+          ? new Set(descendantIds(p.nodes, nodeId))
+          : null;
+        return {
+          ...p,
+          nodes: p.nodes.map((n) => {
+            if (n.id === nodeId) return { ...n, color };
+            if (descendants && descendants.has(n.id))
+              return { ...n, color: undefined };
+            return n;
+          }),
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    })),
+
   autoLayout: (projectId) =>
     set((s) => ({
       projects: s.projects.map((p) =>
