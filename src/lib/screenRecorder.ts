@@ -19,6 +19,8 @@ interface ActiveRecording {
   displayStream: MediaStream;
   micStream: MediaStream | null;
   audioCtx: AudioContext | null;
+  audioAnalyser: AnalyserNode | null;
+  hasMic: boolean;
   mimeType: string;
   startedAt: number;
   filenameBase: string;
@@ -34,6 +36,7 @@ const listeners = new Set<() => void>();
 function emit() {
   for (const fn of listeners) fn();
 }
+
 
 export function subscribeRecorder(fn: () => void): () => void {
   listeners.add(fn);
@@ -54,6 +57,16 @@ export function getRecorderState(): {
     mimeType: active.mimeType,
   };
 }
+
+/** AnalyserNode for the mic (or display audio if no mic). Null when idle. */
+export function getRecordingAnalyser(): AnalyserNode | null {
+  return active?.audioAnalyser ?? null;
+}
+
+export function getRecordingHasMic(): boolean {
+  return !!active?.hasMic;
+}
+
 
 function pickMimeType(): string {
   // Ordered by preference: highest-quality VP9 first (YouTube-friendly),
@@ -115,22 +128,33 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
   for (const track of displayStream.getVideoTracks()) mixed.addTrack(track);
 
   let audioCtx: AudioContext | null = null;
+  let audioAnalyser: AnalyserNode | null = null;
   const hasDisplayAudio = displayStream.getAudioTracks().length > 0;
-  if (hasDisplayAudio || micStream) {
+  const hasMic = !!micStream && micStream.getAudioTracks().length > 0;
+  if (hasDisplayAudio || hasMic) {
     audioCtx = new AudioContext();
     const dest = audioCtx.createMediaStreamDestination();
+    audioAnalyser = audioCtx.createAnalyser();
+    audioAnalyser.fftSize = 1024;
+    audioAnalyser.smoothingTimeConstant = 0.6;
     if (hasDisplayAudio) {
       const src = audioCtx.createMediaStreamSource(
         new MediaStream(displayStream.getAudioTracks()),
       );
       src.connect(dest);
+      // Only route display audio to the meter when there's no mic — otherwise
+      // the meter tracks the presenter's voice (what the user actually cares
+      // about verifying while recording).
+      if (!hasMic) src.connect(audioAnalyser);
     }
-    if (micStream && micStream.getAudioTracks().length > 0) {
+    if (hasMic && micStream) {
       const src = audioCtx.createMediaStreamSource(micStream);
       src.connect(dest);
+      src.connect(audioAnalyser);
     }
     for (const t of dest.stream.getAudioTracks()) mixed.addTrack(t);
   }
+
 
   const mimeType = pickMimeType();
   const recorder = new MediaRecorder(mixed, {
@@ -196,6 +220,8 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
     displayStream,
     micStream,
     audioCtx,
+    audioAnalyser,
+    hasMic,
     mimeType,
     startedAt: performance.now(),
     filenameBase: opts.filenameBase || "apresentacao",
