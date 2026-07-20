@@ -97,7 +97,7 @@ function ProjectsDashboard() {
   const deleteProject = useStore((s) => s.deleteProject);
   const navigate = useNavigate();
   const { session } = useAuth();
-  const { isPro, loading: subscriptionLoading } = useSubscription(session?.user.id);
+  const { isPro, loading: subscriptionLoading, subscription } = useSubscription(session?.user.id);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [importOpen, setImportOpen] = useState(false);
