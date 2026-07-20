@@ -5,6 +5,8 @@ export interface ImageRef {
   id: string;
   /** Private Supabase Storage path. This is the durable source after reloads. */
   storagePath?: string;
+  /** Storage bucket. Missing = the default `mindmap-media` bucket (backwards compat). */
+  bucket?: string;
   /** Original filename — shown in UI and used for the broken-image label. */
   name: string;
   size: number;

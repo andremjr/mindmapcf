@@ -10,10 +10,14 @@ import { supabase } from "@/integrations/supabase/client";
 const DB_NAME = "mindmap-images";
 const STORE = "images";
 const BUCKET = "mindmap-media";
+export const AVATAR_BUCKET = "avatar-images";
+export const AVATAR_MAX_BYTES = 3 * 1024 * 1024; // 3MB per avatar image
 
 export interface ImageRef {
   id: string;
   storagePath?: string;
+  /** Storage bucket. Missing = default `mindmap-media` bucket. */
+  bucket?: string;
   name: string;
   size: number;
   lastModified: number;
