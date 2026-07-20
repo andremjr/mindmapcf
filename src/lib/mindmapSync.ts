@@ -122,4 +122,7 @@ export function useMindmapSync(userId: string | undefined) {
       for (const t of timers.values()) clearTimeout(t);
     };
   }, [userId]);
+
+  return { hydrated };
 }
+
