@@ -8,9 +8,30 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { toast } from "sonner";
 
 const PLANS = [
-  { id: "pro_monthly", label: "Mensal", price: "R$ 29,90", detail: "por mês" },
-  { id: "pro_semiannual", label: "Semestral", price: "R$ 159", detail: "a cada 6 meses" },
-  { id: "pro_annual", label: "Anual", price: "R$ 297", detail: "por ano" },
+  {
+    id: "pro_monthly",
+    label: "Mensal",
+    price: "R$ 29,90 BRL",
+    detail: "por mês, cobrado mensalmente",
+    renewal: "Renova automaticamente por R$ 29,90/mês até você cancelar.",
+    effective: null as string | null,
+  },
+  {
+    id: "pro_semiannual",
+    label: "Semestral",
+    price: "R$ 159,00 BRL",
+    detail: "a cada 6 meses (equivalente a R$ 26,50/mês)",
+    renewal: "Renova automaticamente por R$ 159,00 a cada 6 meses até você cancelar.",
+    effective: "Economize ~11% vs. mensal",
+  },
+  {
+    id: "pro_annual",
+    label: "Anual",
+    price: "R$ 297,00 BRL",
+    detail: "por ano (equivalente a R$ 24,75/mês)",
+    renewal: "Renova automaticamente por R$ 297,00 a cada 12 meses até você cancelar.",
+    effective: "Economize ~17% vs. mensal",
+  },
 ];
 
 export const Route = createFileRoute("/pricing")({
