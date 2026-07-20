@@ -306,6 +306,36 @@ export function MindMapEditor({ project }: { project: Project }) {
     navigate({ to: "/projects/$id/present", params: { id: project.id } });
   }
 
+  async function handleRecordAndPresent() {
+    setViewportPersist(project.id, viewport);
+    const ok = confirm(
+      "Ao clicar em OK, o navegador vai pedir permissão para capturar a tela.\n\n" +
+        "• Escolha a aba/janela desta apresentação.\n" +
+        "• Marque \"Compartilhar áudio da guia\" para gravar o som dos vídeos.\n" +
+        "• Você também vai autorizar o microfone para narrar por cima.\n\n" +
+        "Aperte R (ou o botão Parar) para finalizar. O arquivo é baixado automaticamente.",
+    );
+    if (!ok) return;
+    try {
+      await startRecording({ filenameBase: project.title || "apresentacao" });
+    } catch (e: any) {
+      console.error("[mindmap] recording start", e);
+      if (e?.name !== "NotAllowedError") {
+        alert(e?.message || "Não foi possível iniciar a gravação.");
+      }
+      return;
+    }
+    if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+    navigate({
+      to: "/projects/$id/present",
+      params: { id: project.id },
+      search: { record: "1" },
+    });
+  }
+
+
   function fitAll() {
     const visibleNodes = project.nodes.filter((n) => visibleIds.has(n.id));
     if (visibleNodes.length === 0) {
