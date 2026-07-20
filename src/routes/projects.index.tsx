@@ -169,13 +169,21 @@ function ProjectsDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="rounded-full border border-border/60 px-2 py-1 text-xs text-muted-foreground hidden md:inline-flex">
-              {subscriptionLoading ? "Plano…" : isPro ? "Pro" : `Grátis ${projects.length}/${FREE_MAP_LIMIT}`}
-            </span>
-            {!isPro && !subscriptionLoading && (
-              <Button variant="secondary" size="sm" onClick={() => setUpgradeOpen(true)}>
-                Plano Pro
+            {isPro ? (
+              <Button asChild variant="secondary" size="sm" className="gap-1">
+                <Link to="/account"><Crown className="size-3.5" /> Minha conta</Link>
               </Button>
+            ) : (
+              <>
+                <span className="rounded-full border border-border/60 px-2 py-1 text-xs text-muted-foreground hidden md:inline-flex">
+                  {subscriptionLoading ? "Plano…" : `Grátis ${projects.length}/${FREE_MAP_LIMIT}`}
+                </span>
+                {!subscriptionLoading && (
+                  <Button variant="secondary" size="sm" onClick={() => setUpgradeOpen(true)}>
+                    Plano Pro
+                  </Button>
+                )}
+              </>
             )}
             <span className="text-xs text-muted-foreground hidden sm:inline">
               {session.user.email}
