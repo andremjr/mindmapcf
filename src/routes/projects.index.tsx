@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { Plus, Network, Trash2, Clock } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Plus, Network, Trash2, Clock, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,6 +12,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useStore } from "@/lib/store";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+
 
 export const Route = createFileRoute("/projects/")({
   head: () => ({
@@ -28,8 +31,19 @@ function ProjectsDashboard() {
   const createProject = useStore((s) => s.createProject);
   const deleteProject = useStore((s) => s.deleteProject);
   const navigate = useNavigate();
+  const { session, loading } = useAuth();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
+
+  useEffect(() => {
+    if (!loading && !session) navigate({ to: "/auth", replace: true });
+  }, [loading, session, navigate]);
+
+  if (loading || !session) {
+    return <div className="min-h-screen grid place-items-center text-sm text-muted-foreground">Carregando…</div>;
+  }
+
+
 
   function handleCreate() {
     const id = createProject(title);
@@ -51,29 +65,46 @@ function ProjectsDashboard() {
               <p className="text-xs text-muted-foreground">Mapas mentais com modo apresentação</p>
             </div>
           </div>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="size-4" /> Novo mapa
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Criar mapa mental</DialogTitle>
-              </DialogHeader>
-              <Input
-                autoFocus
-                placeholder="Nome do mapa"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-              />
-              <DialogFooter>
-                <Button variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button onClick={handleCreate}>Criar</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              {session.user.email}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                await supabase.auth.signOut();
+                navigate({ to: "/auth", replace: true });
+              }}
+              className="gap-2"
+            >
+              <LogOut className="size-4" /> Sair
+            </Button>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="size-4" /> Novo mapa
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Criar mapa mental</DialogTitle>
+                </DialogHeader>
+                <Input
+                  autoFocus
+                  placeholder="Nome do mapa"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                />
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleCreate}>Criar</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+
         </div>
       </header>
 
