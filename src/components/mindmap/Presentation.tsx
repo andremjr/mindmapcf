@@ -395,16 +395,25 @@ export function Presentation({
             })}
           </MindMapCanvas>
 
-          {project.sonicAvatar?.enabled && (
-            <SonicAvatarOverlay
-              avatar={project.sonicAvatar}
-              frameSize={size}
-              interactive
-              onMove={(xPct, yPct) => {
-                useStore.getState().setSonicAvatar(project.id, { xPct, yPct });
-              }}
-            />
-          )}
+          {(() => {
+            const usage = project.sonicAvatar;
+            if (!usage?.enabled || !usage.avatarId) return null;
+            const entry = useStore.getState().avatars.find((a) => a.id === usage.avatarId);
+            if (!entry) return null;
+            return (
+              <SonicAvatarOverlay
+                avatar={entry}
+                xPct={usage.xPct}
+                yPct={usage.yPct}
+                frameSize={size}
+                interactive
+                onMove={(xPct, yPct) => {
+                  useStore.getState().setSonicAvatar(project.id, { xPct, yPct });
+                }}
+              />
+            );
+          })()}
+
         </div>
       </div>
 
