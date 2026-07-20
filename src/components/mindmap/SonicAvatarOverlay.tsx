@@ -51,6 +51,7 @@ export function SonicAvatarOverlay({
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    const c = ctx;
 
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     // Canvas is 1.6× the diameter → room for bars around the circle.
@@ -59,7 +60,8 @@ export function SonicAvatarOverlay({
     canvas.height = cssSize * dpr;
     canvas.style.width = `${cssSize}px`;
     canvas.style.height = `${cssSize}px`;
-    ctx.scale(dpr, dpr);
+    c.scale(dpr, dpr);
+
 
     const cx = cssSize / 2;
     const cy = cssSize / 2;
@@ -72,17 +74,18 @@ export function SonicAvatarOverlay({
 
     function frame() {
       const analyser = getRecordingAnalyser();
-      ctx.clearRect(0, 0, cssSize, cssSize);
+      c.clearRect(0, 0, cssSize, cssSize);
       let data: Uint8Array | null = null;
       if (analyser) {
-        data = new Uint8Array(analyser.frequencyBinCount);
-        analyser.getByteFrequencyData(data);
+        const buf = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(buf as unknown as Uint8Array<ArrayBuffer>);
+        data = buf;
       }
-      ctx.strokeStyle = avatar.waveColor;
-      ctx.lineCap = "round";
-      ctx.lineWidth = Math.max(2, diameter * 0.02);
-      ctx.shadowColor = avatar.waveColor;
-      ctx.shadowBlur = 6;
+      c.strokeStyle = avatar.waveColor;
+      c.lineCap = "round";
+      c.lineWidth = Math.max(2, diameter * 0.02);
+      c.shadowColor = avatar.waveColor;
+      c.shadowBlur = 6;
       for (let i = 0; i < BARS; i++) {
         // Sample: use log-ish index bias for a nicer spread.
         let v = 0;
@@ -100,14 +103,15 @@ export function SonicAvatarOverlay({
         const y0 = cy + Math.sin(angle) * innerR;
         const x1 = cx + Math.cos(angle) * (innerR + len);
         const y1 = cy + Math.sin(angle) * (innerR + len);
-        ctx.beginPath();
-        ctx.moveTo(x0, y0);
-        ctx.lineTo(x1, y1);
-        ctx.stroke();
+        c.beginPath();
+        c.moveTo(x0, y0);
+        c.lineTo(x1, y1);
+        c.stroke();
       }
-      ctx.shadowBlur = 0;
+      c.shadowBlur = 0;
       raf = requestAnimationFrame(frame);
     }
+
     raf = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(raf);
   }, [diameter, avatar.waveColor]);
