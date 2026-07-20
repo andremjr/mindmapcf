@@ -426,7 +426,7 @@ export function MindMapEditor({ project }: { project: Project }) {
                       onToggleCollapsed={() => toggleCollapsed(project.id, n.id)}
                       onPickImage={async () => {
                         try {
-                          const ref = await pickImageAndStore();
+                          const ref = await pickMediaAndStore("image");
                           if (!ref) return;
                           updateNode(project.id, n.id, {
                             imageRef: ref,
@@ -438,6 +438,21 @@ export function MindMapEditor({ project }: { project: Project }) {
                           alert("Não foi possível adicionar essa imagem.");
                         }
                       }}
+                      onPickVideo={async () => {
+                        try {
+                          const ref = await pickMediaAndStore("video");
+                          if (!ref) return;
+                          updateNode(project.id, n.id, {
+                            imageRef: ref,
+                            imageName: ref.name,
+                            image: undefined,
+                          });
+                        } catch (error) {
+                          console.error("[mindmap] video pick", error);
+                          alert("Não foi possível adicionar esse vídeo.");
+                        }
+                      }}
+
 
                     />
                   </div>
