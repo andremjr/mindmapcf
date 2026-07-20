@@ -395,16 +395,9 @@ export function Presentation({
             })}
           </MindMapCanvas>
 
-          {project.sonicAvatar?.enabled && (
-            <SonicAvatarOverlay
-              avatar={project.sonicAvatar}
-              frameSize={size}
-              interactive
-              onMove={(xPct, yPct) => {
-                useStore.getState().setSonicAvatar(project.id, { xPct, yPct });
-              }}
-            />
-          )}
+          <AvatarLayer project={project} frameSize={size} />
+
+
         </div>
       </div>
 
@@ -497,3 +490,24 @@ export function Presentation({
     </div>
   );
 }
+
+function AvatarLayer({ project, frameSize }: { project: Project; frameSize: { w: number; h: number } }) {
+  const avatars = useStore((s) => s.avatars);
+  const usage = project.sonicAvatar;
+  if (!usage?.enabled || !usage.avatarId) return null;
+  const entry = avatars.find((a) => a.id === usage.avatarId);
+  if (!entry) return null;
+  return (
+    <SonicAvatarOverlay
+      avatar={entry}
+      xPct={usage.xPct}
+      yPct={usage.yPct}
+      frameSize={frameSize}
+      interactive
+      onMove={(xPct, yPct) => {
+        useStore.getState().setSonicAvatar(project.id, { xPct, yPct });
+      }}
+    />
+  );
+}
+

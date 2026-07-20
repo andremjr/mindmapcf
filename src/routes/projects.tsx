@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useMindmapSync } from "@/lib/mindmapSync";
+import { useAvatarsSync } from "@/lib/avatarsSync";
 
 /**
  * Layout for /projects/*. Owns auth gate + Supabase sync so navigating
@@ -16,6 +17,7 @@ function ProjectsLayout() {
   const { session, loading } = useAuth();
   const navigate = useNavigate();
   const { hydrated } = useMindmapSync(session?.user.id);
+  useAvatarsSync(session?.user.id);
 
   useEffect(() => {
     if (!loading && !session) navigate({ to: "/auth", replace: true });

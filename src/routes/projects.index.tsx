@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Plus, Network, Trash2, Clock, LogOut, Upload, Crown } from "lucide-react";
+import { Plus, Network, Trash2, Clock, LogOut, Upload, Crown, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -21,6 +21,7 @@ import { ImportDialog } from "@/components/mindmap/ImportDialog";
 import { toast } from "sonner";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
+import { SonicAvatarDialog } from "@/components/mindmap/SonicAvatarDialog";
 
 const FREE_MAP_LIMIT = 3;
 const FREE_NODE_LIMIT = 30;
@@ -102,6 +103,7 @@ function ProjectsDashboard() {
   const [title, setTitle] = useState("");
   const [importOpen, setImportOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [avatarsOpen, setAvatarsOpen] = useState(false);
 
   // Auth gate + Supabase sync are owned by the /projects layout route.
   if (!session) return null;
@@ -200,10 +202,19 @@ function ProjectsDashboard() {
             <Button
               variant="outline"
               className="gap-2"
+              onClick={() => setAvatarsOpen(true)}
+              title="Avatares sonoros (Pro)"
+            >
+              <Mic className="size-4" /> Avatares
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
               onClick={() => setImportOpen(true)}
             >
               <Upload className="size-4" /> Importar
             </Button>
+
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2" disabled={!isPro && projects.length >= FREE_MAP_LIMIT}>
@@ -291,6 +302,14 @@ function ProjectsDashboard() {
         onOpenChange={setUpgradeOpen}
         user={session.user}
       />
+      <SonicAvatarDialog
+        userId={session.user.id}
+        isPro={isPro}
+        open={avatarsOpen}
+        onClose={() => setAvatarsOpen(false)}
+        onUpgrade={() => setUpgradeOpen(true)}
+      />
+
     </div>
   );
 }

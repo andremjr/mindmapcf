@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { SonicAvatar } from "@/lib/types";
+import type { SonicAvatarEntry } from "@/lib/types";
 import { getRecordingAnalyser } from "@/lib/screenRecorder";
 import { resolveImage } from "@/lib/imageStorage";
 
@@ -10,11 +10,15 @@ import { resolveImage } from "@/lib/imageStorage";
  */
 export function SonicAvatarOverlay({
   avatar,
+  xPct,
+  yPct,
   frameSize,
   onMove,
   interactive,
 }: {
-  avatar: SonicAvatar;
+  avatar: SonicAvatarEntry;
+  xPct: number;
+  yPct: number;
   frameSize: { w: number; h: number };
   onMove: (xPct: number, yPct: number) => void;
   /** Allow drag. During plain presentation (no recording) we still show it if enabled. */
@@ -42,8 +46,8 @@ export function SonicAvatarOverlay({
   // Diameter in px, based on shorter side of the frame.
   const minSide = Math.min(frameSize.w, frameSize.h);
   const diameter = Math.max(40, (minSide * avatar.sizePct) / 100);
-  const centerX = (frameSize.w * avatar.xPct) / 100;
-  const centerY = (frameSize.h * avatar.yPct) / 100;
+  const centerX = (frameSize.w * xPct) / 100;
+  const centerY = (frameSize.h * yPct) / 100;
 
   // Sound-wave canvas (bars radiating around the circle).
   useEffect(() => {
@@ -132,8 +136,8 @@ export function SonicAvatarOverlay({
     dragRef.current = {
       startClientX: e.clientX,
       startClientY: e.clientY,
-      startXPct: avatar.xPct,
-      startYPct: avatar.yPct,
+      startXPct: xPct,
+      startYPct: yPct,
     };
   }
   function onPointerMove(e: React.PointerEvent) {
