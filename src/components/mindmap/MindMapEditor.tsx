@@ -294,6 +294,9 @@ export function MindMapEditor({ project }: { project: Project }) {
 
   function handlePresent() {
     setViewportPersist(project.id, viewport);
+    if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
     navigate({ to: "/projects/$id/present", params: { id: project.id } });
   }
 
