@@ -1,0 +1,2 @@
+INSERT INTO public.subscriptions (user_id, paddle_subscription_id, paddle_customer_id, product_id, price_id, status, current_period_start, current_period_end, environment)
+VALUES ('24eb5a14-db6f-44b7-a774-f3b769c27537', 'manual_grant_annual_andremarinho', 'manual_grant_andremarinho', 'pro_plan', 'pro_annual', 'active', now(), now() + interval '1 year', 'live');
