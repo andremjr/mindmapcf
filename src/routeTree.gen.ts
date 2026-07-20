@@ -9,7 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as RefundRouteImport } from './routes/refund'
 import { Route as ProjectsRouteImport } from './routes/projects'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AccountRouteImport } from './routes/account'
@@ -20,9 +23,24 @@ import { Route as CheckoutSuccessRouteImport } from './routes/checkout.success'
 import { Route as ProjectsIdPresentRouteImport } from './routes/projects.$id.present'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RefundRoute = RefundRouteImport.update({
+  id: '/refund',
+  path: '/refund',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProjectsRoute = ProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingRoute = PricingRouteImport.update({
@@ -77,7 +95,10 @@ export interface FileRoutesByFullPath {
   '/account': typeof AccountRoute
   '/auth': typeof AuthRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/projects': typeof ProjectsRouteWithChildren
+  '/refund': typeof RefundRoute
+  '/terms': typeof TermsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
   '/projects/$id': typeof ProjectsIdRouteWithChildren
   '/projects/': typeof ProjectsIndexRoute
@@ -89,6 +110,9 @@ export interface FileRoutesByTo {
   '/account': typeof AccountRoute
   '/auth': typeof AuthRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
+  '/refund': typeof RefundRoute
+  '/terms': typeof TermsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
   '/projects/$id': typeof ProjectsIdRouteWithChildren
   '/projects': typeof ProjectsIndexRoute
@@ -101,7 +125,10 @@ export interface FileRoutesById {
   '/account': typeof AccountRoute
   '/auth': typeof AuthRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/projects': typeof ProjectsRouteWithChildren
+  '/refund': typeof RefundRoute
+  '/terms': typeof TermsRoute
   '/checkout/success': typeof CheckoutSuccessRoute
   '/projects/$id': typeof ProjectsIdRouteWithChildren
   '/projects/': typeof ProjectsIndexRoute
@@ -115,7 +142,10 @@ export interface FileRouteTypes {
     | '/account'
     | '/auth'
     | '/pricing'
+    | '/privacy'
     | '/projects'
+    | '/refund'
+    | '/terms'
     | '/checkout/success'
     | '/projects/$id'
     | '/projects/'
@@ -127,6 +157,9 @@ export interface FileRouteTypes {
     | '/account'
     | '/auth'
     | '/pricing'
+    | '/privacy'
+    | '/refund'
+    | '/terms'
     | '/checkout/success'
     | '/projects/$id'
     | '/projects'
@@ -138,7 +171,10 @@ export interface FileRouteTypes {
     | '/account'
     | '/auth'
     | '/pricing'
+    | '/privacy'
     | '/projects'
+    | '/refund'
+    | '/terms'
     | '/checkout/success'
     | '/projects/$id'
     | '/projects/'
@@ -151,18 +187,42 @@ export interface RootRouteChildren {
   AccountRoute: typeof AccountRoute
   AuthRoute: typeof AuthRoute
   PricingRoute: typeof PricingRoute
+  PrivacyRoute: typeof PrivacyRoute
   ProjectsRoute: typeof ProjectsRouteWithChildren
+  RefundRoute: typeof RefundRoute
+  TermsRoute: typeof TermsRoute
   CheckoutSuccessRoute: typeof CheckoutSuccessRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/refund': {
+      id: '/refund'
+      path: '/refund'
+      fullPath: '/refund'
+      preLoaderRoute: typeof RefundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/projects': {
       id: '/projects'
       path: '/projects'
       fullPath: '/projects'
       preLoaderRoute: typeof ProjectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing': {
@@ -262,7 +322,10 @@ const rootRouteChildren: RootRouteChildren = {
   AccountRoute: AccountRoute,
   AuthRoute: AuthRoute,
   PricingRoute: PricingRoute,
+  PrivacyRoute: PrivacyRoute,
   ProjectsRoute: ProjectsRouteWithChildren,
+  RefundRoute: RefundRoute,
+  TermsRoute: TermsRoute,
   CheckoutSuccessRoute: CheckoutSuccessRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
