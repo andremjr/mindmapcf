@@ -116,15 +116,22 @@ export const MindMapCanvas = forwardRef<HTMLDivElement, Props>(function MindMapC
           style={{ left: minX, top: minY, width: svgW, height: svgH, overflow: "visible" }}
           viewBox={`${minX} ${minY} ${svgW} ${svgH}`}
         >
-          {edges.map(({ from, to }, i) => (
-            <path
-              key={i}
-              d={edgePath(from, to)}
-              stroke="color-mix(in oklch, var(--primary) 55%, transparent)"
-              strokeWidth={2}
-              fill="none"
-            />
-          ))}
+          {edges.map(({ from, to }, i) => {
+            const c = colorById?.get(to.id);
+            const stroke = c
+              ? `color-mix(in oklch, ${c} 70%, transparent)`
+              : "color-mix(in oklch, var(--primary) 55%, transparent)";
+            return (
+              <path
+                key={i}
+                d={edgePath(from, to)}
+                stroke={stroke}
+                strokeWidth={2}
+                fill="none"
+              />
+            );
+          })}
+
           {pendingEdge && (() => {
             const from = nodeById.get(pendingEdge.fromId);
             if (!from) return null;
