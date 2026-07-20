@@ -269,45 +269,51 @@ export function Presentation({
       )}
 
 
-      <div
-        className={`absolute top-4 right-4 z-10 transition-opacity duration-300 ${
-          uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
-      >
-        <button
-          onClick={exit}
-          className="size-10 grid place-items-center rounded-full bg-card/70 backdrop-blur border border-border/60 hover:bg-card"
-          aria-label="Sair da apresentação"
-        >
-          <X className="size-4" />
-        </button>
-      </div>
+      {/* Overlay UI — hidden while recording so it never leaks into the file. */}
+      {!recording && (
+        <>
+          <div
+            className={`absolute top-4 right-4 z-10 transition-opacity duration-300 ${
+              uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+            }`}
+          >
+            <button
+              onClick={exit}
+              className="size-10 grid place-items-center rounded-full bg-card/70 backdrop-blur border border-border/60 hover:bg-card"
+              aria-label="Sair da apresentação"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
 
-      <div
-        className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-card/70 backdrop-blur border border-border/60 px-2 py-2 transition-opacity duration-300 ${
-          uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
-      >
-        <button
-          onClick={prev}
-          disabled={idx === 0}
-          className="size-9 grid place-items-center rounded-full hover:bg-muted disabled:opacity-40"
-          aria-label="Anterior"
-        >
-          <ChevronLeft className="size-5" />
-        </button>
-        <span className="px-3 text-sm font-mono tabular-nums text-muted-foreground min-w-[70px] text-center">
-          {order.length > 0 ? `${idx + 1} / ${order.length}` : "0 / 0"}
-        </span>
-        <button
-          onClick={next}
-          disabled={idx >= order.length - 1}
-          className="size-9 grid place-items-center rounded-full hover:bg-muted disabled:opacity-40"
-          aria-label="Próximo"
-        >
-          <ChevronRight className="size-5" />
-        </button>
-      </div>
+          <div
+            className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-card/70 backdrop-blur border border-border/60 px-2 py-2 transition-opacity duration-300 ${
+              uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+            }`}
+          >
+            <button
+              onClick={prev}
+              disabled={idx === 0}
+              className="size-9 grid place-items-center rounded-full hover:bg-muted disabled:opacity-40"
+              aria-label="Anterior"
+            >
+              <ChevronLeft className="size-5" />
+            </button>
+            <span className="px-3 text-sm font-mono tabular-nums text-muted-foreground min-w-[70px] text-center">
+              {order.length > 0 ? `${idx + 1} / ${order.length}` : "0 / 0"}
+            </span>
+            <button
+              onClick={next}
+              disabled={idx >= order.length - 1}
+              className="size-9 grid place-items-center rounded-full hover:bg-muted disabled:opacity-40"
+              aria-label="Próximo"
+            >
+              <ChevronRight className="size-5" />
+            </button>
+          </div>
+        </>
+      )}
+
 
       {order.length === 0 && (
         <div className="absolute inset-0 grid place-items-center">
