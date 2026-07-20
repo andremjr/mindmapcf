@@ -15,10 +15,13 @@ interface Props {
   children: React.ReactNode;
   animated?: boolean;
   pendingEdge?: PendingEdge | null;
+  /** Effective accent color per node id (parent→child edge uses child's color). */
+  colorById?: Map<string, string>;
   onBackgroundPointerDown?: (e: React.PointerEvent) => void;
   onWheel?: (e: React.WheelEvent) => void;
   onBackgroundDoubleClick?: (e: React.MouseEvent) => void;
 }
+
 
 /**
  * Infinite pannable/zoomable canvas.
