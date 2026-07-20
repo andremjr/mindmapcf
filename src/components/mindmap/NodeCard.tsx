@@ -95,28 +95,14 @@ export function NodeCard({
         onStartEdit();
       }}
     >
-      {node.image && (
-        <div className="relative">
-          <img
-            src={node.image}
-            alt=""
-            className="w-full max-h-56 object-cover rounded-t-xl"
-            draggable={false}
-          />
-          {!presentation && (
-            <button
-              data-nodrag
-              onClick={() => onChange({ image: undefined, imageName: undefined })}
-              className="absolute top-1.5 right-1.5 size-6 grid place-items-center rounded-full bg-background/80 hover:bg-background"
-              aria-label="Remover imagem"
-            >
-              <X className="size-3" />
-            </button>
-          )}
-        </div>
-      )}
+      <NodeImage
+        node={node}
+        presentation={presentation}
+        onClear={() => onChange({ image: undefined, imageRef: undefined, imageName: undefined })}
+      />
 
-      <div className={`px-4 ${node.image ? "py-3" : "py-3"}`}>
+      <div className="px-4 py-3">
+
         {editing && !presentation ? (
           <textarea
             ref={textareaRef}
