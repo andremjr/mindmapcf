@@ -8,8 +8,8 @@ import { NodeCard } from "./NodeCard";
 
 type Viewport = { x: number; y: number; zoom: number };
 
-const FOCUS_ZOOM = 1.4;
-const TRANSITION_MS = 900;
+const FOCUS_ZOOM = 2.2;
+const TRANSITION_MS = 1100;
 
 // easeInOutCubic
 function ease(t: number) {
