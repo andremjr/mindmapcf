@@ -65,29 +65,46 @@ function ProjectsDashboard() {
               <p className="text-xs text-muted-foreground">Mapas mentais com modo apresentação</p>
             </div>
           </div>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="size-4" /> Novo mapa
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Criar mapa mental</DialogTitle>
-              </DialogHeader>
-              <Input
-                autoFocus
-                placeholder="Nome do mapa"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-              />
-              <DialogFooter>
-                <Button variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button onClick={handleCreate}>Criar</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground hidden sm:inline">
+              {session.user.email}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={async () => {
+                await supabase.auth.signOut();
+                navigate({ to: "/auth", replace: true });
+              }}
+              className="gap-2"
+            >
+              <LogOut className="size-4" /> Sair
+            </Button>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="size-4" /> Novo mapa
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Criar mapa mental</DialogTitle>
+                </DialogHeader>
+                <Input
+                  autoFocus
+                  placeholder="Nome do mapa"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                />
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleCreate}>Criar</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+
         </div>
       </header>
 
