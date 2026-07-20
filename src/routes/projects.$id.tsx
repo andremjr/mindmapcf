@@ -1,7 +1,9 @@
-import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { useProject } from "@/lib/store";
 import { MindMapEditor } from "@/components/mindmap/MindMapEditor";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 export const Route = createFileRoute("/projects/$id")({
   head: ({ params }) => ({
@@ -16,6 +18,16 @@ export const Route = createFileRoute("/projects/$id")({
 function EditorRoute() {
   const { id } = useParams({ from: "/projects/$id" });
   const project = useProject(id);
+  const { session, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && !session) navigate({ to: "/auth", replace: true });
+  }, [loading, session, navigate]);
+
+  if (loading || !session) {
+    return <div className="min-h-screen grid place-items-center text-sm text-muted-foreground">Carregando…</div>;
+  }
 
   if (!project) {
     return (
@@ -31,3 +43,4 @@ function EditorRoute() {
 
   return <MindMapEditor project={project} />;
 }
+
