@@ -49,7 +49,7 @@ export function NodeCard({
   onPickImage,
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+
 
   useEffect(() => {
     if (editing && textareaRef.current) {
