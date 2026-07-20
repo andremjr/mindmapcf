@@ -258,6 +258,14 @@ export function NodeCard({
             <Film className="size-3" />
             Vídeo
           </button>
+          <button
+            onClick={() => setColorMenuOpen((v) => !v)}
+            className="px-2 py-1 text-xs rounded hover:bg-muted flex items-center gap-1"
+            title="Cor do nó"
+          >
+            <Palette className="size-3" style={{ color: isThemed ? accent : undefined }} />
+            Cor
+          </button>
 
           <div className="h-4 w-px bg-border mx-1" />
           <button
@@ -268,6 +276,62 @@ export function NodeCard({
           </button>
         </div>
       )}
+
+      {/* Color picker popover */}
+      {selected && !presentation && !editing && colorMenuOpen && (
+        <div
+          data-nodrag
+          className="absolute left-1/2 -translate-x-1/2 -bottom-[168px] z-20 w-[240px] rounded-lg border border-border/60 bg-popover p-3 shadow-xl"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-2">
+            Cor do nó
+          </div>
+          <div className="grid grid-cols-5 gap-1.5 mb-2">
+            {NODE_COLOR_PALETTE.map((c) => {
+              const isCurrent = (node.color ?? "").toLowerCase() === c.value.toLowerCase();
+              return (
+                <button
+                  key={c.value}
+                  onClick={() => {
+                    onSetColor?.(c.value, cascade && !!hasDescendants);
+                    setColorMenuOpen(false);
+                  }}
+                  className="relative size-8 rounded-full border border-border/60 hover:scale-110 transition-transform"
+                  style={{ backgroundColor: c.value }}
+                  title={c.name}
+                  aria-label={c.name}
+                >
+                  {isCurrent && (
+                    <Check className="size-4 text-white absolute inset-0 m-auto drop-shadow" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {hasDescendants && (
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer mb-2">
+              <input
+                type="checkbox"
+                checked={cascade}
+                onChange={(e) => setCascade(e.target.checked)}
+                className="accent-primary"
+              />
+              Aplicar a toda a ramificação
+            </label>
+          )}
+          <button
+            onClick={() => {
+              onSetColor?.(undefined, false);
+              setColorMenuOpen(false);
+            }}
+            className="w-full text-xs rounded-md px-2 py-1.5 border border-border/60 hover:bg-muted"
+          >
+            {node.color ? "Limpar cor deste nó" : "Sem cor personalizada"}
+          </button>
+        </div>
+      )}
+
     </div>
   );
 }
