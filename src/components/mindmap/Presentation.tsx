@@ -120,6 +120,20 @@ export function Presentation({
   const activeId = order[idx];
   const activeNode = project.nodes.find((n) => n.id === activeId);
 
+  // Lit id lags activeId so the node "acende" only when the incoming edge
+  // fill animation reaches it. Root has no incoming edge → lights immediately.
+  const [litId, setLitId] = useState<string | undefined>(activeId);
+  useEffect(() => {
+    if (!activeNode) return;
+    if (!activeNode.parentId) {
+      setLitId(activeId);
+      return;
+    }
+    setLitId(undefined);
+    const t = window.setTimeout(() => setLitId(activeId), 900);
+    return () => window.clearTimeout(t);
+  }, [activeId, activeNode?.parentId]);
+
   const initialVp: Viewport = { x: 0, y: 0, zoom: 0.45 };
   const [viewport, setViewport] = useState<Viewport>(initialVp);
   const rafRef = useRef<number | null>(null);
@@ -382,7 +396,7 @@ export function Presentation({
                   childCount={0}
                   selected={false}
                   editing={false}
-                  active={n.id === activeId}
+                  active={n.id === litId}
                   effectiveColor={colorMap.get(n.id)}
                   presentation
                   onSelect={() => {}}
