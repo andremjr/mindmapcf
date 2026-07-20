@@ -254,7 +254,7 @@ function AvatarCard({
     return () => {
       cancelled = true;
     };
-  }, [entry.imageRef?.id, entry.imageRef?.storagePath]);
+  }, [entry.imageRef?.id, entry.imageRef?.localPath, entry.imageRef?.storagePath, entry.imageRef?.bucket]);
 
   return (
     <div
@@ -323,7 +323,7 @@ function EditForm({
     return () => {
       cancelled = true;
     };
-  }, [entry.imageRef?.id, entry.imageRef?.storagePath]);
+  }, [entry.imageRef?.id, entry.imageRef?.localPath, entry.imageRef?.storagePath, entry.imageRef?.bucket]);
 
   async function pickImage() {
     try {

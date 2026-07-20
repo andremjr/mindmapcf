@@ -3,9 +3,11 @@
 export interface ImageRef {
   /** Stable id used to look up the file handle / blob in IndexedDB. */
   id: string;
-  /** Private Supabase Storage path. This is the durable source after reloads. */
+  /** Local reference shown in the UI. Browsers expose the filename, not a full OS path. */
+  localPath?: string;
+  /** Private Supabase Storage path. Only sonic avatar images should set this. */
   storagePath?: string;
-  /** Storage bucket. Missing = the default `mindmap-media` bucket (backwards compat). */
+  /** Storage bucket. Only sonic avatar images should set this to `avatar-images`. */
   bucket?: string;
   /** Original filename — shown in UI and used for the broken-image label. */
   name: string;
@@ -45,7 +47,7 @@ export interface MindNode {
 export interface SonicAvatarEntry {
   id: string;
   name: string;
-  /** Reference to a locally-stored image (never uploaded). */
+  /** Reference to an avatar image stored in the private `avatar-images` bucket. */
   imageRef?: ImageRef;
   imageName?: string;
   /** Circle background color (hex). */

@@ -31,12 +31,23 @@ function toProject(r: Row): Project {
 
 function stripInlineImages(nodes: Project["nodes"]): MindNode[] {
   return nodes.map((node) => {
-    if (!node.image) return node;
+    const cleanImageRef = node.imageRef
+      ? {
+          id: node.imageRef.id,
+          localPath: node.imageRef.localPath ?? node.imageRef.name,
+          name: node.imageRef.name,
+          size: node.imageRef.size,
+          lastModified: node.imageRef.lastModified,
+          contentType: node.imageRef.contentType,
+          kind: node.imageRef.kind,
+        }
+      : undefined;
 
     const { image: _image, ...rest } = node;
     return {
       ...rest,
-      imageName: node.imageName ?? node.imageRef?.name ?? "Imagem local não reconectada",
+      imageRef: cleanImageRef,
+      imageName: node.imageName ?? cleanImageRef?.name ?? (node.image ? "Imagem local não reconectada" : undefined),
     };
   });
 }
