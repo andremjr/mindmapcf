@@ -147,6 +147,60 @@ function positionForNewChild(nodes: MindNode[], parentId: string | null) {
   return { x, y: maxY + V_GAP };
 }
 
+/**
+ * Redistribute descendants of every root so subtrees never overlap vertically.
+ * Roots keep their (x,y); each child block is centered on its parent and
+ * given `subtreeLeafCount * V_GAP` of vertical space. Runs after every
+ * structural change (add / delete / reparent) so new nodes automatically
+ * push siblings apart.
+ */
+function reflowTree(nodes: MindNode[]): MindNode[] {
+  const byParent = new Map<string | null, MindNode[]>();
+  for (const n of nodes) {
+    const arr = byParent.get(n.parentId ?? null) ?? [];
+    arr.push(n);
+    byParent.set(n.parentId ?? null, arr);
+  }
+  for (const arr of byParent.values()) arr.sort((a, b) => a.y - b.y);
+
+  const leaves = new Map<string, number>();
+  function measure(id: string): number {
+    const kids = byParent.get(id) ?? [];
+    if (!kids.length) {
+      leaves.set(id, 1);
+      return 1;
+    }
+    const h = kids.reduce((s, k) => s + measure(k.id), 0);
+    leaves.set(id, h);
+    return h;
+  }
+
+  const pos = new Map<string, { x: number; y: number }>();
+  function place(parentId: string, px: number, py: number) {
+    const kids = byParent.get(parentId) ?? [];
+    if (!kids.length) return;
+    const total = kids.reduce((s, k) => s + (leaves.get(k.id) ?? 1), 0);
+    let cursor = py - (total * V_GAP) / 2;
+    for (const k of kids) {
+      const lh = leaves.get(k.id) ?? 1;
+      const kx = px + H_GAP;
+      const ky = cursor + (lh * V_GAP) / 2;
+      pos.set(k.id, { x: kx, y: ky });
+      cursor += lh * V_GAP;
+      place(k.id, kx, ky);
+    }
+  }
+
+  const roots = byParent.get(null) ?? [];
+  roots.forEach((r) => measure(r.id));
+  roots.forEach((r) => place(r.id, r.x, r.y));
+
+  return nodes.map((n) => {
+    const p = pos.get(n.id);
+    return p ? { ...n, x: p.x, y: p.y } : n;
+  });
+}
+
 export const useStore = create<State & Actions>()(
   persist(
     (set) => ({
@@ -207,7 +261,7 @@ export const useStore = create<State & Actions>()(
             };
             return {
               ...p,
-              nodes: [...p.nodes, node],
+              nodes: reflowTree([...p.nodes, node]),
               updatedAt: new Date().toISOString(),
             };
           }),
@@ -235,7 +289,7 @@ export const useStore = create<State & Actions>()(
             const toRemove = new Set([nodeId, ...descendantIds(p.nodes, nodeId)]);
             return {
               ...p,
-              nodes: p.nodes.filter((n) => !toRemove.has(n.id)),
+              nodes: reflowTree(p.nodes.filter((n) => !toRemove.has(n.id))),
               updatedAt: new Date().toISOString(),
             };
           }),
@@ -248,7 +302,9 @@ export const useStore = create<State & Actions>()(
             if (wouldCycle(p.nodes, nodeId, parentId)) return p;
             return {
               ...p,
-              nodes: p.nodes.map((n) => (n.id === nodeId ? { ...n, parentId } : n)),
+              nodes: reflowTree(
+                p.nodes.map((n) => (n.id === nodeId ? { ...n, parentId } : n)),
+              ),
               updatedAt: new Date().toISOString(),
             };
           }),

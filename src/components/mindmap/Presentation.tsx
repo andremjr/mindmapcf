@@ -8,8 +8,8 @@ import { NodeCard } from "./NodeCard";
 
 type Viewport = { x: number; y: number; zoom: number };
 
-const FOCUS_ZOOM = 1.4;
-const TRANSITION_MS = 900;
+const FOCUS_ZOOM = 2.2;
+const TRANSITION_MS = 1100;
 
 // easeInOutCubic
 function ease(t: number) {
@@ -47,9 +47,8 @@ export function Presentation({ project }: { project: Project }) {
   const activeNode = project.nodes.find((n) => n.id === activeId);
 
   // RAF-driven viewport animation (zoom-out midway → pan → zoom-in).
-  const initialVp: Viewport = activeNode
-    ? { x: activeNode.x, y: activeNode.y, zoom: FOCUS_ZOOM }
-    : { x: 0, y: 0, zoom: 1 };
+  // Start from a wide overview so the first arrow key visibly zooms into node 1.
+  const initialVp: Viewport = { x: 0, y: 0, zoom: 0.45 };
   const [viewport, setViewport] = useState<Viewport>(initialVp);
   const rafRef = useRef<number | null>(null);
   const viewportRef = useRef<Viewport>(initialVp);
