@@ -43,6 +43,23 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
 
+  // Auto-recover: "This page didn't load" no editor geralmente vem de token
+  // Supabase expirado ou realtime velho depois da aba ficar ociosa. Tentamos
+  // recuperar silenciosamente (throttled a 1x/10s para evitar loop).
+  useEffect(() => {
+    const key = "__cn_auto_recovered_at";
+    let last = 0;
+    try { last = Number(sessionStorage.getItem(key) ?? "0"); } catch { /* ignore */ }
+    const now = Date.now();
+    if (now - last < 10_000) return;
+    try { sessionStorage.setItem(key, String(now)); } catch { /* ignore */ }
+    const t = setTimeout(() => {
+      router.invalidate();
+      reset();
+    }, 300);
+    return () => clearTimeout(t);
+  }, [error, router, reset]);
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
@@ -50,7 +67,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           This page didn't load
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Something went wrong on our end. You can try refreshing or head back home.
+          Tentando recuperar automaticamente…
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
