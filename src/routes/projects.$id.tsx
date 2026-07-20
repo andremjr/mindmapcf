@@ -4,6 +4,8 @@ import { useProject } from "@/lib/store";
 import { MindMapEditor } from "@/components/mindmap/MindMapEditor";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useMindmapSync } from "@/lib/mindmapSync";
+
 
 export const Route = createFileRoute("/projects/$id")({
   head: ({ params }) => ({
@@ -20,6 +22,9 @@ function EditorRoute() {
   const project = useProject(id);
   const { session, loading } = useAuth();
   const navigate = useNavigate();
+
+  useMindmapSync(session?.user.id);
+
 
   useEffect(() => {
     if (!loading && !session) navigate({ to: "/auth", replace: true });

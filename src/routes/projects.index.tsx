@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/dialog";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/hooks/useAuth";
+import { useMindmapSync } from "@/lib/mindmapSync";
 import { supabase } from "@/integrations/supabase/client";
+
 
 
 export const Route = createFileRoute("/projects/")({
@@ -35,9 +37,12 @@ function ProjectsDashboard() {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
 
+  useMindmapSync(session?.user.id);
+
   useEffect(() => {
     if (!loading && !session) navigate({ to: "/auth", replace: true });
   }, [loading, session, navigate]);
+
 
   if (loading || !session) {
     return <div className="min-h-screen grid place-items-center text-sm text-muted-foreground">Carregando…</div>;
