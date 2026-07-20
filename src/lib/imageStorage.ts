@@ -326,8 +326,10 @@ export async function resolveImage(
   }
   const storagePath =
     typeof ref === "object" ? ref.storagePath ?? entry?.storagePath : entry?.storagePath;
+  const bucket =
+    (typeof ref === "object" ? ref.bucket : undefined) ?? (entry as any)?.bucket ?? BUCKET;
   if (storagePath) {
-    const blob = await downloadFromStorage(storagePath);
+    const blob = await downloadFromStorage(storagePath, bucket);
     if (blob) {
       const nextEntry: Entry = {
         ...(typeof ref === "object"
@@ -481,7 +483,8 @@ export async function deleteImage(id: string) {
   if (url) URL.revokeObjectURL(url);
   urlCache.delete(id);
   if (entry?.storagePath) {
-    await supabase.storage.from(BUCKET).remove([entry.storagePath]).catch(() => undefined);
+    const bucket = (entry as any).bucket ?? BUCKET;
+    await supabase.storage.from(bucket).remove([entry.storagePath]).catch(() => undefined);
   }
   await del(id).catch(() => undefined);
 }
