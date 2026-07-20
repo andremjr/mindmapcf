@@ -175,12 +175,7 @@ function ProjectsDashboard() {
             {projects.map((p) => (
               <div key={p.id} className="rounded-xl border border-border/60 bg-card group relative overflow-hidden hover:border-primary/50 transition">
                 <Link to="/projects/$id" params={{ id: p.id }} className="block p-5">
-                  <div className="aspect-video rounded-md bg-gradient-to-br from-muted to-background mb-4 relative overflow-hidden border border-border/50 grid place-items-center">
-                    <Network className="size-8 text-foreground/20" />
-                    <div className="absolute bottom-2 right-2 text-[10px] font-mono text-muted-foreground bg-background/70 px-2 py-0.5 rounded">
-                      {p.nodes.length} {p.nodes.length === 1 ? "nó" : "nós"}
-                    </div>
-                  </div>
+                  <ProjectThumb project={p} />
                   <h3 className="text-base font-semibold truncate">{p.title}</h3>
                   <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
                     <Clock className="size-3" />
