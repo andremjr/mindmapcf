@@ -1,16 +1,23 @@
-// Local image storage for mind-map nodes.
-// Prefers the File System Access API (persists a handle → reads the same
-// file from disk on later sessions). Falls back to storing the Blob in
-// IndexedDB when the API is unavailable. Nothing is ever sent to Supabase.
+// Media storage for mind-map nodes.
+// Durable source: private Supabase Storage path saved in the node's ImageRef.
+// Local source: IndexedDB blob cache + optional File System Access handle for
+// fast reloads. Browser security does not allow a website to re-open an
+// arbitrary local file path after restart, so the private storage path is the
+// only reliable cross-session source.
+
+import { supabase } from "@/integrations/supabase/client";
 
 const DB_NAME = "mindmap-images";
 const STORE = "images";
+const BUCKET = "mindmap-media";
 
 export interface ImageRef {
   id: string;
+  storagePath?: string;
   name: string;
   size: number;
   lastModified: number;
+  contentType?: string;
   /** Media kind. Missing = image (backwards compatible). */
   kind?: "image" | "video";
 }
@@ -46,6 +53,17 @@ async function put(entry: Entry) {
     tx.oncomplete = () => res();
     tx.onerror = () => rej(tx.error);
   });
+}
+
+async function safePut(entry: Entry) {
+  try {
+    await put(entry);
+  } catch {
+    // Some browsers refuse to persist FileSystemHandle objects. Keep the
+    // durable storage path + blob cache instead.
+    const { handle: _handle, ...withoutHandle } = entry;
+    await put(withoutHandle).catch(() => undefined);
+  }
 }
 
 async function getEntry(id: string): Promise<Entry | undefined> {
@@ -103,8 +121,53 @@ async function del(id: string) {
 
 const urlCache = new Map<string, string>();
 
+function objectUrlFor(id: string, blob: Blob) {
+  const existing = urlCache.get(id);
+  if (existing) URL.revokeObjectURL(existing);
+  const url = URL.createObjectURL(blob);
+  urlCache.set(id, url);
+  return url;
+}
+
 function hasFSAccess() {
   return typeof window !== "undefined" && "showOpenFilePicker" in window;
+}
+
+function sanitizeFileName(name: string) {
+  const cleaned = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return cleaned || "arquivo";
+}
+
+async function currentUserId() {
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) throw new Error("Você precisa estar logado para salvar arquivos.");
+  return data.user.id;
+}
+
+function makeStoragePath(userId: string, name: string) {
+  return `${userId}/${crypto.randomUUID()}-${sanitizeFileName(name)}`;
+}
+
+async function uploadToStorage(file: Blob, name = "arquivo") {
+  const userId = await currentUserId();
+  const storagePath = makeStoragePath(userId, name);
+  const { error } = await supabase.storage.from(BUCKET).upload(storagePath, file, {
+    contentType: file.type || undefined,
+    upsert: false,
+  });
+  if (error) throw error;
+  return storagePath;
+}
+
+async function downloadFromStorage(storagePath: string): Promise<Blob | null> {
+  const { data, error } = await supabase.storage.from(BUCKET).download(storagePath);
+  if (error || !data) return null;
+  return data;
 }
 
 function pickFileFallback(accept: string): Promise<File | null> {
@@ -122,10 +185,9 @@ const IMAGE_EXT = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif", ".svg"];
 const VIDEO_EXT = [".mp4", ".webm", ".mov", ".m4v", ".ogg", ".ogv", ".mkv"];
 
 /** Prompt the user for an image or a video and persist a reference to it.
- *  We always cache the file bytes in IndexedDB (local-only, never uploaded)
- *  so page reloads work without a permission re-prompt. When the File System
- *  Access API is available we ALSO keep the handle so future edits to the
- *  same file on disk can refresh the cached bytes. */
+ *  The original file is uploaded to the user's private Storage folder, and
+ *  that path is saved in the map JSON. We also cache bytes locally so reloads
+ *  are instant. */
 export async function pickMediaAndStore(
   kind: "image" | "video",
 ): Promise<ImageRef | null> {
@@ -142,16 +204,17 @@ export async function pickMediaAndStore(
         excludeAcceptAllOption: false,
       });
       const file = await handle.getFile();
+      const storagePath = await uploadToStorage(file, file.name);
       const ref: ImageRef = {
         id,
+        storagePath,
         name: file.name,
         size: file.size,
         lastModified: file.lastModified,
+        contentType: file.type || undefined,
         kind,
       };
-      // Cache the bytes so a reload works without re-permission, and keep the
-      // handle so we can re-read from disk if the user updates the file.
-      await put({ ...ref, handle, blob: file });
+      await safePut({ ...ref, handle, blob: file });
       return ref;
     } catch (e: any) {
       if (e?.name === "AbortError") return null;
@@ -160,14 +223,17 @@ export async function pickMediaAndStore(
   }
   const file = await pickFileFallback(mime);
   if (!file) return null;
+  const storagePath = await uploadToStorage(file, file.name);
   const ref: ImageRef = {
     id,
+    storagePath,
     name: file.name,
     size: file.size,
     lastModified: file.lastModified,
+    contentType: file.type || undefined,
     kind,
   };
-  await put({ ...ref, blob: file });
+  await safePut({ ...ref, blob: file });
   return ref;
 }
 
@@ -212,17 +278,34 @@ export async function resolveImage(
   if (cached) return cached;
   const entry = await getEntry(id).catch(() => undefined);
   if (entry?.blob) {
-    const url = URL.createObjectURL(entry.blob);
-    urlCache.set(id, url);
-    return url;
+    return objectUrlFor(id, entry.blob);
+  }
+  const storagePath =
+    typeof ref === "object" ? ref.storagePath ?? entry?.storagePath : entry?.storagePath;
+  if (storagePath) {
+    const blob = await downloadFromStorage(storagePath);
+    if (blob) {
+      const nextEntry: Entry = {
+        ...(typeof ref === "object"
+          ? ref
+          : entry ?? {
+              id,
+              name: "Arquivo",
+              size: blob.size,
+              lastModified: Date.now(),
+            }),
+        storagePath,
+        blob,
+      };
+      await safePut(nextEntry).catch(() => undefined);
+      return objectUrlFor(id, blob);
+    }
   }
   if (entry) {
     const file = await tryReadHandle(entry, false);
     if (file) {
-      const url = URL.createObjectURL(file);
-      urlCache.set(id, url);
-      await put({ ...entry, blob: file }).catch(() => {});
-      return url;
+      await safePut({ ...entry, blob: file }).catch(() => {});
+      return objectUrlFor(id, file);
     }
   }
   // Cross-device fingerprint fallback: reuse a blob the user already
@@ -230,64 +313,75 @@ export async function resolveImage(
   if (typeof ref === "object") {
     const twin = await findByFingerprint(ref.name, ref.size, ref.lastModified);
     if (twin?.blob) {
-      const url = URL.createObjectURL(twin.blob);
-      urlCache.set(id, url);
       // Adopt the blob under the new id so subsequent lookups are direct.
-      await put({
+      await safePut({
         id,
+        storagePath: ref.storagePath,
         name: ref.name,
         size: ref.size,
         lastModified: ref.lastModified,
+        contentType: ref.contentType,
         kind: ref.kind,
         blob: twin.blob,
       }).catch(() => {});
-      return url;
+      return objectUrlFor(id, twin.blob);
     }
   }
   return null;
 }
 
+export interface ReconnectResult {
+  url: string;
+  /** Present when reconnection created a stronger durable reference. */
+  ref?: ImageRef;
+}
+
 /** Called from a user gesture to reconnect a broken reference. Tries the
- *  stored handle first; if that fails (permission denied, file moved,
- *  handle lost), opens a fresh file picker so the user can point at the
- *  file again. The new selection reuses the same id, so every node that
- *  referenced it lights up at once. */
+ *  stored Storage path first. Only if the app has no durable path does it ask
+ *  for the file once, upload it to private Storage, and update the reference. */
 export async function requestImageAccess(
   ref: string | ImageRef,
-): Promise<string | null> {
+): Promise<ReconnectResult | null> {
   const id = typeof ref === "string" ? ref : ref.id;
   const cached = urlCache.get(id);
-  if (cached) return cached;
+  if (cached) return { url: cached };
+  const resolved = await resolveImage(ref);
+  if (resolved) return { url: resolved };
+
   const entry = await getEntry(id).catch(() => undefined);
-  if (entry?.blob) {
-    const url = URL.createObjectURL(entry.blob);
-    urlCache.set(id, url);
-    return url;
-  }
   if (entry) {
     const file = await tryReadHandle(entry, true);
     if (file) {
-      const url = URL.createObjectURL(file);
-      urlCache.set(id, url);
-      await put({ ...entry, blob: file }).catch(() => {});
-      return url;
+      const storagePath = entry.storagePath ?? (await uploadToStorage(file, file.name));
+      const nextRef: ImageRef = {
+        id,
+        storagePath,
+        name: file.name,
+        size: file.size,
+        lastModified: file.lastModified,
+        contentType: file.type || entry.contentType,
+        kind: entry.kind,
+      };
+      await safePut({ ...nextRef, handle: entry.handle, blob: file }).catch(() => {});
+      return { url: objectUrlFor(id, file), ref: nextRef };
     }
   }
   // Try the fingerprint fallback before nagging the user with a picker.
   if (typeof ref === "object") {
     const twin = await findByFingerprint(ref.name, ref.size, ref.lastModified);
     if (twin?.blob) {
-      const url = URL.createObjectURL(twin.blob);
-      urlCache.set(id, url);
-      await put({
+      const storagePath = ref.storagePath ?? (await uploadToStorage(twin.blob, ref.name));
+      const nextRef: ImageRef = {
         id,
+        storagePath,
         name: ref.name,
         size: ref.size,
         lastModified: ref.lastModified,
+        contentType: ref.contentType,
         kind: ref.kind,
-        blob: twin.blob,
-      }).catch(() => {});
-      return url;
+      };
+      await safePut({ ...nextRef, blob: twin.blob }).catch(() => {});
+      return { url: objectUrlFor(id, twin.blob), ref: nextRef };
     }
   }
   // Last resort: prompt the user to re-select the file.
@@ -316,26 +410,34 @@ export async function requestImageAccess(
   }
   if (!file) file = await pickFileFallback(mime);
   if (!file) return null;
-  const nextEntry: Entry = {
+  const storagePath = await uploadToStorage(file, file.name);
+  const nextRef: ImageRef = {
     id,
+    storagePath,
     name: file.name,
     size: file.size,
     lastModified: file.lastModified,
+    contentType: file.type || undefined,
     kind,
+  };
+  const nextEntry: Entry = {
+    ...nextRef,
     handle,
     blob: file,
   };
-  await put(nextEntry);
-  const url = URL.createObjectURL(file);
-  urlCache.set(id, url);
-  return url;
+  await safePut(nextEntry);
+  return { url: objectUrlFor(id, file), ref: nextRef };
 }
 
 
 
 export async function deleteImage(id: string) {
+  const entry = await getEntry(id).catch(() => undefined);
   const url = urlCache.get(id);
   if (url) URL.revokeObjectURL(url);
   urlCache.delete(id);
+  if (entry?.storagePath) {
+    await supabase.storage.from(BUCKET).remove([entry.storagePath]).catch(() => undefined);
+  }
   await del(id).catch(() => undefined);
 }
