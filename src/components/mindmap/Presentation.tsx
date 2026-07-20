@@ -396,7 +396,7 @@ export function Presentation({
                   childCount={0}
                   selected={false}
                   editing={false}
-                  active={n.id === activeId}
+                  active={n.id === litId}
                   effectiveColor={colorMap.get(n.id)}
                   presentation
                   onSelect={() => {}}
