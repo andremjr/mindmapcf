@@ -58,6 +58,38 @@ async function getEntry(id: string): Promise<Entry | undefined> {
   });
 }
 
+/** Scan the cache for any previously-picked file with the same fingerprint
+ *  (name+size+lastModified). Lets a second device / browser auto-adopt a
+ *  local file the user already picked once, without a re-prompt. */
+async function findByFingerprint(
+  name: string,
+  size: number,
+  lastModified: number,
+): Promise<Entry | undefined> {
+  try {
+    const db = await openDB();
+    return await new Promise((res, rej) => {
+      const tx = db.transaction(STORE, "readonly");
+      const req = tx.objectStore(STORE).getAll();
+      req.onsuccess = () => {
+        const all = (req.result as Entry[]) ?? [];
+        res(
+          all.find(
+            (e) =>
+              e.name === name &&
+              e.size === size &&
+              e.lastModified === lastModified &&
+              !!e.blob,
+          ),
+        );
+      };
+      req.onerror = () => rej(req.error);
+    });
+  } catch {
+    return undefined;
+  }
+}
+
 async function del(id: string) {
   const db = await openDB();
   await new Promise<void>((res) => {
@@ -67,6 +99,7 @@ async function del(id: string) {
     tx.onerror = () => res();
   });
 }
+
 
 const urlCache = new Map<string, string>();
 
