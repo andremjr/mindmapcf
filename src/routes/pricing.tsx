@@ -1,8 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Check, Loader2, Network } from "lucide-react";
+import { ArrowLeft, Check, Crown, Loader2, Network } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
+import { useSubscription } from "@/hooks/useSubscription";
 import { toast } from "sonner";
 
 const PLANS = [
@@ -24,11 +25,16 @@ export const Route = createFileRoute("/pricing")({
 function PricingPage() {
   const { user, loading } = useAuth();
   const { openCheckout, loadingPriceId } = usePaddleCheckout();
+  const { isPro } = useSubscription(user?.id);
   const navigate = useNavigate();
 
   async function subscribe(priceId: string) {
     if (!user) {
       navigate({ to: "/auth" });
+      return;
+    }
+    if (isPro) {
+      navigate({ to: "/account" });
       return;
     }
     try {
