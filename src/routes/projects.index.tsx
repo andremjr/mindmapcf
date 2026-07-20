@@ -302,6 +302,14 @@ function ProjectsDashboard() {
         onOpenChange={setUpgradeOpen}
         user={session.user}
       />
+      <SonicAvatarDialog
+        userId={session.user.id}
+        isPro={isPro}
+        open={avatarsOpen}
+        onClose={() => setAvatarsOpen(false)}
+        onUpgrade={() => setUpgradeOpen(true)}
+      />
+
     </div>
   );
 }
