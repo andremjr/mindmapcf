@@ -233,6 +233,24 @@ export const useStore = create<State & Actions>()((set) => ({
     return project.id;
   },
 
+  replaceProjectNodes: (projectId, nodes, title) => {
+    const laidOut = reflowTree(nodes);
+    const now = new Date().toISOString();
+    set((s) => ({
+      projects: s.projects.map((p) =>
+        p.id === projectId
+          ? {
+              ...p,
+              nodes: laidOut,
+              title: title && title.trim() ? title : p.title,
+              viewport: { x: 0, y: 0, zoom: 1 },
+              updatedAt: now,
+            }
+          : p,
+      ),
+    }));
+  },
+
   deleteProject: (id) =>
     set((s) => ({ projects: s.projects.filter((p) => p.id !== id) })),
 
