@@ -5,7 +5,7 @@ export const Route = createFileRoute("/refund")({
   head: () => ({
     meta: [
       { title: "Política de Reembolso — Canvas Narrativo" },
-      { name: "description", content: "Política de reembolso e garantia de 30 dias do Canvas Narrativo." },
+      { name: "description", content: "Política de reembolso e garantia de 7 dias do Canvas Narrativo." },
     ],
   }),
   component: RefundPage,
@@ -21,24 +21,26 @@ function RefundPage() {
 
         <div className="mt-8 space-y-6 text-sm leading-relaxed text-foreground/90">
           <section>
-            <h2 className="text-lg font-semibold">Garantia de 30 dias</h2>
+            <h2 className="text-lg font-semibold">Garantia de 7 dias (arrependimento)</h2>
             <p>
-              Oferecemos uma <strong>garantia de reembolso de 30 dias</strong>. Se você não estiver satisfeito com
-              o Canvas Narrativo, pode solicitar o reembolso total dentro de 30 dias a partir da data do pedido.
+              Conforme o <strong>Art. 49 do Código de Defesa do Consumidor</strong>, você tem até{" "}
+              <strong>7 dias corridos</strong> a contar da assinatura do plano para solicitar o cancelamento
+              com <strong>reembolso integral</strong>, sem necessidade de justificativa.
             </p>
           </section>
 
           <section>
             <h2 className="text-lg font-semibold">Como solicitar</h2>
             <p>
-              Os reembolsos são processados pela <strong>Paddle</strong>, nosso Merchant of Record. Para
-              solicitar, acesse{" "}
-              <a href="https://paddle.net" className="text-primary underline" target="_blank" rel="noreferrer">
-                paddle.net
-              </a>{" "}
-              usando o e-mail da compra, localize a transação e solicite o reembolso. Você também pode entrar em
-              contato com o nosso suporte pelos canais oficiais do Serviço.
+              Envie a solicitação para o nosso suporte, informando o e-mail usado na compra e o ID do pedido
+              recebido no e-mail de confirmação da Kiwify. O reembolso é processado pela <strong>Kiwify</strong>
+              (nosso processador de pagamentos) e devolvido pelo mesmo meio de pagamento utilizado:
             </p>
+            <ul className="list-disc pl-6">
+              <li><strong>Cartão de crédito:</strong> estorno em 1 a 2 faturas, conforme o banco emissor;</li>
+              <li><strong>Pix:</strong> devolução em até 7 dias úteis;</li>
+              <li><strong>Boleto:</strong> devolução em até 7 dias úteis via Pix ou TED.</li>
+            </ul>
           </section>
 
           <section>
@@ -46,7 +48,8 @@ function RefundPage() {
             <p>
               Você pode cancelar sua assinatura a qualquer momento na página{" "}
               <Link to="/account" className="text-primary underline">Minha conta</Link>. Ao cancelar, você
-              continua com acesso Pro até o fim do período já pago e não é cobrado novamente.
+              continua com acesso Pro até o fim do período já pago e não é cobrado novamente. O cancelamento
+              após o prazo de 7 dias não gera reembolso proporcional do ciclo em curso.
             </p>
           </section>
 
@@ -54,26 +57,17 @@ function RefundPage() {
             <h2 className="text-lg font-semibold">Renovações</h2>
             <p>
               Assinaturas mensais, semestrais e anuais renovam automaticamente ao fim de cada ciclo, salvo
-              cancelamento anterior. Pedidos de reembolso após 30 dias serão analisados caso a caso, conforme a
-              política da Paddle:{" "}
-              <a
-                href="https://www.paddle.com/legal/refund-policy"
-                className="text-primary underline"
-                target="_blank"
-                rel="noreferrer"
-              >
-                paddle.com/legal/refund-policy
-              </a>
-              .
+              cancelamento anterior. Pedidos de reembolso fora da janela de 7 dias serão analisados caso a
+              caso — em situações excepcionais (falha comprovada do serviço, cobrança indevida) o reembolso
+              pode ser concedido.
             </p>
           </section>
 
           <section>
             <h2 className="text-lg font-semibold">Contato</h2>
             <p>
-              Serviço fornecido por <strong>André Carlos Lima Marinho Junior</strong>. Nosso processo de pedidos é
-              conduzido pelo nosso revendedor online Paddle.com. Paddle.com é o Merchant of Record de todos os
-              nossos pedidos.
+              Serviço fornecido por <strong>André Carlos Lima Marinho Junior</strong>. Pagamentos processados
+              pela Kiwify. Para dúvidas sobre reembolso, entre em contato pelos canais oficiais do Serviço.
             </p>
           </section>
         </div>

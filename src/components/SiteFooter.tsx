@@ -22,7 +22,7 @@ export function SiteFooter() {
       </div>
       <div className="border-t border-border">
         <div className="mx-auto max-w-6xl px-6 py-3 text-xs text-muted-foreground">
-          Nosso processo de pedidos é conduzido pelo nosso revendedor online Paddle.com. Paddle.com é o Merchant of Record de todos os nossos pedidos. A Paddle fornece todo o atendimento ao cliente e gerencia reembolsos.
+          Pagamentos processados de forma segura pela <strong>Kiwify</strong> (cartão, Pix e boleto).
         </div>
       </div>
     </footer>

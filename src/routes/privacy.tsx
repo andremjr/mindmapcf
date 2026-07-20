@@ -35,8 +35,9 @@ function PrivacyPage() {
               <li><strong>Conteúdo do usuário:</strong> mapas mentais, textos, imagens e vídeos que você adiciona;</li>
               <li><strong>Dados de uso:</strong> logs de acesso, endereço IP, tipo de dispositivo, navegador;</li>
               <li><strong>Dados de suporte:</strong> mensagens enviadas ao atendimento;</li>
-              <li><strong>Dados de pagamento:</strong> processados diretamente pela Paddle. Recebemos apenas o
-                status da assinatura e identificadores necessários (ID de assinatura e de cliente).</li>
+              <li><strong>Dados de pagamento:</strong> processados diretamente pela Kiwify. Recebemos apenas o
+                status da assinatura e identificadores necessários (ID de assinatura e e-mail do comprador).</li>
+
             </ul>
           </section>
 
@@ -45,7 +46,7 @@ function PrivacyPage() {
             <ul className="list-disc pl-6">
               <li>Criar e manter sua conta — execução do contrato;</li>
               <li>Fornecer o Serviço e armazenar seu conteúdo — execução do contrato;</li>
-              <li>Cobrança de assinaturas via Paddle — execução do contrato e obrigação legal;</li>
+              <li>Cobrança de assinaturas via Kiwify — execução do contrato e obrigação legal;</li>
               <li>Segurança, prevenção a fraudes e cumprimento de obrigações legais — legítimo interesse e obrigação legal;</li>
               <li>Melhoria do produto e suporte ao cliente — legítimo interesse;</li>
               <li>Comunicações transacionais — execução do contrato.</li>
@@ -56,7 +57,7 @@ function PrivacyPage() {
             <h2 className="text-lg font-semibold">4. Compartilhamento com Terceiros</h2>
             <p>Compartilhamos dados estritamente necessários com:</p>
             <ul className="list-disc pl-6">
-              <li><strong>Paddle.com</strong> — Merchant of Record, processa pagamentos, gerencia assinaturas, calcula impostos e emite recibos;</li>
+              <li><strong>Kiwify</strong> — processadora de pagamentos, gerencia assinaturas, cobrança recorrente e emite recibos;</li>
               <li><strong>Supabase</strong> — hospedagem, banco de dados e armazenamento de arquivos;</li>
               <li><strong>Provedores de infraestrutura</strong> — CDN e computação em nuvem;</li>
               <li><strong>Autoridades públicas</strong> — quando exigido por lei.</li>
@@ -107,11 +108,12 @@ function PrivacyPage() {
           <section>
             <h2 className="text-lg font-semibold">9. Cookies</h2>
             <p>
-              Usamos cookies essenciais para autenticação e funcionamento do Serviço. Não utilizamos cookies de
-              publicidade de terceiros. A Paddle pode utilizar cookies próprios durante o checkout, conforme a
-              política dela.
+              Usamos cookies essenciais para autenticação e funcionamento do Serviço. Não utilizamos cookies
+              de publicidade de terceiros. A Kiwify pode utilizar cookies próprios durante o checkout,
+              conforme a política dela.
             </p>
           </section>
+
 
           <section>
             <h2 className="text-lg font-semibold">10. Contato</h2>
