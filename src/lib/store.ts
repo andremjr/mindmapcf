@@ -17,6 +17,7 @@ interface Actions {
   reset: () => void;
   createProject: (title: string) => string;
   importProject: (project: Project) => string;
+  replaceProjectNodes: (projectId: string, nodes: MindNode[], title?: string) => void;
   deleteProject: (id: string) => void;
   renameProject: (id: string, title: string) => void;
 
@@ -230,6 +231,24 @@ export const useStore = create<State & Actions>()((set) => ({
     const withTimestamps: Project = { ...project, nodes: laidOut, createdAt: now, updatedAt: now };
     set((s) => ({ projects: [withTimestamps, ...s.projects] }));
     return project.id;
+  },
+
+  replaceProjectNodes: (projectId, nodes, title) => {
+    const laidOut = reflowTree(nodes);
+    const now = new Date().toISOString();
+    set((s) => ({
+      projects: s.projects.map((p) =>
+        p.id === projectId
+          ? {
+              ...p,
+              nodes: laidOut,
+              title: title && title.trim() ? title : p.title,
+              viewport: { x: 0, y: 0, zoom: 1 },
+              updatedAt: now,
+            }
+          : p,
+      ),
+    }));
   },
 
   deleteProject: (id) =>

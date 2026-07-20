@@ -8,12 +8,16 @@ import {
   LayoutGrid,
   Trash2,
   Circle,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MindNode, Project } from "@/lib/types";
 import { useStore, descendantIds } from "@/lib/store";
 import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
+import { ImportDialog } from "./ImportDialog";
+import { importFromText } from "@/lib/mindmapImport";
+import { toast } from "sonner";
 
 import { pickMediaAndStore } from "@/lib/imageStorage";
 import { startRecording } from "@/lib/screenRecorder";
@@ -29,6 +33,7 @@ export function MindMapEditor({ project }: { project: Project }) {
   const toggleCollapsed = useStore((s) => s.toggleCollapsed);
   const runAutoLayout = useStore((s) => s.autoLayout);
   const renameProject = useStore((s) => s.renameProject);
+  const replaceProjectNodes = useStore((s) => s.replaceProjectNodes);
   const setViewportPersist = useStore((s) => s.setViewport);
   const navigate = useNavigate();
 
@@ -308,10 +313,34 @@ export function MindMapEditor({ project }: { project: Project }) {
   }
 
   const [recordFormatOpen, setRecordFormatOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   function handleRecordAndPresent() {
     setViewportPersist(project.id, viewport);
     setRecordFormatOpen(true);
+  }
+
+  async function handleImportFile(file: File) {
+    try {
+      const text = await file.text();
+      const imported = importFromText(text, file.name);
+      if (imported.nodes.length === 0) {
+        toast.error("Arquivo vazio ou não reconhecido.");
+        return;
+      }
+      const base = file.name.replace(/\.[^.]+$/, "");
+      const newTitle =
+        imported.title && imported.title !== "Mapa importado" ? imported.title : base;
+      replaceProjectNodes(project.id, imported.nodes, newTitle);
+      setSelectedId(imported.nodes[0]?.id);
+      setEditingId(undefined);
+      setViewport({ x: 0, y: 0, zoom: 1 });
+      setImportOpen(false);
+      toast.success(`Mapa importado — ${imported.nodes.length} nós (o mapa anterior foi substituído).`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Falha ao importar. Verifique o arquivo .md ou .json.");
+    }
   }
 
   async function startRecordingWithFormat(fmt: RecordFormat) {
@@ -393,6 +422,15 @@ export function MindMapEditor({ project }: { project: Project }) {
           </Button>
           <Button variant="secondary" size="sm" onClick={handleAdd} className="gap-2">
             <Plus className="size-4" /> Nó
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setImportOpen(true)}
+            className="gap-2"
+            title="Importar mapa de IA (substitui o mapa atual)"
+          >
+            <Upload className="size-4" /> Importar
           </Button>
           <Button
             variant="outline"
@@ -554,6 +592,14 @@ export function MindMapEditor({ project }: { project: Project }) {
           </aside>
         )}
       </div>
+
+      <ImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onFile={handleImportFile}
+        title="Importar mapa de IA"
+        warning="Importar vai SUBSTITUIR todos os nós do mapa atual. Essa ação não pode ser desfeita."
+      />
 
       {recordFormatOpen && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur grid place-items-center p-4">
