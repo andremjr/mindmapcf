@@ -421,19 +421,21 @@ export function MindMapEditor({ project }: { project: Project }) {
                         setEditingId(id);
                       }}
                       onToggleCollapsed={() => toggleCollapsed(project.id, n.id)}
-                      onImageUpload={(file) => {
-                        compressImageFile(file)
-                          .then((image) => {
-                            updateNode(project.id, n.id, {
-                              image,
-                              imageName: file.name,
-                            });
-                          })
-                          .catch((error) => {
-                            console.error("[mindmap] image upload", error);
-                            alert("Não foi possível adicionar essa imagem.");
+                      onPickImage={async () => {
+                        try {
+                          const ref = await pickImageAndStore();
+                          if (!ref) return;
+                          updateNode(project.id, n.id, {
+                            imageRef: ref,
+                            imageName: ref.name,
+                            image: undefined,
                           });
+                        } catch (error) {
+                          console.error("[mindmap] image pick", error);
+                          alert("Não foi possível adicionar essa imagem.");
+                        }
                       }}
+
                     />
                   </div>
                 );
