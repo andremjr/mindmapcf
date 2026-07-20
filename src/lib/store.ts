@@ -16,8 +16,10 @@ interface Actions {
   hydrate: (projects: Project[]) => void;
   reset: () => void;
   createProject: (title: string) => string;
+  importProject: (project: Project) => string;
   deleteProject: (id: string) => void;
   renameProject: (id: string, title: string) => void;
+
 
 
   addNode: (
@@ -220,6 +222,14 @@ export const useStore = create<State & Actions>()((set) => ({
     };
     set((s) => ({ projects: [project, ...s.projects] }));
     return id;
+  },
+
+  importProject: (project) => {
+    const now = new Date().toISOString();
+    const laidOut = reflowTree(project.nodes);
+    const withTimestamps: Project = { ...project, nodes: laidOut, createdAt: now, updatedAt: now };
+    set((s) => ({ projects: [withTimestamps, ...s.projects] }));
+    return project.id;
   },
 
   deleteProject: (id) =>

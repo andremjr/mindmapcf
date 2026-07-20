@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Plus, Network, Trash2, Clock, LogOut } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Plus, Network, Trash2, Clock, LogOut, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,6 +16,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import type { Project } from "@/lib/types";
 import { resolveImage } from "@/lib/imageStorage";
+import { importFromText, buildImportedProject } from "@/lib/mindmapImport";
+import { toast } from "sonner";
 
 function ProjectThumb({ project }: { project: Project }) {
   const root = project.nodes.find((n) => !n.parentId) ?? project.nodes[0];
@@ -85,16 +87,16 @@ export const Route = createFileRoute("/projects/")({
 function ProjectsDashboard() {
   const projects = useStore((s) => s.projects);
   const createProject = useStore((s) => s.createProject);
+  const importProject = useStore((s) => s.importProject);
   const deleteProject = useStore((s) => s.deleteProject);
   const navigate = useNavigate();
   const { session } = useAuth();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Auth gate + Supabase sync are owned by the /projects layout route.
   if (!session) return null;
-
-
 
   function handleCreate() {
     const id = createProject(title);
@@ -102,6 +104,30 @@ function ProjectsDashboard() {
     setTitle("");
     navigate({ to: "/projects/$id", params: { id } });
   }
+
+  async function handleImportFile(file: File) {
+    try {
+      const text = await file.text();
+      const imported = importFromText(text, file.name);
+      if (imported.nodes.length === 0) {
+        toast.error("Arquivo vazio ou não reconhecido.");
+        return;
+      }
+      // Use filename (without extension) as fallback title.
+      const base = file.name.replace(/\.[^.]+$/, "");
+      const project = buildImportedProject({
+        ...imported,
+        title: imported.title && imported.title !== "Mapa importado" ? imported.title : base,
+      });
+      const id = importProject(project);
+      toast.success(`Mapa importado com ${imported.nodes.length} nós.`);
+      navigate({ to: "/projects/$id", params: { id } });
+    } catch (err) {
+      console.error(err);
+      toast.error("Falha ao importar. Verifique o arquivo .md ou .json.");
+    }
+  }
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -131,6 +157,24 @@ function ProjectsDashboard() {
             >
               <LogOut className="size-4" /> Sair
             </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".md,.markdown,.json,.txt,text/markdown,application/json,text/plain"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleImportFile(f);
+                e.target.value = "";
+              }}
+            />
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="size-4" /> Importar
+            </Button>
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2">
@@ -154,6 +198,7 @@ function ProjectsDashboard() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+
           </div>
 
         </div>
