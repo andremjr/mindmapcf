@@ -247,6 +247,7 @@ export const useStore = create<State & Actions>()((set) => ({
           width: patch?.width ?? (parentId ? 260 : 300),
           parentId,
           image: patch?.image,
+          imageRef: patch?.imageRef,
           imageName: patch?.imageName,
           color: patch?.color,
         };
@@ -255,6 +256,7 @@ export const useStore = create<State & Actions>()((set) => ({
           nodes: reflowTree([...p.nodes, node]),
           updatedAt: new Date().toISOString(),
         };
+
       }),
     }));
     return id;
