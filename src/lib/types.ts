@@ -1,5 +1,14 @@
 // Canvas Narrativo — manual mind map types.
 
+export interface ImageRef {
+  /** Stable id used to look up the file handle / blob in IndexedDB. */
+  id: string;
+  /** Original filename — shown in UI and used for the broken-image label. */
+  name: string;
+  size: number;
+  lastModified: number;
+}
+
 export interface MindNode {
   id: string;
   text: string;
@@ -12,8 +21,10 @@ export interface MindNode {
   parentId: string | null;
   /** Hide descendants when true. */
   collapsed?: boolean;
-  /** Optional image (data URL). */
+  /** Legacy inline image (data URL) — kept for backwards compatibility. */
   image?: string;
+  /** Preferred: reference to a locally-stored image (never uploaded). */
+  imageRef?: ImageRef;
   imageName?: string;
   /** Accent color hex (optional). */
   color?: string;
@@ -28,3 +39,4 @@ export interface Project {
   /** Persisted last viewport of the editor. */
   viewport?: { x: number; y: number; zoom: number };
 }
+
