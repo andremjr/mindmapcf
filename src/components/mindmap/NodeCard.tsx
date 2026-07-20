@@ -49,6 +49,8 @@ export function NodeCard({
   editing,
   presentation,
   active,
+  effectiveColor,
+  hasDescendants,
   onSelect,
   onStartEdit,
   onEndEdit,
@@ -60,8 +62,11 @@ export function NodeCard({
   onToggleCollapsed,
   onPickImage,
   onPickVideo,
+  onSetColor,
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [colorMenuOpen, setColorMenuOpen] = useState(false);
+  const [cascade, setCascade] = useState(true);
 
 
   useEffect(() => {
@@ -72,15 +77,40 @@ export function NodeCard({
   }, [editing]);
 
   const w = node.width ?? 260;
-  const accent = node.color ?? "var(--primary)";
+  const accent = effectiveColor ?? node.color ?? DEFAULT_ACCENT;
   const isRoot = !node.parentId;
+  const isThemed = accent !== DEFAULT_ACCENT;
+
+  // When themed, tint the whole border with the accent. When on the default
+  // accent, keep the muted chrome so the map doesn't look like every card is
+  // "selected".
+  const borderStyle: React.CSSProperties = isThemed
+    ? {
+        borderColor: presentation && !active ? undefined : accent,
+        boxShadow:
+          presentation && active
+            ? `0 0 0 2px ${accent}66, 0 30px 80px -20px rgba(0,0,0,0.85)`
+            : selected
+              ? `0 0 0 1px ${accent}, 0 10px 30px -14px rgba(0,0,0,0.5)`
+              : undefined,
+        borderLeftColor: isRoot ? accent : undefined,
+        borderLeftWidth: isRoot ? 4 : 1,
+      }
+    : {
+        borderLeftColor: isRoot ? accent : undefined,
+        borderLeftWidth: isRoot ? 4 : 1,
+      };
 
   const chromeClass = presentation
     ? active
-      ? "border-primary/80 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)] ring-2 ring-primary/40"
+      ? isThemed
+        ? "shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]"
+        : "border-primary/80 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)] ring-2 ring-primary/40"
       : "border-border/20 opacity-25 blur-[1.5px]"
     : selected
-      ? "border-primary shadow-[0_10px_30px_-14px_rgba(0,0,0,0.5)]"
+      ? isThemed
+        ? "shadow-[0_10px_30px_-14px_rgba(0,0,0,0.5)]"
+        : "border-primary shadow-[0_10px_30px_-14px_rgba(0,0,0,0.5)]"
       : "border-border/60 hover:border-border";
 
   return (
@@ -93,8 +123,7 @@ export function NodeCard({
         top: node.y,
         width: w,
         transform: "translateY(-50%)",
-        borderLeftColor: isRoot ? accent : undefined,
-        borderLeftWidth: isRoot ? 4 : 1,
+        ...borderStyle,
       }}
       onPointerDown={(e) => {
         if (presentation) return;
@@ -108,6 +137,7 @@ export function NodeCard({
         onStartEdit();
       }}
     >
+
       <NodeMedia
         node={node}
         presentation={presentation}
