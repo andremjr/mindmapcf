@@ -47,9 +47,8 @@ export function Presentation({ project }: { project: Project }) {
   const activeNode = project.nodes.find((n) => n.id === activeId);
 
   // RAF-driven viewport animation (zoom-out midway → pan → zoom-in).
-  const initialVp: Viewport = activeNode
-    ? { x: activeNode.x, y: activeNode.y, zoom: FOCUS_ZOOM }
-    : { x: 0, y: 0, zoom: 1 };
+  // Start from a wide overview so the first arrow key visibly zooms into node 1.
+  const initialVp: Viewport = { x: 0, y: 0, zoom: 0.45 };
   const [viewport, setViewport] = useState<Viewport>(initialVp);
   const rafRef = useRef<number | null>(null);
   const viewportRef = useRef<Viewport>(initialVp);
