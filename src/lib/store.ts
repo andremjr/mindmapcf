@@ -270,10 +270,10 @@ export const useStore = create<State & Actions>()((set) => ({
           n.id === nodeId ? { ...n, ...patch } : n,
         );
         // If the change affects intrinsic height, reflow to keep spacing right.
-        const heightAffecting =
-          "imageRef" in patch ||
-          "image" in patch ||
-          "text" in patch;
+        // Only reflow when image presence changes — text edits shouldn't
+        // shove the layout around on every keystroke.
+        const heightAffecting = "imageRef" in patch || "image" in patch;
+
         return {
           ...p,
           nodes: heightAffecting ? reflowTree(nextNodes) : nextNodes,
