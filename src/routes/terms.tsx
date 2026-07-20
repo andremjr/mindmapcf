@@ -79,25 +79,22 @@ function TermsPage() {
           <section>
             <h2 className="text-lg font-semibold">7. Pagamentos, Assinaturas e Reembolsos</h2>
             <p>
-              Nosso processo de pedidos é conduzido pelo nosso revendedor online <strong>Paddle.com</strong>.
-              Paddle.com é o Merchant of Record de todos os nossos pedidos. A Paddle fornece todo o atendimento ao
-              cliente e gerencia reembolsos.
+              O contrato de compra e venda é celebrado diretamente entre você e o prestador acima
+              identificado. O processamento de pagamentos é feito pela <strong>Kiwify</strong> (Kiwify
+              Serviços Digitais Ltda.), que atua como processadora dos meios de pagamento, incluindo
+              cartão de crédito, Pix e boleto.
             </p>
             <p>
-              Termos de pagamento, cobrança recorrente, impostos, cancelamento e reembolso são regidos pelos
-              Termos de Comprador da Paddle:{" "}
-              <a
-                href="https://www.paddle.com/legal/checkout-buyer-terms"
-                className="text-primary underline"
-                target="_blank"
-                rel="noreferrer"
-              >
-                paddle.com/legal/checkout-buyer-terms
-              </a>
-              . Consulte também nossa{" "}
-              <Link to="/refund" className="text-primary underline">Política de Reembolso</Link>.
+              Assinaturas mensais, semestrais e anuais renovam automaticamente ao fim de cada ciclo,
+              pelo mesmo valor, salvo cancelamento anterior pelo usuário. Cancelamentos podem ser
+              feitos na página <Link to="/account" className="text-primary underline">Minha conta</Link>
+              e produzem efeito ao fim do período já pago. Consulte a nossa{" "}
+              <Link to="/refund" className="text-primary underline">Política de Reembolso</Link> para
+              informações sobre o direito de arrependimento (Art. 49 do CDC — 7 dias).
             </p>
           </section>
+
+
 
           <section>
             <h2 className="text-lg font-semibold">8. Nível de Serviço</h2>
