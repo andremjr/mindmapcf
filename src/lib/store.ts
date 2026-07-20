@@ -1,9 +1,11 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
 import type { MindNode, Project } from "./types";
 
-function uid(prefix = "id") {
-  return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
+function uid(_prefix = "id") {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${_prefix}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
 interface State {
@@ -11,9 +13,12 @@ interface State {
 }
 
 interface Actions {
+  hydrate: (projects: Project[]) => void;
+  reset: () => void;
   createProject: (title: string) => string;
   deleteProject: (id: string) => void;
   renameProject: (id: string, title: string) => void;
+
 
   addNode: (
     projectId: string,
@@ -201,153 +206,146 @@ function reflowTree(nodes: MindNode[]): MindNode[] {
   });
 }
 
-export const useStore = create<State & Actions>()(
-  persist(
-    (set) => ({
-      projects: [],
+export const useStore = create<State & Actions>()((set) => ({
+  projects: [],
 
-      createProject: (title) => {
-        const id = uid("prj");
-        const now = new Date().toISOString();
-        const rootId = uid("n");
-        const project: Project = {
+  hydrate: (projects) => set({ projects }),
+  reset: () => set({ projects: [] }),
+
+  createProject: (title) => {
+    const id = uid("prj");
+    const now = new Date().toISOString();
+    const rootId = uid("n");
+    const project: Project = {
+      id,
+      title: title.trim() || "Novo mapa mental",
+      createdAt: now,
+      updatedAt: now,
+      nodes: [
+        {
+          id: rootId,
+          text: title.trim() || "Ideia central",
+          x: 0,
+          y: 0,
+          width: 300,
+          parentId: null,
+        },
+      ],
+      viewport: { x: 0, y: 0, zoom: 1 },
+    };
+    set((s) => ({ projects: [project, ...s.projects] }));
+    return id;
+  },
+
+  deleteProject: (id) =>
+    set((s) => ({ projects: s.projects.filter((p) => p.id !== id) })),
+
+  renameProject: (id, title) =>
+    set((s) => ({
+      projects: s.projects.map((p) =>
+        p.id === id ? { ...p, title, updatedAt: new Date().toISOString() } : p,
+      ),
+    })),
+
+  addNode: (projectId, patch) => {
+    const id = uid("n");
+    set((s) => ({
+      projects: s.projects.map((p) => {
+        if (p.id !== projectId) return p;
+        const parentId = patch?.parentId ?? null;
+        const auto = positionForNewChild(p.nodes, parentId);
+        const node: MindNode = {
           id,
-          title: title.trim() || "Novo mapa mental",
-          createdAt: now,
-          updatedAt: now,
-          nodes: [
-            {
-              id: rootId,
-              text: title.trim() || "Ideia central",
-              x: 0,
-              y: 0,
-              width: 300,
-              parentId: null,
-            },
-          ],
-          viewport: { x: 0, y: 0, zoom: 1 },
+          text: patch?.text ?? "",
+          x: patch?.x ?? auto.x,
+          y: patch?.y ?? auto.y,
+          width: patch?.width ?? (parentId ? 260 : 300),
+          parentId,
+          image: patch?.image,
+          imageName: patch?.imageName,
+          color: patch?.color,
         };
-        set((s) => ({ projects: [project, ...s.projects] }));
-        return id;
-      },
+        return {
+          ...p,
+          nodes: reflowTree([...p.nodes, node]),
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    }));
+    return id;
+  },
 
-      deleteProject: (id) =>
-        set((s) => ({ projects: s.projects.filter((p) => p.id !== id) })),
-
-      renameProject: (id, title) =>
-        set((s) => ({
-          projects: s.projects.map((p) =>
-            p.id === id ? { ...p, title, updatedAt: new Date().toISOString() } : p,
-          ),
-        })),
-
-      addNode: (projectId, patch) => {
-        const id = uid("n");
-        set((s) => ({
-          projects: s.projects.map((p) => {
-            if (p.id !== projectId) return p;
-            const parentId = patch?.parentId ?? null;
-            const auto = positionForNewChild(p.nodes, parentId);
-            const node: MindNode = {
-              id,
-              text: patch?.text ?? "",
-              x: patch?.x ?? auto.x,
-              y: patch?.y ?? auto.y,
-              width: patch?.width ?? (parentId ? 260 : 300),
-              parentId,
-              image: patch?.image,
-              imageName: patch?.imageName,
-              color: patch?.color,
-            };
-            return {
+  updateNode: (projectId, nodeId, patch) =>
+    set((s) => ({
+      projects: s.projects.map((p) =>
+        p.id === projectId
+          ? {
               ...p,
-              nodes: reflowTree([...p.nodes, node]),
+              nodes: p.nodes.map((n) => (n.id === nodeId ? { ...n, ...patch } : n)),
               updatedAt: new Date().toISOString(),
-            };
-          }),
-        }));
-        return id;
-      },
+            }
+          : p,
+      ),
+    })),
 
-      updateNode: (projectId, nodeId, patch) =>
-        set((s) => ({
-          projects: s.projects.map((p) =>
-            p.id === projectId
-              ? {
-                  ...p,
-                  nodes: p.nodes.map((n) => (n.id === nodeId ? { ...n, ...patch } : n)),
-                  updatedAt: new Date().toISOString(),
-                }
-              : p,
+  deleteNode: (projectId, nodeId) =>
+    set((s) => ({
+      projects: s.projects.map((p) => {
+        if (p.id !== projectId) return p;
+        const toRemove = new Set([nodeId, ...descendantIds(p.nodes, nodeId)]);
+        return {
+          ...p,
+          nodes: reflowTree(p.nodes.filter((n) => !toRemove.has(n.id))),
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    })),
+
+  setParent: (projectId, nodeId, parentId) =>
+    set((s) => ({
+      projects: s.projects.map((p) => {
+        if (p.id !== projectId) return p;
+        if (wouldCycle(p.nodes, nodeId, parentId)) return p;
+        return {
+          ...p,
+          nodes: reflowTree(
+            p.nodes.map((n) => (n.id === nodeId ? { ...n, parentId } : n)),
           ),
-        })),
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    })),
 
-      deleteNode: (projectId, nodeId) =>
-        set((s) => ({
-          projects: s.projects.map((p) => {
-            if (p.id !== projectId) return p;
-            const toRemove = new Set([nodeId, ...descendantIds(p.nodes, nodeId)]);
-            return {
+  toggleCollapsed: (projectId, nodeId) =>
+    set((s) => ({
+      projects: s.projects.map((p) =>
+        p.id === projectId
+          ? {
               ...p,
-              nodes: reflowTree(p.nodes.filter((n) => !toRemove.has(n.id))),
-              updatedAt: new Date().toISOString(),
-            };
-          }),
-        })),
-
-      setParent: (projectId, nodeId, parentId) =>
-        set((s) => ({
-          projects: s.projects.map((p) => {
-            if (p.id !== projectId) return p;
-            if (wouldCycle(p.nodes, nodeId, parentId)) return p;
-            return {
-              ...p,
-              nodes: reflowTree(
-                p.nodes.map((n) => (n.id === nodeId ? { ...n, parentId } : n)),
+              nodes: p.nodes.map((n) =>
+                n.id === nodeId ? { ...n, collapsed: !n.collapsed } : n,
               ),
               updatedAt: new Date().toISOString(),
-            };
-          }),
-        })),
-
-      toggleCollapsed: (projectId, nodeId) =>
-        set((s) => ({
-          projects: s.projects.map((p) =>
-            p.id === projectId
-              ? {
-                  ...p,
-                  nodes: p.nodes.map((n) =>
-                    n.id === nodeId ? { ...n, collapsed: !n.collapsed } : n,
-                  ),
-                  updatedAt: new Date().toISOString(),
-                }
-              : p,
-          ),
-        })),
-
-      autoLayout: (projectId) =>
-        set((s) => ({
-          projects: s.projects.map((p) =>
-            p.id === projectId
-              ? { ...p, nodes: computeAutoLayout(p.nodes), updatedAt: new Date().toISOString() }
-              : p,
-          ),
-        })),
-
-      setViewport: (projectId, v) =>
-        set((s) => ({
-          projects: s.projects.map((p) => (p.id === projectId ? { ...p, viewport: v } : p)),
-        })),
-    }),
-    {
-      name: "canvas-narrativo:v3",
-      storage: createJSONStorage(() =>
-        typeof window !== "undefined" ? window.localStorage : (undefined as any),
+            }
+          : p,
       ),
-      partialize: (s) => ({ projects: s.projects }),
-    },
-  ),
-);
+    })),
+
+  autoLayout: (projectId) =>
+    set((s) => ({
+      projects: s.projects.map((p) =>
+        p.id === projectId
+          ? { ...p, nodes: computeAutoLayout(p.nodes), updatedAt: new Date().toISOString() }
+          : p,
+      ),
+    })),
+
+  setViewport: (projectId, v) =>
+    set((s) => ({
+      projects: s.projects.map((p) => (p.id === projectId ? { ...p, viewport: v } : p)),
+    })),
+}));
+
 
 export function useProject(id: string | undefined): Project | undefined {
   return useStore((s) => s.projects.find((p) => p.id === id));
