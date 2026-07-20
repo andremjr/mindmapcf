@@ -95,6 +95,11 @@ export interface StartOptions {
 /**
  * Start a screen + mic recording. Must be called from a user gesture.
  * Throws on permission denial. On success, `stopRecording()` yields the Blob.
+ *
+ * On Chromium the picker is biased toward the current tab via
+ * `preferCurrentTab: true`, so the user only has to confirm — no "entire
+ * screen / window / tab" choice — and the recording is scoped to this tab
+ * only.
  */
 export async function startRecording(opts: StartOptions = {}): Promise<void> {
   if (active) throw new Error("Já existe uma gravação em andamento.");
@@ -105,14 +110,25 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
     throw new Error("Seu navegador não permite captura de tela (tente Chrome/Edge no desktop).");
   }
 
-  const displayStream: MediaStream = await (navigator.mediaDevices as any).getDisplayMedia({
+  const displayMediaOpts: any = {
     video: {
       frameRate: opts.frameRate ?? 60,
       width: { ideal: 1920 },
       height: { ideal: 1080 },
     },
-    audio: true, // captures tab/system audio when the user checks the box
-  });
+    audio: true,
+    // Chromium-only: pre-select the current tab so the user doesn't get the
+    // "entire screen / window / tab" menu. Ignored elsewhere.
+    preferCurrentTab: true,
+    selfBrowserSurface: "include",
+    surfaceSwitching: "exclude",
+    systemAudio: "include",
+  };
+
+  const displayStream: MediaStream = await (navigator.mediaDevices as any).getDisplayMedia(
+    displayMediaOpts,
+  );
+
 
 
   let micStream: MediaStream | null = null;

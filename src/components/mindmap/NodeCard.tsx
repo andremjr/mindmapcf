@@ -274,24 +274,21 @@ function NodeMedia({
     };
   }, [ref?.id, legacy]);
 
-  // Presentation: auto play/pause video when its node becomes active.
+  // Presentation: pause video when leaving the active node. Never autoplay —
+  // the presenter clicks play when they're ready to show it.
   useEffect(() => {
     if (kind !== "video") return;
     const v = videoElRef.current;
     if (!v) return;
-    if (presentation && active) {
+    if (!(presentation && active)) {
       try {
-        v.currentTime = 0;
+        v.pause();
       } catch {
-        /* seek may fail before metadata loaded */
+        /* ignore */
       }
-      v.play().catch(() => {
-        /* autoplay may fail without prior gesture; user can hit play manually */
-      });
-    } else {
-      v.pause();
     }
   }, [presentation, active, kind, url]);
+
 
   if (!ref && !legacy) return null;
 
@@ -354,16 +351,17 @@ function NodeMedia({
           controls
           playsInline
           preload="metadata"
-          className="w-full max-h-56 object-contain rounded-t-xl bg-black"
+          className="w-full max-h-[420px] object-contain rounded-t-xl bg-black"
         />
       ) : (
         <img
           src={url}
           alt=""
-          className="w-full max-h-56 object-cover rounded-t-xl"
+          className="w-full max-h-[420px] object-contain rounded-t-xl bg-black/60"
           draggable={false}
         />
       )}
+
       {!presentation && (
         <button
           data-nodrag

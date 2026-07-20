@@ -309,12 +309,13 @@ export function MindMapEditor({ project }: { project: Project }) {
   async function handleRecordAndPresent() {
     setViewportPersist(project.id, viewport);
     const ok = confirm(
-      "Ao clicar em OK, o navegador vai pedir permissão para capturar a tela.\n\n" +
-        "• Escolha a aba/janela desta apresentação.\n" +
+      "O navegador vai pedir permissão para capturar esta aba.\n\n" +
+        "• Confirme o compartilhamento da aba atual.\n" +
         "• Marque \"Compartilhar áudio da guia\" para gravar o som dos vídeos.\n" +
         "• Você também vai autorizar o microfone para narrar por cima.\n\n" +
-        "Aperte R (ou o botão Parar) para finalizar. O arquivo é baixado automaticamente.",
+        "Aperte R (ou o botão Parar no painel flutuante) para finalizar.",
     );
+
     if (!ok) return;
     try {
       await startRecording({ filenameBase: project.title || "apresentacao" });
