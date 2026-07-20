@@ -44,20 +44,14 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
 
-  // Auto-recover: "This page didn't load" no editor geralmente vem de token
-  // Supabase expirado ou realtime velho depois da aba ficar ociosa. Tentamos
-  // recuperar silenciosamente (throttled a 1x/10s para evitar loop).
+  // Auto-recover once per mount after a short delay. If recovery re-throws,
+  // this component remounts and we try again — no cross-mount sessionStorage
+  // lockout (which was leaving users stuck on this screen).
   useEffect(() => {
-    const key = "__cn_auto_recovered_at";
-    let last = 0;
-    try { last = Number(sessionStorage.getItem(key) ?? "0"); } catch { /* ignore */ }
-    const now = Date.now();
-    if (now - last < 10_000) return;
-    try { sessionStorage.setItem(key, String(now)); } catch { /* ignore */ }
     const t = setTimeout(() => {
       router.invalidate();
       reset();
-    }, 300);
+    }, 800);
     return () => clearTimeout(t);
   }, [error, router, reset]);
 
@@ -70,6 +64,11 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <p className="mt-2 text-sm text-muted-foreground">
           Tentando recuperar automaticamente…
         </p>
+        {error?.message && (
+          <pre className="mt-3 max-h-40 overflow-auto rounded-md border border-border/60 bg-muted/40 p-2 text-left text-[11px] text-muted-foreground whitespace-pre-wrap break-words">
+            {error.message}
+          </pre>
+        )}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
@@ -80,12 +79,15 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
           >
             Try again
           </button>
-          <a
-            href="/"
+          <button
+            onClick={() => {
+              try { sessionStorage.clear(); } catch { /* ignore */ }
+              window.location.href = "/";
+            }}
             className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
           >
             Go home
-          </a>
+          </button>
         </div>
       </div>
     </div>
