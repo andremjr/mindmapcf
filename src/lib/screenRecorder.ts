@@ -118,22 +118,33 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
   for (const track of displayStream.getVideoTracks()) mixed.addTrack(track);
 
   let audioCtx: AudioContext | null = null;
+  let audioAnalyser: AnalyserNode | null = null;
   const hasDisplayAudio = displayStream.getAudioTracks().length > 0;
-  if (hasDisplayAudio || micStream) {
+  const hasMic = !!micStream && micStream.getAudioTracks().length > 0;
+  if (hasDisplayAudio || hasMic) {
     audioCtx = new AudioContext();
     const dest = audioCtx.createMediaStreamDestination();
+    audioAnalyser = audioCtx.createAnalyser();
+    audioAnalyser.fftSize = 1024;
+    audioAnalyser.smoothingTimeConstant = 0.6;
     if (hasDisplayAudio) {
       const src = audioCtx.createMediaStreamSource(
         new MediaStream(displayStream.getAudioTracks()),
       );
       src.connect(dest);
+      // Only route display audio to the meter when there's no mic — otherwise
+      // the meter tracks the presenter's voice (what the user actually cares
+      // about verifying while recording).
+      if (!hasMic) src.connect(audioAnalyser);
     }
-    if (micStream && micStream.getAudioTracks().length > 0) {
+    if (hasMic && micStream) {
       const src = audioCtx.createMediaStreamSource(micStream);
       src.connect(dest);
+      src.connect(audioAnalyser);
     }
     for (const t of dest.stream.getAudioTracks()) mixed.addTrack(t);
   }
+
 
   const mimeType = pickMimeType();
   const recorder = new MediaRecorder(mixed, {
