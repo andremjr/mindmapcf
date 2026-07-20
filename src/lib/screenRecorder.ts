@@ -19,6 +19,8 @@ interface ActiveRecording {
   displayStream: MediaStream;
   micStream: MediaStream | null;
   audioCtx: AudioContext | null;
+  audioAnalyser: AnalyserNode | null;
+  hasMic: boolean;
   mimeType: string;
   startedAt: number;
   filenameBase: string;
@@ -34,6 +36,7 @@ const listeners = new Set<() => void>();
 function emit() {
   for (const fn of listeners) fn();
 }
+
 
 export function subscribeRecorder(fn: () => void): () => void {
   listeners.add(fn);
