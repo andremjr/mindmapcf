@@ -260,7 +260,7 @@ function NodeMedia({
     }
     setBroken(false);
     setUrl(null);
-    resolveImage(ref.id).then((u) => {
+    resolveImage(ref).then((u) => {
       if (!alive) return;
       if (u) {
         setUrl(u);
