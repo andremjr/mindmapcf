@@ -202,10 +202,19 @@ function ProjectsDashboard() {
             <Button
               variant="outline"
               className="gap-2"
+              onClick={() => setAvatarsOpen(true)}
+              title="Avatares sonoros (Pro)"
+            >
+              <Mic className="size-4" /> Avatares
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
               onClick={() => setImportOpen(true)}
             >
               <Upload className="size-4" /> Importar
             </Button>
+
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2" disabled={!isPro && projects.length >= FREE_MAP_LIMIT}>
