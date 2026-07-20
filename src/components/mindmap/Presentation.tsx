@@ -12,8 +12,10 @@ import {
   cancelRecording,
   getRecorderState,
   subscribeRecorder,
+  cropRecordingToElement,
   type RecordingResult,
 } from "@/lib/screenRecorder";
+import { loadRecordFormat, defaultRecordFormat, type RecordFormat } from "@/lib/recordFormats";
 
 type Viewport = { x: number; y: number; zoom: number };
 
@@ -41,19 +43,63 @@ export function Presentation({
   const navigate = useNavigate();
   const order = presentationOrder(project);
   const [idx, setIdx] = useState(0);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 1280, h: 720 });
   const [result, setResult] = useState<RecordingResult | null>(null);
+  const [cropOk, setCropOk] = useState(false);
+
+  // When recording, render the canvas inside a fixed-aspect frame so Region
+  // Capture crops the tab video track to exactly that rectangle. Off-frame UI
+  // (HUD, pager, exit button) then can't leak into the recording.
+  const format: RecordFormat | null = recording
+    ? loadRecordFormat(project.id) ?? defaultRecordFormat()
+    : null;
+
+  const [winSize, setWinSize] = useState({
+    w: typeof window !== "undefined" ? window.innerWidth : 1280,
+    h: typeof window !== "undefined" ? window.innerHeight : 720,
+  });
+  useEffect(() => {
+    function onResize() {
+      setWinSize({ w: window.innerWidth, h: window.innerHeight });
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  // Compute the CSS size of the frame. When recording, letterbox to fit the
+  // chosen aspect leaving room for controls (~180px vertical margin).
+  const frameCssSize = useMemo(() => {
+    if (!format) return { w: winSize.w, h: winSize.h };
+    const availW = winSize.w - 32;
+    const availH = winSize.h - 180;
+    const scale = Math.min(availW / format.width, availH / format.height, 1);
+    return { w: format.width * scale, h: format.height * scale };
+  }, [format, winSize]);
 
   useLayoutEffect(() => {
-    if (!containerRef.current) return;
+    if (!frameRef.current) return;
     const ro = new ResizeObserver(() => {
-      const r = containerRef.current!.getBoundingClientRect();
+      const r = frameRef.current!.getBoundingClientRect();
       setSize({ w: r.width, h: r.height });
     });
-    ro.observe(containerRef.current);
+    ro.observe(frameRef.current);
+    const r0 = frameRef.current.getBoundingClientRect();
+    setSize({ w: r0.width, h: r0.height });
     return () => ro.disconnect();
   }, []);
+
+  // Apply Region Capture once frame is mounted.
+  useEffect(() => {
+    if (!recording || !frameRef.current) return;
+    let cancelled = false;
+    cropRecordingToElement(frameRef.current).then((ok) => {
+      if (!cancelled) setCropOk(ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [recording]);
 
   const visibleIds = useMemo(() => {
     const hidden = new Set<string>();
@@ -130,12 +176,11 @@ export function Presentation({
   function prev() {
     setIdx((i) => Math.max(0, i - 1));
   }
-  async function exit() {
+  async function stopAndDownload() {
     if (isRecording()) {
       try {
         const r = await stopRecording();
         setResult(r);
-        // Trigger download automatically.
         const a = document.createElement("a");
         a.href = r.url;
         a.download = r.filename;
@@ -145,13 +190,14 @@ export function Presentation({
       } catch (e) {
         console.error("[presentation] stop recording", e);
       }
-      // Keep the fullscreen exit + navigation for after the modal closes.
       return;
     }
+    exit();
+  }
+  function exit() {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     navigate({ to: "/projects/$id", params: { id: project.id } });
   }
-
   function closeResult() {
     if (result) URL.revokeObjectURL(result.url);
     setResult(null);
@@ -160,13 +206,20 @@ export function Presentation({
   }
 
   useEffect(() => {
+    // Only fullscreen when NOT recording — recording uses a windowed frame so
+    // controls stay visible outside the captured area.
+    if (recording) return;
     const el = document.documentElement;
     if (el.requestFullscreen && !document.fullscreenElement) {
       el.requestFullscreen().catch(() => {});
     }
     return () => {
       if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-      // If the component unmounts while recording (rare), throw the recording away.
+    };
+  }, [recording]);
+
+  useEffect(() => {
+    return () => {
       if (isRecording()) cancelRecording().catch(() => {});
     };
   }, []);
@@ -185,8 +238,6 @@ export function Presentation({
         e.key === "End" ||
         e.key === "Escape";
       if (isNav) {
-        // A focused <video controls> steals arrows for seeking. Blur it so
-        // the presentation navigation wins.
         const ae = document.activeElement as HTMLElement | null;
         if (ae && (ae.tagName === "VIDEO" || ae.closest("video"))) {
           ae.blur();
@@ -199,14 +250,14 @@ export function Presentation({
         e.preventDefault();
         prev();
       } else if (e.key === "Escape") {
-        exit();
+        stopAndDownload();
       } else if (e.key === "Home") {
         setIdx(0);
       } else if (e.key === "End") {
         setIdx(order.length - 1);
       } else if ((e.key === "r" || e.key === "R") && recording) {
         e.preventDefault();
-        exit();
+        stopAndDownload();
       }
     }
     window.addEventListener("keydown", onKey, true);
@@ -214,9 +265,8 @@ export function Presentation({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order.length, recording]);
 
-
-  // Recording HUD ticker.
-  const [recTick, setRecTick] = useState(0);
+  // Recording state ticker.
+  const [, setRecTick] = useState(0);
   useEffect(() => {
     if (!recording) return;
     const unsub = subscribeRecorder(() => setRecTick((n) => n + 1));
@@ -227,9 +277,6 @@ export function Presentation({
     };
   }, [recording]);
   const recState = recording ? getRecorderState() : null;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _tick = recTick;
-
 
   const [uiVisible, setUiVisible] = useState(true);
   const hideTimer = useRef<number | null>(null);
@@ -237,6 +284,8 @@ export function Presentation({
     function bump() {
       setUiVisible(true);
       if (hideTimer.current) window.clearTimeout(hideTimer.current);
+      // Never auto-hide while recording — the user needs the Stop button.
+      if (recording) return;
       hideTimer.current = window.setTimeout(() => setUiVisible(false), 2200);
     }
     bump();
@@ -247,92 +296,115 @@ export function Presentation({
       window.removeEventListener("keydown", bump);
       if (hideTimer.current) window.clearTimeout(hideTimer.current);
     };
-  }, []);
+  }, [recording]);
+
+  const frameStyle: React.CSSProperties = recording
+    ? {
+        width: frameCssSize.w,
+        height: frameCssSize.h,
+        boxShadow: "0 0 0 2px rgba(239,68,68,0.6), 0 30px 80px rgba(0,0,0,0.7)",
+        borderRadius: 8,
+        overflow: "hidden",
+        position: "relative",
+      }
+    : {
+        position: "absolute",
+        inset: 0,
+      };
 
   return (
     <div className="fixed inset-0 bg-background text-foreground overflow-hidden">
-      <div ref={containerRef} className="absolute inset-0">
-        <MindMapCanvas
-          nodes={project.nodes}
-          visibleIds={visibleIds}
-          viewport={viewport}
-          containerSize={size}
-        >
-          {project.nodes.map((n) => {
-            if (!visibleIds.has(n.id)) return null;
-            return (
-              <NodeCard
-                key={n.id}
-                node={n}
-                childCount={0}
-                selected={false}
-                editing={false}
-                active={n.id === activeId}
-                presentation
-                onSelect={() => {}}
-                onStartEdit={() => {}}
-                onEndEdit={() => {}}
-                onChange={() => {}}
-                onDelete={() => {}}
-                onDragStart={() => {}}
-              />
-            );
-          })}
-        </MindMapCanvas>
+      {/* Recording top bar (outside frame — never captured). */}
+      {recording && recState?.state === "recording" && recState.startedAt != null && (
+        <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3">
+          <RecorderHUD
+            startedAt={recState.startedAt}
+            onStop={stopAndDownload}
+            cropped={cropOk}
+          />
+          {format && (
+            <div className="text-[11px] font-mono text-muted-foreground bg-black/50 backdrop-blur border border-border/50 rounded-full px-3 py-1">
+              {format.width}×{format.height}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Frame (captured region). */}
+      <div
+        className={recording ? "absolute inset-0 grid place-items-center" : "absolute inset-0"}
+      >
+        <div ref={frameRef} style={frameStyle} className="bg-background">
+          <MindMapCanvas
+            nodes={project.nodes}
+            visibleIds={visibleIds}
+            viewport={viewport}
+            containerSize={size}
+          >
+            {project.nodes.map((n) => {
+              if (!visibleIds.has(n.id)) return null;
+              return (
+                <NodeCard
+                  key={n.id}
+                  node={n}
+                  childCount={0}
+                  selected={false}
+                  editing={false}
+                  active={n.id === activeId}
+                  presentation
+                  onSelect={() => {}}
+                  onStartEdit={() => {}}
+                  onEndEdit={() => {}}
+                  onChange={() => {}}
+                  onDelete={() => {}}
+                  onDragStart={() => {}}
+                />
+              );
+            })}
+          </MindMapCanvas>
+        </div>
       </div>
 
-      {/* Recording HUD — opens in a Document PiP window when supported so it
-          isn't captured by the screen recording. */}
-      {recording && recState?.state === "recording" && recState.startedAt != null && (
-        <RecorderHUD startedAt={recState.startedAt} onStop={exit} />
-      )}
+      {/* Off-frame controls — always visible during recording. */}
+      <div
+        className={`absolute top-4 right-4 z-10 transition-opacity duration-300 ${
+          uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+      >
+        <button
+          onClick={stopAndDownload}
+          className="size-10 grid place-items-center rounded-full bg-card/70 backdrop-blur border border-border/60 hover:bg-card"
+          aria-label={recording ? "Parar gravação e sair" : "Sair da apresentação"}
+        >
+          <X className="size-4" />
+        </button>
+      </div>
 
-
-      {/* Overlay UI — hidden while recording so it never leaks into the file. */}
-      {!recording && (
-        <>
-          <div
-            className={`absolute top-4 right-4 z-10 transition-opacity duration-300 ${
-              uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-            }`}
-          >
-            <button
-              onClick={exit}
-              className="size-10 grid place-items-center rounded-full bg-card/70 backdrop-blur border border-border/60 hover:bg-card"
-              aria-label="Sair da apresentação"
-            >
-              <X className="size-4" />
-            </button>
-          </div>
-
-          <div
-            className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-card/70 backdrop-blur border border-border/60 px-2 py-2 transition-opacity duration-300 ${
-              uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"
-            }`}
-          >
-            <button
-              onClick={prev}
-              disabled={idx === 0}
-              className="size-9 grid place-items-center rounded-full hover:bg-muted disabled:opacity-40"
-              aria-label="Anterior"
-            >
-              <ChevronLeft className="size-5" />
-            </button>
-            <span className="px-3 text-sm font-mono tabular-nums text-muted-foreground min-w-[70px] text-center">
-              {order.length > 0 ? `${idx + 1} / ${order.length}` : "0 / 0"}
-            </span>
-            <button
-              onClick={next}
-              disabled={idx >= order.length - 1}
-              className="size-9 grid place-items-center rounded-full hover:bg-muted disabled:opacity-40"
-              aria-label="Próximo"
-            >
-              <ChevronRight className="size-5" />
-            </button>
-          </div>
-        </>
-      )}
-
+      <div
+        className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-card/70 backdrop-blur border border-border/60 px-2 py-2 transition-opacity duration-300 ${
+          uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+      >
+        <button
+          onClick={prev}
+          disabled={idx === 0}
+          className="size-9 grid place-items-center rounded-full hover:bg-muted disabled:opacity-40"
+          aria-label="Anterior"
+        >
+          <ChevronLeft className="size-5" />
+        </button>
+        <span className="px-3 text-sm font-mono tabular-nums text-muted-foreground min-w-[70px] text-center">
+          {order.length > 0 ? `${idx + 1} / ${order.length}` : "0 / 0"}
+        </span>
+        <button
+          onClick={next}
+          disabled={idx >= order.length - 1}
+          className="size-9 grid place-items-center rounded-full hover:bg-muted disabled:opacity-40"
+          aria-label="Próximo"
+        >
+          <ChevronRight className="size-5" />
+        </button>
+      </div>
 
       {order.length === 0 && (
         <div className="absolute inset-0 grid place-items-center">
@@ -340,7 +412,6 @@ export function Presentation({
         </div>
       )}
 
-      {/* Post-recording modal */}
       {result && (
         <div className="absolute inset-0 z-30 bg-background/90 backdrop-blur grid place-items-center p-6">
           <div className="w-full max-w-2xl rounded-2xl border border-border/60 bg-card shadow-2xl overflow-hidden">
@@ -360,11 +431,7 @@ export function Presentation({
                 <X className="size-4" />
               </button>
             </div>
-            <video
-              src={result.url}
-              controls
-              className="w-full aspect-video bg-black"
-            />
+            <video src={result.url} controls className="w-full aspect-video bg-black" />
             <div className="px-6 py-4 flex items-center justify-end gap-2">
               <button
                 onClick={closeResult}

@@ -1,119 +1,20 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useRef, useState } from "react";
 import { getRecordingAnalyser, getRecordingHasMic } from "@/lib/screenRecorder";
 
-
-function formatDuration(ms: number) {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const mm = String(Math.floor(s / 60)).padStart(2, "0");
-  const ss = String(s % 60).padStart(2, "0");
-  return `${mm}:${ss}`;
-}
-
 /**
- * Recording HUD. Rendered into a separate OS-level window so it is NEVER
- * captured by the tab recording:
- *   1. Document Picture-in-Picture (Chrome/Edge 116+) — preferred.
- *   2. `window.open` popup — fallback for browsers without doc-PiP.
- * If both fail (popup blocked), we render nothing rather than leak the HUD
- * into the recording.
+ * Inline recording HUD. Rendered outside the captured frame (Region Capture
+ * crops the video track to the frame element), so it can safely live in the
+ * regular DOM without leaking into the video.
  */
 export function RecorderHUD({
   startedAt,
   onStop,
+  cropped,
 }: {
   startedAt: number;
   onStop: () => void;
-}) {
-  const [hostWin, setHostWin] = useState<Window | null>(null);
-  const [attempted, setAttempted] = useState(false);
-
-  useEffect(() => {
-    if (attempted) return;
-    setAttempted(true);
-    let win: Window | null = null;
-    let cancelled = false;
-
-    const setup = (w: Window) => {
-      try {
-        w.document.title = "Gravação";
-        w.document.body.style.cssText =
-          "margin:0;padding:0;background:transparent;font-family:ui-sans-serif,system-ui,sans-serif;color:#fff;overflow:hidden;";
-        w.addEventListener("pagehide", () => setHostWin(null));
-      } catch {
-        /* cross-origin edge cases */
-      }
-      setHostWin(w);
-    };
-
-    const dpip = (window as any).documentPictureInPicture;
-    const tryPopup = () => {
-      try {
-        const w = window.open(
-          "about:blank",
-          "canvas-narrativo-rec-hud",
-          "popup,width=300,height=110,left=40,top=40",
-        );
-        if (w) {
-          win = w;
-          setup(w);
-        }
-      } catch {
-        /* popup blocked */
-      }
-    };
-
-    if (dpip && typeof dpip.requestWindow === "function") {
-      dpip
-        .requestWindow({ width: 300, height: 110 })
-        .then((w: Window) => {
-          if (cancelled) {
-            try {
-              w.close();
-            } catch {
-              /* ignore */
-            }
-            return;
-          }
-          win = w;
-          setup(w);
-        })
-        .catch((err: unknown) => {
-          console.warn("[RecorderHUD] documentPictureInPicture failed, trying popup", err);
-          tryPopup();
-        });
-    } else {
-      tryPopup();
-    }
-
-    return () => {
-      cancelled = true;
-      if (win) {
-        try {
-          win.close();
-        } catch {
-          /* ignore */
-        }
-      }
-    };
-  }, [attempted]);
-
-  if (!hostWin) return null;
-  return createPortal(
-    <HUDPanel startedAt={startedAt} onStop={onStop} inPip />,
-    hostWin.document.body,
-  );
-}
-
-
-function HUDPanel({
-  startedAt,
-  onStop,
-  inPip,
-}: {
-  startedAt: number;
-  onStop: () => void;
-  inPip: boolean;
+  /** true when Region Capture is active — HUD is guaranteed off-frame. */
+  cropped: boolean;
 }) {
   const [now, setNow] = useState(() => performance.now());
   useEffect(() => {
@@ -121,52 +22,24 @@ function HUDPanel({
     return () => window.clearInterval(id);
   }, []);
   const elapsed = now - startedAt;
-
-  const containerStyle: CSSProperties = inPip
-    ? {
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        width: "100%",
-        height: "100%",
-        padding: "0 12px",
-        boxSizing: "border-box",
-        background:
-          "linear-gradient(180deg, rgba(20,20,24,0.98) 0%, rgba(12,12,16,0.98) 100%)",
-        color: "#fafafa",
-        userSelect: "none",
-      }
-    : {
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        padding: "8px 12px",
-        borderRadius: 999,
-        background: "rgba(18,18,22,0.72)",
-        backdropFilter: "blur(16px) saturate(140%)",
-        border: "1px solid rgba(239,68,68,0.45)",
-        color: "#fafafa",
-        boxShadow: "0 10px 30px rgba(0,0,0,0.45)",
-        fontSize: 13,
-        userSelect: "none",
-        opacity: 0.9,
-      };
+  const mm = String(Math.floor(elapsed / 60000)).padStart(2, "0");
+  const ss = String(Math.floor((elapsed / 1000) % 60)).padStart(2, "0");
 
   return (
-    <div style={containerStyle}>
+    <div className="pointer-events-auto flex items-center gap-3 rounded-full border border-red-500/50 bg-black/80 backdrop-blur px-3 py-2 shadow-2xl select-none">
       <RecDot />
-      <div
-        style={{
-          fontFamily: "ui-monospace, SFMono-Regular, monospace",
-          fontVariantNumeric: "tabular-nums",
-          fontSize: 14,
-          fontWeight: 600,
-          minWidth: 54,
-        }}
-      >
-        {formatDuration(elapsed)}
-      </div>
+      <span className="font-mono tabular-nums text-sm font-semibold text-white min-w-[54px]">
+        {mm}:{ss}
+      </span>
       <AudioMeter />
+      {!cropped && (
+        <span
+          className="text-[10px] uppercase tracking-wider text-amber-300"
+          title="Este navegador não suporta Region Capture — o HUD será capturado. Use Chrome/Edge para gravar somente o quadro."
+        >
+          full-tab
+        </span>
+      )}
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -175,30 +48,9 @@ function HUDPanel({
         onPointerDown={(e) => e.stopPropagation()}
         title="Parar gravação (R)"
         aria-label="Parar gravação"
-        style={{
-          marginLeft: "auto",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 4,
-          padding: "4px 10px",
-          borderRadius: 999,
-          background: "#ef4444",
-          color: "#fff",
-          border: "none",
-          fontSize: 12,
-          fontWeight: 600,
-          cursor: "pointer",
-        }}
+        className="inline-flex items-center gap-1.5 rounded-full bg-red-500 hover:bg-red-600 text-white text-xs font-semibold px-3 py-1.5 transition"
       >
-        <span
-          style={{
-            display: "inline-block",
-            width: 8,
-            height: 8,
-            background: "#fff",
-            borderRadius: 1,
-          }}
-        />
+        <span className="inline-block w-2 h-2 bg-white rounded-[1px]" />
         Parar
       </button>
     </div>
@@ -210,15 +62,10 @@ function RecDot() {
     <>
       <style>{`@keyframes rec-pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.35 } }`}</style>
       <span
+        className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 shrink-0"
         style={{
-          display: "inline-block",
-          width: 10,
-          height: 10,
-          borderRadius: "50%",
-          background: "#ef4444",
           boxShadow: "0 0 10px rgba(239,68,68,0.7)",
           animation: "rec-pulse 1.2s ease-in-out infinite",
-          flexShrink: 0,
         }}
       />
     </>
@@ -236,7 +83,6 @@ function AudioMeter() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // High-DPI scaling
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const cssW = 90;
     const cssH = 24;
@@ -253,9 +99,7 @@ function AudioMeter() {
     function draw() {
       if (!ctx) return;
       ctx.clearRect(0, 0, cssW, cssH);
-
       if (!analyser || !buffer) {
-        // No signal → flat dim line
         ctx.strokeStyle = "rgba(148,163,184,0.4)";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
@@ -264,7 +108,6 @@ function AudioMeter() {
         ctx.stroke();
       } else {
         analyser.getByteTimeDomainData(buffer);
-        // Peak level (0..1) drives glow intensity
         let peak = 0;
         for (let i = 0; i < buffer.length; i++) {
           const v = Math.abs(buffer[i] - 128) / 128;
@@ -293,15 +136,7 @@ function AudioMeter() {
   }, []);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 4,
-        padding: "0 2px",
-      }}
-      title={hasMic ? "Microfone" : "Áudio do sistema"}
-    >
+    <div className="flex items-center px-0.5" title={hasMic ? "Microfone" : "Áudio do sistema"}>
       <canvas ref={canvasRef} />
     </div>
   );
