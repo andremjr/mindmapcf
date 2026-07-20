@@ -95,10 +95,11 @@ export function useMindmapSync(userId: string | undefined) {
                   id: p.id,
                   user_id: userId,
                   title: p.title,
-                  data: { nodes: p.nodes, viewport: p.viewport },
+                  data: { nodes: p.nodes, viewport: p.viewport } as any,
                 },
                 { onConflict: "id" },
               )
+
               .then(({ error }) => {
                 if (error) console.error("[mindmapSync] upsert", error);
                 else knownIdsRef.current.add(p.id);
