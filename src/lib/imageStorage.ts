@@ -200,25 +200,49 @@ async function tryReadHandle(
 }
 
 /** Resolve without a user gesture. Serves cached bytes first (survives
- *  reloads), then tries the handle silently. Returns null only when the
- *  entry is missing entirely. */
-export async function resolveImage(id: string): Promise<string | null> {
+ *  reloads), then tries the handle silently. When invoked with the full
+ *  ImageRef, also matches by fingerprint (name+size+lastModified) so a
+ *  second device / browser picks up files the user already opened in
+ *  another node. Returns null when nothing local matches. */
+export async function resolveImage(
+  ref: string | ImageRef,
+): Promise<string | null> {
+  const id = typeof ref === "string" ? ref : ref.id;
   const cached = urlCache.get(id);
   if (cached) return cached;
   const entry = await getEntry(id).catch(() => undefined);
-  if (!entry) return null;
-  if (entry.blob) {
+  if (entry?.blob) {
     const url = URL.createObjectURL(entry.blob);
     urlCache.set(id, url);
     return url;
   }
-  const file = await tryReadHandle(entry, false);
-  if (file) {
-    const url = URL.createObjectURL(file);
-    urlCache.set(id, url);
-    // Backfill blob cache so future reloads don't need permission.
-    await put({ ...entry, blob: file }).catch(() => {});
-    return url;
+  if (entry) {
+    const file = await tryReadHandle(entry, false);
+    if (file) {
+      const url = URL.createObjectURL(file);
+      urlCache.set(id, url);
+      await put({ ...entry, blob: file }).catch(() => {});
+      return url;
+    }
+  }
+  // Cross-device fingerprint fallback: reuse a blob the user already
+  // picked for this same file on this browser.
+  if (typeof ref === "object") {
+    const twin = await findByFingerprint(ref.name, ref.size, ref.lastModified);
+    if (twin?.blob) {
+      const url = URL.createObjectURL(twin.blob);
+      urlCache.set(id, url);
+      // Adopt the blob under the new id so subsequent lookups are direct.
+      await put({
+        id,
+        name: ref.name,
+        size: ref.size,
+        lastModified: ref.lastModified,
+        kind: ref.kind,
+        blob: twin.blob,
+      }).catch(() => {});
+      return url;
+    }
   }
   return null;
 }
@@ -228,7 +252,10 @@ export async function resolveImage(id: string): Promise<string | null> {
  *  handle lost), opens a fresh file picker so the user can point at the
  *  file again. The new selection reuses the same id, so every node that
  *  referenced it lights up at once. */
-export async function requestImageAccess(id: string): Promise<string | null> {
+export async function requestImageAccess(
+  ref: string | ImageRef,
+): Promise<string | null> {
+  const id = typeof ref === "string" ? ref : ref.id;
   const cached = urlCache.get(id);
   if (cached) return cached;
   const entry = await getEntry(id).catch(() => undefined);
@@ -246,8 +273,25 @@ export async function requestImageAccess(id: string): Promise<string | null> {
       return url;
     }
   }
+  // Try the fingerprint fallback before nagging the user with a picker.
+  if (typeof ref === "object") {
+    const twin = await findByFingerprint(ref.name, ref.size, ref.lastModified);
+    if (twin?.blob) {
+      const url = URL.createObjectURL(twin.blob);
+      urlCache.set(id, url);
+      await put({
+        id,
+        name: ref.name,
+        size: ref.size,
+        lastModified: ref.lastModified,
+        kind: ref.kind,
+        blob: twin.blob,
+      }).catch(() => {});
+      return url;
+    }
+  }
   // Last resort: prompt the user to re-select the file.
-  const kind = entry?.kind ?? "image";
+  const kind = entry?.kind ?? (typeof ref === "object" ? ref.kind : undefined) ?? "image";
   const mime = kind === "image" ? "image/*" : "video/*";
   const exts = kind === "image" ? IMAGE_EXT : VIDEO_EXT;
   let file: File | null = null;
@@ -286,6 +330,7 @@ export async function requestImageAccess(id: string): Promise<string | null> {
   urlCache.set(id, url);
   return url;
 }
+
 
 
 export async function deleteImage(id: string) {
