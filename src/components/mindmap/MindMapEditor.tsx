@@ -537,10 +537,10 @@ export function MindMapEditor({ project }: { project: Project }) {
                           alert("Não foi possível adicionar esse vídeo.");
                         }
                       }}
-
-
+                      onSetColor={(color, cascade) =>
+                        setNodeColor(project.id, n.id, color, cascade)
+                      }
                     />
-                  </div>
                 );
               })}
             </MindMapCanvas>
