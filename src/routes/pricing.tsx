@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
 import { useSubscription } from "@/hooks/useSubscription";
+import { SiteFooter } from "@/components/SiteFooter";
 import { toast } from "sonner";
 
 const PLANS = [
@@ -100,6 +101,7 @@ function PricingPage() {
           })}
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }
