@@ -10,10 +10,14 @@ import { supabase } from "@/integrations/supabase/client";
 const DB_NAME = "mindmap-images";
 const STORE = "images";
 const BUCKET = "mindmap-media";
+export const AVATAR_BUCKET = "avatar-images";
+export const AVATAR_MAX_BYTES = 3 * 1024 * 1024; // 3MB per avatar image
 
 export interface ImageRef {
   id: string;
   storagePath?: string;
+  /** Storage bucket. Missing = default `mindmap-media` bucket. */
+  bucket?: string;
   name: string;
   size: number;
   lastModified: number;
@@ -153,10 +157,10 @@ function makeStoragePath(userId: string, name: string) {
   return `${userId}/${crypto.randomUUID()}-${sanitizeFileName(name)}`;
 }
 
-async function uploadToStorage(file: Blob, name = "arquivo") {
+async function uploadToStorage(file: Blob, name = "arquivo", bucket = BUCKET) {
   const userId = await currentUserId();
   const storagePath = makeStoragePath(userId, name);
-  const { error } = await supabase.storage.from(BUCKET).upload(storagePath, file, {
+  const { error } = await supabase.storage.from(bucket).upload(storagePath, file, {
     contentType: file.type || undefined,
     upsert: false,
   });
@@ -164,10 +168,50 @@ async function uploadToStorage(file: Blob, name = "arquivo") {
   return storagePath;
 }
 
-async function downloadFromStorage(storagePath: string): Promise<Blob | null> {
-  const { data, error } = await supabase.storage.from(BUCKET).download(storagePath);
+async function downloadFromStorage(storagePath: string, bucket = BUCKET): Promise<Blob | null> {
+  const { data, error } = await supabase.storage.from(bucket).download(storagePath);
   if (error || !data) return null;
   return data;
+}
+
+/** Pick an image constrained to <=3MB and upload it to the private
+ *  `avatar-images` bucket. Returns an ImageRef tagged with that bucket. */
+export async function pickAvatarImageAndStore(): Promise<ImageRef | null> {
+  if (typeof window === "undefined" || typeof document === "undefined") return null;
+  let file: File | null = null;
+  if (hasFSAccess()) {
+    try {
+      const [handle] = await (window as any).showOpenFilePicker({
+        types: [{ description: "Imagens", accept: { "image/*": IMAGE_EXT } }],
+        multiple: false,
+        excludeAcceptAllOption: false,
+      });
+      file = await handle.getFile();
+    } catch (e: any) {
+      if (e?.name === "AbortError") return null;
+    }
+  }
+  if (!file) file = await pickFileFallback("image/*");
+  if (!file) return null;
+  if (file.size > AVATAR_MAX_BYTES) {
+    throw new Error(
+      `Imagem muito grande (${(file.size / 1024 / 1024).toFixed(1)}MB). Limite: 3MB.`,
+    );
+  }
+  const id = crypto.randomUUID();
+  const storagePath = await uploadToStorage(file, file.name, AVATAR_BUCKET);
+  const ref: ImageRef = {
+    id,
+    storagePath,
+    bucket: AVATAR_BUCKET,
+    name: file.name,
+    size: file.size,
+    lastModified: file.lastModified,
+    contentType: file.type || undefined,
+    kind: "image",
+  };
+  await safePut({ ...ref, blob: file });
+  return ref;
 }
 
 function pickFileFallback(accept: string): Promise<File | null> {
@@ -282,8 +326,10 @@ export async function resolveImage(
   }
   const storagePath =
     typeof ref === "object" ? ref.storagePath ?? entry?.storagePath : entry?.storagePath;
+  const bucket =
+    (typeof ref === "object" ? ref.bucket : undefined) ?? (entry as any)?.bucket ?? BUCKET;
   if (storagePath) {
-    const blob = await downloadFromStorage(storagePath);
+    const blob = await downloadFromStorage(storagePath, bucket);
     if (blob) {
       const nextEntry: Entry = {
         ...(typeof ref === "object"
@@ -437,7 +483,8 @@ export async function deleteImage(id: string) {
   if (url) URL.revokeObjectURL(url);
   urlCache.delete(id);
   if (entry?.storagePath) {
-    await supabase.storage.from(BUCKET).remove([entry.storagePath]).catch(() => undefined);
+    const bucket = (entry as any).bucket ?? BUCKET;
+    await supabase.storage.from(bucket).remove([entry.storagePath]).catch(() => undefined);
   }
   await del(id).catch(() => undefined);
 }

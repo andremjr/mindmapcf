@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { X, Upload, Trash2, Plus, Lock, Check, Crown } from "lucide-react";
 import type { SonicAvatarEntry } from "@/lib/types";
-import { pickMediaAndStore, resolveImage } from "@/lib/imageStorage";
+import { pickAvatarImageAndStore, resolveImage } from "@/lib/imageStorage";
 import { useStore } from "@/lib/store";
 import {
   createAvatarRemote,
@@ -327,12 +327,12 @@ function EditForm({
 
   async function pickImage() {
     try {
-      const ref = await pickMediaAndStore("image");
+      const ref = await pickAvatarImageAndStore();
       if (!ref) return;
       await updateAvatarRemote(entry.id, { imageRef: ref, imageName: ref.name });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error("Falha ao carregar imagem.");
+      toast.error(err?.message || "Falha ao carregar imagem.");
     }
   }
   async function removeImage() {
@@ -385,7 +385,7 @@ function EditForm({
             </button>
           )}
           <p className="text-[10px] text-muted-foreground">
-            PNG transparente: a cor do círculo aparece atrás. Imagem quadrada: recortada no molde.
+            PNG transparente: a cor do círculo aparece atrás. Imagem quadrada: recortada no molde. Máx. 3MB.
           </p>
         </div>
       </div>
