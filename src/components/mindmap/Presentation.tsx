@@ -371,6 +371,7 @@ export function Presentation({
             viewport={viewport}
             containerSize={size}
             colorById={colorMap}
+            activeEdgeToId={activeNode?.parentId ? activeId : null}
           >
             {project.nodes.map((n) => {
               if (!visibleIds.has(n.id)) return null;
