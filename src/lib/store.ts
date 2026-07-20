@@ -261,7 +261,7 @@ export const useStore = create<State & Actions>()(
             };
             return {
               ...p,
-              nodes: [...p.nodes, node],
+              nodes: reflowTree([...p.nodes, node]),
               updatedAt: new Date().toISOString(),
             };
           }),
