@@ -27,7 +27,7 @@ interface Props {
   onStartConnect?: (e: React.PointerEvent) => void;
   onAddChild?: () => void;
   onToggleCollapsed?: () => void;
-  onImageUpload?: (file: File) => void;
+  onPickImage?: () => void;
 }
 
 export function NodeCard({
