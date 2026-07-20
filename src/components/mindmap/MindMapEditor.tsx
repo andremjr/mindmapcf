@@ -17,7 +17,7 @@ import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
 import { ImportDialog } from "./ImportDialog";
 import { importFromText } from "@/lib/mindmapImport";
-import { buildColorMap } from "@/lib/nodeColors";
+import { buildColorMap, NODE_COLOR_PALETTE } from "@/lib/nodeColors";
 import { toast } from "sonner";
 
 import { pickMediaAndStore } from "@/lib/imageStorage";
