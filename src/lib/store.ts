@@ -17,6 +17,7 @@ interface Actions {
   reset: () => void;
   createProject: (title: string) => string;
   importProject: (project: Project) => string;
+  replaceProjectNodes: (projectId: string, nodes: MindNode[], title?: string) => void;
   deleteProject: (id: string) => void;
   renameProject: (id: string, title: string) => void;
 
