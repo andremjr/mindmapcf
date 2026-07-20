@@ -134,3 +134,8 @@
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
+
+@keyframes mindmap-edge-fill {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
