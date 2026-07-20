@@ -367,6 +367,7 @@ export function Presentation({
             visibleIds={visibleIds}
             viewport={viewport}
             containerSize={size}
+            colorById={colorMap}
           >
             {project.nodes.map((n) => {
               if (!visibleIds.has(n.id)) return null;
@@ -378,6 +379,7 @@ export function Presentation({
                   selected={false}
                   editing={false}
                   active={n.id === activeId}
+                  effectiveColor={colorMap.get(n.id)}
                   presentation
                   onSelect={() => {}}
                   onStartEdit={() => {}}
