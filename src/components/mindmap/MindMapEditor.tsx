@@ -396,6 +396,16 @@ export function MindMapEditor({ project }: { project: Project }) {
           <Button variant="secondary" size="sm" onClick={handleAdd} className="gap-2">
             <Plus className="size-4" /> Nó
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRecordAndPresent}
+            className="gap-2"
+            disabled={project.nodes.length === 0}
+            title="Grava tela + microfone durante a apresentação"
+          >
+            <Circle className="size-3 fill-destructive text-destructive" /> Gravar
+          </Button>
           <Button size="sm" onClick={handlePresent} className="gap-2" disabled={project.nodes.length === 0}>
             <Play className="size-4" /> Apresentar
           </Button>
