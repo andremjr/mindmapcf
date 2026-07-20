@@ -48,7 +48,7 @@ export function NodeCard({
   }
 
   const w = node.width ?? 360;
-  const accent = node.color ?? "hsl(var(--primary))";
+  const accent = node.color ?? "var(--primary)";
 
   return (
     <div

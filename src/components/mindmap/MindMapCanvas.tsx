@@ -51,7 +51,7 @@ export const MindMapCanvas = forwardRef<HTMLDivElement, Props>(function MindMapC
       className="absolute inset-0 overflow-hidden select-none"
       style={{
         backgroundImage:
-          "radial-gradient(circle at 1px 1px, hsl(var(--border) / 0.5) 1px, transparent 0)",
+          "radial-gradient(circle at 1px 1px, color-mix(in oklch, var(--border) 50%, transparent) 1px, transparent 0)",
         backgroundSize: `${24 * zoom}px ${24 * zoom}px`,
         backgroundPosition: `${cx - x * zoom}px ${cy - y * zoom}px`,
       }}
@@ -79,7 +79,7 @@ export const MindMapCanvas = forwardRef<HTMLDivElement, Props>(function MindMapC
               <path
                 key={i}
                 d={`M ${a.x} ${a.y} C ${a.x + dx} ${a.y}, ${b.x - dx} ${b.y}, ${b.x} ${b.y}`}
-                stroke="hsl(var(--primary) / 0.35)"
+                stroke="color-mix(in oklch, var(--primary) 35%, transparent)"
                 strokeWidth={2}
                 fill="none"
                 strokeDasharray="6 8"
