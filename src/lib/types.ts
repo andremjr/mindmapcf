@@ -6,8 +6,12 @@ export interface MindNode {
   /** World-space center of the card. */
   x: number;
   y: number;
-  /** Card width in world px (auto-set by editor when empty). */
+  /** Card width in world px. */
   width: number;
+  /** Parent node id — null means root. */
+  parentId: string | null;
+  /** Hide descendants when true. */
+  collapsed?: boolean;
   /** Optional image (data URL). */
   image?: string;
   imageName?: string;
@@ -21,8 +25,6 @@ export interface Project {
   createdAt: string;
   updatedAt: string;
   nodes: MindNode[];
-  /** Presentation order — array of node ids. Nodes not listed appear at the end. */
-  order: string[];
   /** Persisted last viewport of the editor. */
   viewport?: { x: number; y: number; zoom: number };
 }

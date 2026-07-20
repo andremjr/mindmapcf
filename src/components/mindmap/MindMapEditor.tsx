@@ -1,16 +1,16 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ChevronLeft,
   Plus,
   Play,
   Maximize,
-  GripVertical,
-  ListOrdered,
+  LayoutGrid,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { Project, MindNode } from "@/lib/types";
-import { useStore, presentationOrder } from "@/lib/store";
+import type { MindNode, Project } from "@/lib/types";
+import { useStore, descendantIds } from "@/lib/store";
 import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
 
@@ -18,7 +18,9 @@ export function MindMapEditor({ project }: { project: Project }) {
   const addNode = useStore((s) => s.addNode);
   const updateNode = useStore((s) => s.updateNode);
   const deleteNode = useStore((s) => s.deleteNode);
-  const reorderNodes = useStore((s) => s.reorderNodes);
+  const setParent = useStore((s) => s.setParent);
+  const toggleCollapsed = useStore((s) => s.toggleCollapsed);
+  const runAutoLayout = useStore((s) => s.autoLayout);
   const renameProject = useStore((s) => s.renameProject);
   const setViewportPersist = useStore((s) => s.setViewport);
   const navigate = useNavigate();
@@ -26,8 +28,13 @@ export function MindMapEditor({ project }: { project: Project }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 1200, h: 800 });
   const [viewport, setViewport] = useState(project.viewport ?? { x: 0, y: 0, zoom: 1 });
-  const [selectedId, setSelectedId] = useState<string | undefined>();
-  const [sidebar, setSidebar] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | undefined>(project.nodes[0]?.id);
+  const [editingId, setEditingId] = useState<string | undefined>();
+  const [pendingEdge, setPendingEdge] = useState<
+    | { fromId: string; toX: number; toY: number; overNodeId?: string }
+    | null
+  >(null);
+  const [dropTargetId, setDropTargetId] = useState<string | undefined>();
 
   useLayoutEffect(() => {
     if (!containerRef.current) return;
@@ -39,29 +46,55 @@ export function MindMapEditor({ project }: { project: Project }) {
     return () => ro.disconnect();
   }, []);
 
-  // Persist viewport (debounced by setTimeout).
   useEffect(() => {
     const t = setTimeout(() => setViewportPersist(project.id, viewport), 400);
     return () => clearTimeout(t);
   }, [viewport, project.id, setViewportPersist]);
 
-  const order = presentationOrder(project);
+  // --- Coordinate helpers ---
+  const screenToWorld = useCallback(
+    (sx: number, sy: number) => {
+      const rect = containerRef.current!.getBoundingClientRect();
+      const mx = sx - rect.left - rect.width / 2;
+      const my = sy - rect.top - rect.height / 2;
+      return { x: viewport.x + mx / viewport.zoom, y: viewport.y + my / viewport.zoom };
+    },
+    [viewport],
+  );
 
-  // --- Panning ---
-  const panRef = useRef<{ x: number; y: number; vx: number; vy: number } | null>(null);
+  // --- Visible node set (respect collapsed) ---
+  const visibleIds = useMemo(() => {
+    const hidden = new Set<string>();
+    for (const n of project.nodes) {
+      if (n.collapsed) {
+        for (const d of descendantIds(project.nodes, n.id)) hidden.add(d);
+      }
+    }
+    return new Set(project.nodes.map((n) => n.id).filter((id) => !hidden.has(id)));
+  }, [project.nodes]);
+
+  const childCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const n of project.nodes) {
+      if (n.parentId) m.set(n.parentId, (m.get(n.parentId) ?? 0) + 1);
+    }
+    return m;
+  }, [project.nodes]);
+
+  // --- Pan background ---
+  const panRef = useRef<{ sx: number; sy: number; vx: number; vy: number } | null>(null);
   function onBgPointerDown(e: React.PointerEvent) {
-    // Only pan on background clicks (not nodes)
     if ((e.target as HTMLElement).closest("[data-node]")) return;
     setSelectedId(undefined);
     if (e.button !== 0 && e.button !== 1) return;
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    panRef.current = { x: e.clientX, y: e.clientY, vx: viewport.x, vy: viewport.y };
+    panRef.current = { sx: e.clientX, sy: e.clientY, vx: viewport.x, vy: viewport.y };
   }
   useEffect(() => {
     function onMove(e: PointerEvent) {
       if (!panRef.current) return;
-      const dx = (e.clientX - panRef.current.x) / viewport.zoom;
-      const dy = (e.clientY - panRef.current.y) / viewport.zoom;
+      const dx = (e.clientX - panRef.current.sx) / viewport.zoom;
+      const dy = (e.clientY - panRef.current.sy) / viewport.zoom;
       setViewport((v) => ({ ...v, x: panRef.current!.vx - dx, y: panRef.current!.vy - dy }));
     }
     function onUp() {
@@ -77,10 +110,12 @@ export function MindMapEditor({ project }: { project: Project }) {
 
   // --- Zoom ---
   function onWheel(e: React.WheelEvent) {
+    if (!e.ctrlKey && !e.metaKey && Math.abs(e.deltaX) < 2 && e.deltaMode === 0) {
+      // Normal wheel: still zoom (mind-map convention)
+    }
     e.preventDefault();
     const delta = -e.deltaY * 0.0015;
-    const newZoom = Math.max(0.15, Math.min(3, viewport.zoom * (1 + delta)));
-    // Zoom around cursor
+    const newZoom = Math.max(0.2, Math.min(2.5, viewport.zoom * (1 + delta)));
     const rect = containerRef.current!.getBoundingClientRect();
     const mx = e.clientX - rect.left - rect.width / 2;
     const my = e.clientY - rect.top - rect.height / 2;
@@ -91,22 +126,68 @@ export function MindMapEditor({ project }: { project: Project }) {
     setViewport({ x: nx, y: ny, zoom: newZoom });
   }
 
-  // --- Node dragging ---
-  const dragRef = useRef<{ id: string; startX: number; startY: number; nx: number; ny: number } | null>(null);
+  // --- Node dragging (move + optional re-parent on drop) ---
+  const dragRef = useRef<
+    | {
+        id: string;
+        sx: number;
+        sy: number;
+        nx: number;
+        ny: number;
+        moved: boolean;
+      }
+    | null
+  >(null);
+
+  function findNodeAt(clientX: number, clientY: number, ignoreId?: string): string | undefined {
+    const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null;
+    const nodeEl = el?.closest("[data-node-id]") as HTMLElement | null;
+    const id = nodeEl?.dataset.nodeId;
+    if (!id || id === ignoreId) return undefined;
+    return id;
+  }
+
   function onNodeDragStart(node: MindNode, e: React.PointerEvent) {
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-    dragRef.current = { id: node.id, startX: e.clientX, startY: e.clientY, nx: node.x, ny: node.y };
+    if (editingId === node.id) return;
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    dragRef.current = {
+      id: node.id,
+      sx: e.clientX,
+      sy: e.clientY,
+      nx: node.x,
+      ny: node.y,
+      moved: false,
+    };
   }
   useEffect(() => {
     function onMove(e: PointerEvent) {
-      if (!dragRef.current) return;
       const d = dragRef.current;
-      const dx = (e.clientX - d.startX) / viewport.zoom;
-      const dy = (e.clientY - d.startY) / viewport.zoom;
+      if (!d) return;
+      const dx = (e.clientX - d.sx) / viewport.zoom;
+      const dy = (e.clientY - d.sy) / viewport.zoom;
+      if (!d.moved && Math.hypot(dx, dy) < 3) return;
+      d.moved = true;
       updateNode(project.id, d.id, { x: d.nx + dx, y: d.ny + dy });
+      // Alt held → highlight target for re-parenting
+      if (e.altKey) {
+        const desc = new Set([d.id, ...descendantIds(project.nodes, d.id)]);
+        const overId = findNodeAt(e.clientX, e.clientY, d.id);
+        setDropTargetId(overId && !desc.has(overId) ? overId : undefined);
+      } else {
+        setDropTargetId(undefined);
+      }
     }
-    function onUp() {
+    function onUp(e: PointerEvent) {
+      const d = dragRef.current;
       dragRef.current = null;
+      if (d && d.moved && e.altKey) {
+        const desc = new Set([d.id, ...descendantIds(project.nodes, d.id)]);
+        const overId = findNodeAt(e.clientX, e.clientY, d.id);
+        if (overId && !desc.has(overId)) {
+          setParent(project.id, d.id, overId);
+        }
+      }
+      setDropTargetId(undefined);
     }
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
@@ -114,12 +195,101 @@ export function MindMapEditor({ project }: { project: Project }) {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [viewport.zoom, project.id, updateNode]);
+  }, [viewport.zoom, project.id, project.nodes, updateNode, setParent]);
+
+  // --- Connect gesture (drag from handle) ---
+  useEffect(() => {
+    if (!pendingEdge) return;
+    function onMove(e: PointerEvent) {
+      const w = screenToWorld(e.clientX, e.clientY);
+      const overId = findNodeAt(e.clientX, e.clientY, pendingEdge!.fromId);
+      setPendingEdge((p) => (p ? { ...p, toX: w.x, toY: w.y, overNodeId: overId } : p));
+    }
+    function onUp(e: PointerEvent) {
+      const from = pendingEdge!.fromId;
+      const overId = findNodeAt(e.clientX, e.clientY, from);
+      if (overId) {
+        // Reparent overId under `from` (unless it would cycle)
+        setParent(project.id, overId, from);
+      } else {
+        // Create new child at drop position
+        const w = screenToWorld(e.clientX, e.clientY);
+        const id = addNode(project.id, { parentId: from, x: w.x, y: w.y });
+        setSelectedId(id);
+        setEditingId(id);
+      }
+      setPendingEdge(null);
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [pendingEdge, project.id, screenToWorld, setParent, addNode]);
+
+  function startConnect(node: MindNode, e: React.PointerEvent) {
+    setSelectedId(node.id);
+    const w = screenToWorld(e.clientX, e.clientY);
+    setPendingEdge({ fromId: node.id, toX: w.x, toY: w.y });
+  }
+
+  // --- Keyboard shortcuts ---
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+      const isTyping =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable);
+      if (isTyping) return;
+
+      if (!selectedId) return;
+
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const id = addNode(project.id, { parentId: selectedId });
+        setSelectedId(id);
+        setEditingId(id);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const sel = project.nodes.find((n) => n.id === selectedId);
+        if (!sel) return;
+        if (!sel.parentId) {
+          // Root: Enter adds a child instead of a sibling.
+          const id = addNode(project.id, { parentId: sel.id });
+          setSelectedId(id);
+          setEditingId(id);
+        } else {
+          const id = addNode(project.id, { parentId: sel.parentId });
+          setSelectedId(id);
+          setEditingId(id);
+        }
+      } else if (e.key === "F2") {
+        e.preventDefault();
+        setEditingId(selectedId);
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        const sel = project.nodes.find((n) => n.id === selectedId);
+        if (!sel) return;
+        deleteNode(project.id, selectedId);
+        setSelectedId(sel.parentId ?? project.nodes[0]?.id);
+      } else if (e.key === " ") {
+        e.preventDefault();
+        toggleCollapsed(project.id, selectedId);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedId, project.id, project.nodes, addNode, deleteNode, toggleCollapsed]);
 
   function handleAdd() {
-    // Spawn near current viewport center
-    const id = addNode(project.id, { x: viewport.x, y: viewport.y });
+    // Add a child of selected, or a new root if none selected.
+    const parentId = selectedId ?? null;
+    const id = addNode(project.id, { parentId });
     setSelectedId(id);
+    setEditingId(id);
   }
 
   function handlePresent() {
@@ -128,26 +298,35 @@ export function MindMapEditor({ project }: { project: Project }) {
   }
 
   function fitAll() {
-    if (project.nodes.length === 0) {
+    const visibleNodes = project.nodes.filter((n) => visibleIds.has(n.id));
+    if (visibleNodes.length === 0) {
       setViewport({ x: 0, y: 0, zoom: 1 });
       return;
     }
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const n of project.nodes) {
-      const w = n.width ?? 360;
+    let minX = Infinity,
+      maxX = -Infinity,
+      minY = Infinity,
+      maxY = -Infinity;
+    for (const n of visibleNodes) {
+      const w = n.width ?? 260;
       minX = Math.min(minX, n.x - w / 2);
       maxX = Math.max(maxX, n.x + w / 2);
-      minY = Math.min(minY, n.y - 200);
-      maxY = Math.max(maxY, n.y + 200);
+      minY = Math.min(minY, n.y - 100);
+      maxY = Math.max(maxY, n.y + 100);
     }
-    const bw = maxX - minX + 200;
-    const bh = maxY - minY + 200;
-    const zoom = Math.min(size.w / bw, size.h / bh, 1);
+    const bw = maxX - minX + 240;
+    const bh = maxY - minY + 240;
+    const zoom = Math.min(size.w / bw, size.h / bh, 1.2);
     setViewport({ x: (minX + maxX) / 2, y: (minY + maxY) / 2, zoom });
   }
 
-  // Reorder in sidebar
-  const [dragOrder, setDragOrder] = useState<{ from: number; over: number } | null>(null);
+  function handleBgDoubleClick(e: React.MouseEvent) {
+    if ((e.target as HTMLElement).closest("[data-node]")) return;
+    const w = screenToWorld(e.clientX, e.clientY);
+    const id = addNode(project.id, { parentId: null, x: w.x, y: w.y });
+    setSelectedId(id);
+    setEditingId(id);
+  }
 
   return (
     <div className="flex h-screen flex-col bg-background">
@@ -163,8 +342,14 @@ export function MindMapEditor({ project }: { project: Project }) {
           className="bg-transparent outline-none font-semibold text-sm min-w-0 flex-1 max-w-md"
         />
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setSidebar((v) => !v)} className="gap-2">
-            <ListOrdered className="size-4" /> Ordem
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => runAutoLayout(project.id)}
+            className="gap-2"
+            title="Organizar horizontalmente"
+          >
+            <LayoutGrid className="size-4" /> Organizar
           </Button>
           <Button variant="ghost" size="sm" onClick={fitAll} className="gap-2">
             <Maximize className="size-4" /> Ver tudo
@@ -183,27 +368,63 @@ export function MindMapEditor({ project }: { project: Project }) {
           <div ref={containerRef} className="absolute inset-0">
             <MindMapCanvas
               nodes={project.nodes}
-              order={order}
+              visibleIds={visibleIds}
               viewport={viewport}
               containerSize={size}
+              pendingEdge={pendingEdge}
               onBackgroundPointerDown={onBgPointerDown}
               onWheel={onWheel}
+              onBackgroundDoubleClick={handleBgDoubleClick}
             >
               {project.nodes.map((n) => {
-                const idx = order.indexOf(n.id);
+                if (!visibleIds.has(n.id)) return null;
+                const isDropTarget = dropTargetId === n.id;
                 return (
-                  <div key={n.id} data-node>
+                  <div
+                    key={n.id}
+                    style={{
+                      outline: isDropTarget
+                        ? "2px solid color-mix(in oklch, var(--primary) 80%, transparent)"
+                        : undefined,
+                      outlineOffset: 4,
+                      borderRadius: 12,
+                    }}
+                  >
                     <NodeCard
                       node={n}
-                      orderIndex={idx >= 0 ? idx : null}
+                      childCount={childCounts.get(n.id) ?? 0}
                       selected={selectedId === n.id}
+                      editing={editingId === n.id}
                       onSelect={() => setSelectedId(n.id)}
+                      onStartEdit={() => {
+                        setSelectedId(n.id);
+                        setEditingId(n.id);
+                      }}
+                      onEndEdit={() => setEditingId(undefined)}
                       onChange={(patch) => updateNode(project.id, n.id, patch)}
                       onDelete={() => {
                         deleteNode(project.id, n.id);
-                        setSelectedId(undefined);
+                        setSelectedId(n.parentId ?? undefined);
+                        setEditingId(undefined);
                       }}
                       onDragStart={(e) => onNodeDragStart(n, e)}
+                      onStartConnect={(e) => startConnect(n, e)}
+                      onAddChild={() => {
+                        const id = addNode(project.id, { parentId: n.id });
+                        setSelectedId(id);
+                        setEditingId(id);
+                      }}
+                      onToggleCollapsed={() => toggleCollapsed(project.id, n.id)}
+                      onImageUpload={(file) => {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          updateNode(project.id, n.id, {
+                            image: reader.result as string,
+                            imageName: file.name,
+                          });
+                        };
+                        reader.readAsDataURL(file);
+                      }}
                     />
                   </div>
                 );
@@ -222,71 +443,97 @@ export function MindMapEditor({ project }: { project: Project }) {
             </div>
           )}
 
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-full border border-border/60 bg-popover/90 backdrop-blur px-1 py-1 text-xs font-mono">
-            <button className="px-2 py-1 hover:bg-muted rounded-full" onClick={() => setViewport((v) => ({ ...v, zoom: Math.max(0.15, v.zoom / 1.2) }))}>−</button>
-            <span className="px-2 tabular-nums">{Math.round(viewport.zoom * 100)}%</span>
-            <button className="px-2 py-1 hover:bg-muted rounded-full" onClick={() => setViewport((v) => ({ ...v, zoom: Math.min(3, v.zoom * 1.2) }))}>+</button>
+          {/* Bottom bar: zoom + hints */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 rounded-full border border-border/60 bg-popover/90 backdrop-blur px-2 py-1 text-xs font-mono">
+            <button
+              className="px-2 py-1 hover:bg-muted rounded-full"
+              onClick={() => setViewport((v) => ({ ...v, zoom: Math.max(0.2, v.zoom / 1.2) }))}
+            >
+              −
+            </button>
+            <span className="tabular-nums">{Math.round(viewport.zoom * 100)}%</span>
+            <button
+              className="px-2 py-1 hover:bg-muted rounded-full"
+              onClick={() => setViewport((v) => ({ ...v, zoom: Math.min(2.5, v.zoom * 1.2) }))}
+            >
+              +
+            </button>
+          </div>
+
+          <div className="absolute bottom-4 right-4 rounded-lg border border-border/60 bg-popover/85 backdrop-blur px-3 py-2 text-[11px] leading-relaxed text-muted-foreground max-w-[240px]">
+            <div className="text-foreground/80 font-semibold mb-1">Atalhos</div>
+            <div><kbd className="font-mono">Tab</kbd> filho · <kbd className="font-mono">Enter</kbd> irmão</div>
+            <div><kbd className="font-mono">F2</kbd> editar · <kbd className="font-mono">Del</kbd> excluir · <kbd className="font-mono">Espaço</kbd> recolher</div>
+            <div>Alça azul: puxar p/ criar/reconectar</div>
+            <div><kbd className="font-mono">Alt</kbd>+arrastar: mudar pai · Duplo-clique: novo nó</div>
           </div>
         </main>
 
-        {sidebar && (
-          <aside className="w-72 shrink-0 border-l border-border/60 bg-card/40 flex flex-col">
+        {selectedId && (
+          <aside className="w-64 shrink-0 border-l border-border/60 bg-card/40 flex flex-col">
             <div className="px-4 py-3 border-b border-border/60">
-              <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Ordem de apresentação</div>
-              <p className="text-xs text-muted-foreground/70 mt-1">Arraste para reorganizar.</p>
+              <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Nó selecionado</div>
             </div>
-            <div className="flex-1 overflow-auto p-2 space-y-1">
-              {order.map((id, i) => {
-                const n = project.nodes.find((x) => x.id === id);
-                if (!n) return null;
-                const isOver = dragOrder?.over === i && dragOrder.from !== i;
-                return (
-                  <div
-                    key={id}
-                    draggable
-                    onDragStart={() => setDragOrder({ from: i, over: i })}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setDragOrder((d) => (d ? { ...d, over: i } : null));
-                    }}
-                    onDrop={() => {
-                      if (!dragOrder) return;
-                      const next = order.slice();
-                      const [moved] = next.splice(dragOrder.from, 1);
-                      next.splice(dragOrder.over, 0, moved);
-                      reorderNodes(project.id, next);
-                      setDragOrder(null);
-                    }}
-                    onDragEnd={() => setDragOrder(null)}
-                    onClick={() => {
-                      setSelectedId(id);
-                      setViewport((v) => ({ ...v, x: n.x, y: n.y }));
-                    }}
-                    className={`flex items-center gap-2 rounded-md px-2 py-2 text-sm cursor-pointer border ${
-                      selectedId === id ? "bg-primary/10 border-primary/40" : "border-transparent hover:bg-muted/50"
-                    } ${isOver ? "border-primary" : ""}`}
-                  >
-                    <GripVertical className="size-3.5 text-muted-foreground shrink-0" />
-                    <span className="size-6 rounded-full bg-primary/20 text-primary text-[11px] font-mono grid place-items-center shrink-0">
-                      {i + 1}
-                    </span>
-                    <span className="truncate text-foreground/90">{n.text || "Sem texto"}</span>
-                  </div>
-                );
-              })}
-              {order.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-6">Sem nós ainda.</p>
-              )}
-            </div>
-            <div className="p-3 border-t border-border/60 text-[11px] text-muted-foreground leading-relaxed">
-              <p><b>Atalhos:</b></p>
-              <p>• Arrastar fundo: mover</p>
-              <p>• Scroll: zoom</p>
-              <p>• Duplo clique no nó: editar</p>
-              <p>• F5 / Apresentar: modo apresentação</p>
-            </div>
+            <SelectedPanel
+              node={project.nodes.find((n) => n.id === selectedId)}
+              onDetach={() => selectedId && setParent(project.id, selectedId, null)}
+              onDelete={() => {
+                if (!selectedId) return;
+                const sel = project.nodes.find((n) => n.id === selectedId);
+                deleteNode(project.id, selectedId);
+                setSelectedId(sel?.parentId ?? undefined);
+              }}
+            />
           </aside>
         )}
+      </div>
+    </div>
+  );
+}
+
+function SelectedPanel({
+  node,
+  onDetach,
+  onDelete,
+}: {
+  node: MindNode | undefined;
+  onDetach: () => void;
+  onDelete: () => void;
+}) {
+  if (!node) return null;
+  return (
+    <div className="flex-1 overflow-auto p-4 space-y-3 text-sm">
+      <div className="rounded-md bg-muted/40 border border-border/50 p-3">
+        <div className="text-xs text-muted-foreground mb-1">Texto</div>
+        <div className="whitespace-pre-wrap text-foreground">
+          {node.text || <span className="italic text-muted-foreground/60">vazio</span>}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+        <div>
+          <div>Pai</div>
+          <div className="text-foreground">{node.parentId ? "sim" : "raiz"}</div>
+        </div>
+        <div>
+          <div>Recolhido</div>
+          <div className="text-foreground">{node.collapsed ? "sim" : "não"}</div>
+        </div>
+      </div>
+      <div className="pt-2 space-y-1">
+        {node.parentId && (
+          <button
+            onClick={onDetach}
+            className="w-full text-left rounded-md px-3 py-2 text-xs hover:bg-muted"
+          >
+            Desconectar do pai (virar raiz)
+          </button>
+        )}
+        <button
+          onClick={onDelete}
+          className="w-full text-left rounded-md px-3 py-2 text-xs text-destructive hover:bg-destructive/10 flex items-center gap-2"
+        >
+          <Trash2 className="size-3.5" /> Excluir nó (e filhos)
+        </button>
       </div>
     </div>
   );

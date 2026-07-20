@@ -1,8 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import type { Project } from "@/lib/types";
-import { presentationOrder } from "@/lib/store";
+import { presentationOrder, descendantIds } from "@/lib/store";
 import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
 
@@ -23,10 +23,19 @@ export function Presentation({ project }: { project: Project }) {
     return () => ro.disconnect();
   }, []);
 
+  const visibleIds = useMemo(() => {
+    const hidden = new Set<string>();
+    for (const n of project.nodes) {
+      if (n.collapsed) {
+        for (const d of descendantIds(project.nodes, n.id)) hidden.add(d);
+      }
+    }
+    return new Set(project.nodes.map((n) => n.id).filter((id) => !hidden.has(id)));
+  }, [project.nodes]);
+
   const activeId = order[idx];
   const activeNode = project.nodes.find((n) => n.id === activeId);
 
-  // Compute viewport that focuses on the active node.
   const focusZoom = 1.35;
   const viewport = activeNode
     ? { x: activeNode.x, y: activeNode.y, zoom: focusZoom }
@@ -44,7 +53,6 @@ export function Presentation({ project }: { project: Project }) {
   }
 
   useEffect(() => {
-    // Enter fullscreen on mount.
     const el = document.documentElement;
     if (el.requestFullscreen && !document.fullscreenElement) {
       el.requestFullscreen().catch(() => {});
@@ -79,33 +87,34 @@ export function Presentation({ project }: { project: Project }) {
       <div ref={containerRef} className="absolute inset-0">
         <MindMapCanvas
           nodes={project.nodes}
-          order={order}
+          visibleIds={visibleIds}
           viewport={viewport}
           containerSize={size}
           animated
         >
           {project.nodes.map((n) => {
-            const oi = order.indexOf(n.id);
+            if (!visibleIds.has(n.id)) return null;
             return (
-              <div key={n.id}>
-                <NodeCard
-                  node={n}
-                  orderIndex={oi >= 0 ? oi : null}
-                  selected={false}
-                  active={n.id === activeId}
-                  presentation
-                  onSelect={() => {}}
-                  onChange={() => {}}
-                  onDelete={() => {}}
-                  onDragStart={() => {}}
-                />
-              </div>
+              <NodeCard
+                key={n.id}
+                node={n}
+                childCount={0}
+                selected={false}
+                editing={false}
+                active={n.id === activeId}
+                presentation
+                onSelect={() => {}}
+                onStartEdit={() => {}}
+                onEndEdit={() => {}}
+                onChange={() => {}}
+                onDelete={() => {}}
+                onDragStart={() => {}}
+              />
             );
           })}
         </MindMapCanvas>
       </div>
 
-      {/* Controls */}
       <div className="absolute top-4 right-4 z-10">
         <button
           onClick={exit}
