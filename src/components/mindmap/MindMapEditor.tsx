@@ -463,6 +463,7 @@ export function MindMapEditor({ project }: { project: Project }) {
               viewport={viewport}
               containerSize={size}
               pendingEdge={pendingEdge}
+              colorById={colorMap}
               onBackgroundPointerDown={onBgPointerDown}
               onWheel={onWheel}
               onBackgroundDoubleClick={handleBgDoubleClick}
