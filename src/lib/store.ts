@@ -1,9 +1,11 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
 import type { MindNode, Project } from "./types";
 
-function uid(prefix = "id") {
-  return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
+function uid(_prefix = "id") {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `${_prefix}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
 interface State {
@@ -11,9 +13,12 @@ interface State {
 }
 
 interface Actions {
+  hydrate: (projects: Project[]) => void;
+  reset: () => void;
   createProject: (title: string) => string;
   deleteProject: (id: string) => void;
   renameProject: (id: string, title: string) => void;
+
 
   addNode: (
     projectId: string,
