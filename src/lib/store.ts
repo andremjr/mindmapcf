@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { MindNode, Project, SonicAvatar } from "./types";
+import type { MindNode, Project, SonicAvatarEntry, SonicAvatarUsage } from "./types";
 
 
 function uid(_prefix = "id") {
@@ -11,6 +11,7 @@ function uid(_prefix = "id") {
 
 interface State {
   projects: Project[];
+  avatars: SonicAvatarEntry[];
 }
 
 interface Actions {
@@ -47,7 +48,12 @@ interface Actions {
   autoLayout: (projectId: string) => void;
 
   setViewport: (projectId: string, v: { x: number; y: number; zoom: number }) => void;
-  setSonicAvatar: (projectId: string, patch: Partial<SonicAvatar> | null) => void;
+  setSonicAvatar: (projectId: string, patch: Partial<SonicAvatarUsage> | null) => void;
+
+  // Global user-scoped avatar library
+  hydrateAvatars: (avatars: SonicAvatarEntry[]) => void;
+  upsertAvatarLocal: (entry: SonicAvatarEntry) => void;
+  removeAvatarLocal: (id: string) => void;
 }
 
 
@@ -411,11 +417,9 @@ export const useStore = create<State & Actions>()((set) => ({
           const { sonicAvatar: _, ...rest } = p;
           return { ...rest, updatedAt: new Date().toISOString() };
         }
-        const base: SonicAvatar = p.sonicAvatar ?? {
-          enabled: false,
-          bgColor: "#0f172a",
-          waveColor: "#22d3ee",
-          sizePct: 18,
+        const base: SonicAvatarUsage = p.sonicAvatar ?? {
+          avatarId: "",
+          enabled: true,
           xPct: 12,
           yPct: 82,
         };
@@ -426,6 +430,18 @@ export const useStore = create<State & Actions>()((set) => ({
         };
       }),
     })),
+
+  hydrateAvatars: (avatars) => set({ avatars }),
+  upsertAvatarLocal: (entry) =>
+    set((s) => {
+      const idx = s.avatars.findIndex((a) => a.id === entry.id);
+      if (idx === -1) return { avatars: [...s.avatars, entry] };
+      const next = s.avatars.slice();
+      next[idx] = entry;
+      return { avatars: next };
+    }),
+  removeAvatarLocal: (id) =>
+    set((s) => ({ avatars: s.avatars.filter((a) => a.id !== id) })),
 }));
 
 
