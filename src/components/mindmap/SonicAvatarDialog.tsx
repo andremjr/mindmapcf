@@ -385,7 +385,7 @@ function EditForm({
             </button>
           )}
           <p className="text-[10px] text-muted-foreground">
-            PNG transparente: a cor do círculo aparece atrás. Imagem quadrada: recortada no molde.
+            PNG transparente: a cor do círculo aparece atrás. Imagem quadrada: recortada no molde. Máx. 3MB.
           </p>
         </div>
       </div>
