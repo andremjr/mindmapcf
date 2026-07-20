@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Plus, Network, Trash2, Clock, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/dialog";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/hooks/useAuth";
-import { useMindmapSync } from "@/lib/mindmapSync";
 import { supabase } from "@/integrations/supabase/client";
 
 
@@ -33,20 +32,12 @@ function ProjectsDashboard() {
   const createProject = useStore((s) => s.createProject);
   const deleteProject = useStore((s) => s.deleteProject);
   const navigate = useNavigate();
-  const { session, loading } = useAuth();
+  const { session } = useAuth();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
 
-  useMindmapSync(session?.user.id);
-
-  useEffect(() => {
-    if (!loading && !session) navigate({ to: "/auth", replace: true });
-  }, [loading, session, navigate]);
-
-
-  if (loading || !session) {
-    return <div className="min-h-screen grid place-items-center text-sm text-muted-foreground">Carregando…</div>;
-  }
+  // Auth gate + Supabase sync are owned by the /projects layout route.
+  if (!session) return null;
 
 
 
