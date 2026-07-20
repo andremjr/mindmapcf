@@ -309,7 +309,7 @@ function NodeMedia({
               disabled={reconnecting}
               onClick={async () => {
                 setReconnecting(true);
-                const u = await requestImageAccess(ref.id);
+                const u = await requestImageAccess(ref);
                 setReconnecting(false);
                 if (u) {
                   setUrl(u);

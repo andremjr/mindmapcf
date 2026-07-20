@@ -173,6 +173,25 @@ export function Presentation({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      const isNav =
+        e.key === "ArrowRight" ||
+        e.key === "ArrowDown" ||
+        e.key === " " ||
+        e.key === "PageDown" ||
+        e.key === "ArrowLeft" ||
+        e.key === "ArrowUp" ||
+        e.key === "PageUp" ||
+        e.key === "Home" ||
+        e.key === "End" ||
+        e.key === "Escape";
+      if (isNav) {
+        // A focused <video controls> steals arrows for seeking. Blur it so
+        // the presentation navigation wins.
+        const ae = document.activeElement as HTMLElement | null;
+        if (ae && (ae.tagName === "VIDEO" || ae.closest("video"))) {
+          ae.blur();
+        }
+      }
       if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === " " || e.key === "PageDown") {
         e.preventDefault();
         next();
@@ -190,10 +209,11 @@ export function Presentation({
         exit();
       }
     }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order.length, recording]);
+
 
   // Recording HUD ticker.
   const [recTick, setRecTick] = useState(0);
