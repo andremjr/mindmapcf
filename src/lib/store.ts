@@ -32,6 +32,17 @@ interface Actions {
   deleteNode: (projectId: string, nodeId: string) => void;
   setParent: (projectId: string, nodeId: string, parentId: string | null) => void;
   toggleCollapsed: (projectId: string, nodeId: string) => void;
+  /**
+   * Set a node's accent color. When `cascade` is true, clears the `color`
+   * from every descendant so the whole branch takes this color via
+   * inheritance (see buildColorMap).
+   */
+  setNodeColor: (
+    projectId: string,
+    nodeId: string,
+    color: string | undefined,
+    cascade?: boolean,
+  ) => void;
   autoLayout: (projectId: string) => void;
 
   setViewport: (projectId: string, v: { x: number; y: number; zoom: number }) => void;
