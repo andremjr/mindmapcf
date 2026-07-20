@@ -46,7 +46,7 @@ export function NodeCard({
   onStartConnect,
   onAddChild,
   onToggleCollapsed,
-  onImageUpload,
+  onPickImage,
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
