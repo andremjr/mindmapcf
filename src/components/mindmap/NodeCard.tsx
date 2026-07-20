@@ -23,6 +23,10 @@ interface Props {
   editing: boolean;
   presentation?: boolean;
   active?: boolean;
+  /** Resolved accent color (inherits from ancestors — computed by parent). */
+  effectiveColor?: string;
+  /** Whether this node has any descendants (used to enable branch-cascade). */
+  hasDescendants?: boolean;
   onSelect: () => void;
   onStartEdit: () => void;
   onEndEdit: () => void;
@@ -34,7 +38,9 @@ interface Props {
   onToggleCollapsed?: () => void;
   onPickImage?: () => void;
   onPickVideo?: () => void;
+  onSetColor?: (color: string | undefined, cascade: boolean) => void;
 }
+
 
 export function NodeCard({
   node,
