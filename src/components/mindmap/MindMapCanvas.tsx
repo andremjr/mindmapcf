@@ -36,12 +36,14 @@ export const MindMapCanvas = forwardRef<HTMLDivElement, Props>(function MindMapC
     children,
     animated,
     pendingEdge,
+    colorById,
     onBackgroundPointerDown,
     onWheel,
     onBackgroundDoubleClick,
   },
   ref,
 ) {
+
   const { x, y, zoom } = viewport;
   const cx = containerSize.w / 2;
   const cy = containerSize.h / 2;
