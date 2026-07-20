@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { getRecordingAnalyser, getRecordingHasMic } from "@/lib/screenRecorder";
+
 
 function formatDuration(ms: number) {
   const s = Math.max(0, Math.floor(ms / 1000));
