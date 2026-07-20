@@ -22,6 +22,7 @@ import { Route as ProjectsIdRouteImport } from './routes/projects.$id'
 import { Route as CheckoutSuccessRouteImport } from './routes/checkout.success'
 import { Route as ProjectsIdPresentRouteImport } from './routes/projects.$id.present'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
+import { Route as ApiPublicKiwifyWebhookRouteImport } from './routes/api/public/kiwify/webhook'
 
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
@@ -89,6 +90,11 @@ const ApiPublicPaymentsWebhookRoute =
     path: '/api/public/payments/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicKiwifyWebhookRoute = ApiPublicKiwifyWebhookRouteImport.update({
+  id: '/api/public/kiwify/webhook',
+  path: '/api/public/kiwify/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/projects/$id': typeof ProjectsIdRouteWithChildren
   '/projects/': typeof ProjectsIndexRoute
   '/projects/$id/present': typeof ProjectsIdPresentRoute
+  '/api/public/kiwify/webhook': typeof ApiPublicKiwifyWebhookRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -117,6 +124,7 @@ export interface FileRoutesByTo {
   '/projects/$id': typeof ProjectsIdRouteWithChildren
   '/projects': typeof ProjectsIndexRoute
   '/projects/$id/present': typeof ProjectsIdPresentRoute
+  '/api/public/kiwify/webhook': typeof ApiPublicKiwifyWebhookRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesById {
@@ -133,6 +141,7 @@ export interface FileRoutesById {
   '/projects/$id': typeof ProjectsIdRouteWithChildren
   '/projects/': typeof ProjectsIndexRoute
   '/projects/$id/present': typeof ProjectsIdPresentRoute
+  '/api/public/kiwify/webhook': typeof ApiPublicKiwifyWebhookRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRouteTypes {
@@ -150,6 +159,7 @@ export interface FileRouteTypes {
     | '/projects/$id'
     | '/projects/'
     | '/projects/$id/present'
+    | '/api/public/kiwify/webhook'
     | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -164,6 +174,7 @@ export interface FileRouteTypes {
     | '/projects/$id'
     | '/projects'
     | '/projects/$id/present'
+    | '/api/public/kiwify/webhook'
     | '/api/public/payments/webhook'
   id:
     | '__root__'
@@ -179,6 +190,7 @@ export interface FileRouteTypes {
     | '/projects/$id'
     | '/projects/'
     | '/projects/$id/present'
+    | '/api/public/kiwify/webhook'
     | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
 }
@@ -192,6 +204,7 @@ export interface RootRouteChildren {
   RefundRoute: typeof RefundRoute
   TermsRoute: typeof TermsRoute
   CheckoutSuccessRoute: typeof CheckoutSuccessRoute
+  ApiPublicKiwifyWebhookRoute: typeof ApiPublicKiwifyWebhookRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
@@ -288,6 +301,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/kiwify/webhook': {
+      id: '/api/public/kiwify/webhook'
+      path: '/api/public/kiwify/webhook'
+      fullPath: '/api/public/kiwify/webhook'
+      preLoaderRoute: typeof ApiPublicKiwifyWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -327,6 +347,7 @@ const rootRouteChildren: RootRouteChildren = {
   RefundRoute: RefundRoute,
   TermsRoute: TermsRoute,
   CheckoutSuccessRoute: CheckoutSuccessRoute,
+  ApiPublicKiwifyWebhookRoute: ApiPublicKiwifyWebhookRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport
