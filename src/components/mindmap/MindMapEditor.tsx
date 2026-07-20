@@ -313,10 +313,34 @@ export function MindMapEditor({ project }: { project: Project }) {
   }
 
   const [recordFormatOpen, setRecordFormatOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   function handleRecordAndPresent() {
     setViewportPersist(project.id, viewport);
     setRecordFormatOpen(true);
+  }
+
+  async function handleImportFile(file: File) {
+    try {
+      const text = await file.text();
+      const imported = importFromText(text, file.name);
+      if (imported.nodes.length === 0) {
+        toast.error("Arquivo vazio ou não reconhecido.");
+        return;
+      }
+      const base = file.name.replace(/\.[^.]+$/, "");
+      const newTitle =
+        imported.title && imported.title !== "Mapa importado" ? imported.title : base;
+      replaceProjectNodes(project.id, imported.nodes, newTitle);
+      setSelectedId(imported.nodes[0]?.id);
+      setEditingId(undefined);
+      setViewport({ x: 0, y: 0, zoom: 1 });
+      setImportOpen(false);
+      toast.success(`Mapa importado — ${imported.nodes.length} nós (o mapa anterior foi substituído).`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Falha ao importar. Verifique o arquivo .md ou .json.");
+    }
   }
 
   async function startRecordingWithFormat(fmt: RecordFormat) {
