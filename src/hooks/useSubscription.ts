@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { getPaddleEnvironment } from "@/lib/paddle";
 
 type SubscriptionRow = {
   status: string;
   current_period_end: string | null;
   price_id: string;
-  environment: "sandbox" | "live";
+  environment: string;
 };
 
 function isActive(row: SubscriptionRow | null) {
@@ -20,7 +19,6 @@ function isActive(row: SubscriptionRow | null) {
 export function useSubscription(userId: string | undefined) {
   const [subscription, setSubscription] = useState<SubscriptionRow | null>(null);
   const [loading, setLoading] = useState(true);
-  const environment = getPaddleEnvironment();
 
   useEffect(() => {
     let alive = true;
@@ -35,7 +33,6 @@ export function useSubscription(userId: string | undefined) {
         .from("subscriptions")
         .select("status, current_period_end, price_id, environment")
         .eq("user_id", userId)
-        .eq("environment", environment)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -63,7 +60,7 @@ export function useSubscription(userId: string | undefined) {
       alive = false;
       supabase.removeChannel(channel);
     };
-  }, [userId, environment]);
+  }, [userId]);
 
-  return { subscription, loading, isPro: isActive(subscription), environment };
+  return { subscription, loading, isPro: isActive(subscription) };
 }

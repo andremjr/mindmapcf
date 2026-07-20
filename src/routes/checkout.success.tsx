@@ -21,7 +21,6 @@ function CheckoutSuccess() {
   const [waited, setWaited] = useState(0);
   const navigate = useNavigate();
 
-  // Poll perception: increment every 2s so the UI can show "still processing" fallback.
   useEffect(() => {
     if (isPro) return;
     const t = setInterval(() => setWaited((w) => w + 1), 2000);
@@ -52,11 +51,13 @@ function CheckoutSuccess() {
             <Loader2 className="mx-auto mb-4 size-12 text-primary animate-spin" />
             <h1 className="text-2xl font-semibold">Confirmando pagamento</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Estamos aguardando a confirmação do pagamento. Isso costuma levar poucos segundos.
+              Estamos aguardando a confirmação do pagamento pela Kiwify. Isso costuma levar poucos segundos
+              para cartão, e alguns minutos para Pix ou boleto.
             </p>
             {waited > 8 && (
               <p className="mt-4 text-xs text-muted-foreground">
-                Está demorando mais que o esperado. Você pode voltar aos mapas — o acesso será liberado assim que o pagamento for confirmado.
+                Está demorando mais que o esperado. Você pode voltar aos mapas — o acesso será liberado
+                assim que o pagamento for confirmado.
               </p>
             )}
           </>

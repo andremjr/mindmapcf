@@ -1,33 +1,39 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, Check, Crown, Loader2, Network } from "lucide-react";
+import { ArrowLeft, Check, Crown, Network } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
 import { useSubscription } from "@/hooks/useSubscription";
 import { SiteFooter } from "@/components/SiteFooter";
-import { toast } from "sonner";
+import { buildKiwifyCheckoutUrl, type KiwifyPlanId } from "@/lib/kiwifyLinks";
 
-const PLANS = [
+const PLANS: Array<{
+  id: KiwifyPlanId;
+  label: string;
+  price: string;
+  detail: string;
+  renewal: string;
+  effective: string | null;
+}> = [
   {
     id: "pro_monthly",
     label: "Mensal",
-    price: "R$ 29,90 BRL",
+    price: "R$ 29,90",
     detail: "por mês, cobrado mensalmente",
     renewal: "Renova automaticamente por R$ 29,90/mês até você cancelar.",
-    effective: null as string | null,
+    effective: null,
   },
   {
     id: "pro_semiannual",
     label: "Semestral",
-    price: "R$ 159,00 BRL",
-    detail: "a cada 6 meses (equivalente a R$ 26,50/mês)",
-    renewal: "Renova automaticamente por R$ 159,00 a cada 6 meses até você cancelar.",
+    price: "R$ 159,90",
+    detail: "a cada 6 meses (equivalente a R$ 26,65/mês)",
+    renewal: "Renova automaticamente por R$ 159,90 a cada 6 meses até você cancelar.",
     effective: "Economize ~11% vs. mensal",
   },
   {
     id: "pro_annual",
     label: "Anual",
-    price: "R$ 297,00 BRL",
+    price: "R$ 297,00",
     detail: "por ano (equivalente a R$ 24,75/mês)",
     renewal: "Renova automaticamente por R$ 297,00 a cada 12 meses até você cancelar.",
     effective: "Economize ~17% vs. mensal",
@@ -46,11 +52,10 @@ export const Route = createFileRoute("/pricing")({
 
 function PricingPage() {
   const { user, loading } = useAuth();
-  const { openCheckout, loadingPriceId } = usePaddleCheckout();
   const { isPro } = useSubscription(user?.id);
   const navigate = useNavigate();
 
-  async function subscribe(priceId: string) {
+  function subscribe(planId: KiwifyPlanId) {
     if (!user) {
       navigate({ to: "/auth" });
       return;
@@ -59,17 +64,8 @@ function PricingPage() {
       navigate({ to: "/account" });
       return;
     }
-    try {
-      await openCheckout({
-        priceId,
-        customerEmail: user.email,
-        customData: { userId: user.id },
-        successUrl: `${window.location.origin}/checkout/success`,
-      });
-    } catch (error: any) {
-      console.error("[payments] checkout", error);
-      toast.error(error?.message ?? "Não foi possível abrir o pagamento.");
-    }
+    const url = buildKiwifyCheckoutUrl(planId, user.email);
+    window.location.href = url;
   }
 
   return (
@@ -103,42 +99,38 @@ function PricingPage() {
         </div>
 
         <div className="mt-8 grid gap-4 md:grid-cols-3">
-          {PLANS.map((plan) => {
-            const isLoading = loading || loadingPriceId === plan.id;
-            return (
-              <div key={plan.id} className="flex flex-col rounded-xl border border-border bg-card p-6">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm font-medium">Canvas Narrativo Pro — {plan.label}</div>
-                  {plan.effective && (
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-                      {plan.effective}
-                    </span>
-                  )}
-                </div>
-                <div className="mt-4 text-3xl font-semibold">{plan.price}</div>
-                <div className="text-sm text-muted-foreground">{plan.detail}</div>
-                <ul className="mt-6 space-y-2 text-sm text-muted-foreground">
-                  <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Mapas mentais ilimitados</li>
-                  <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Nós ilimitados por mapa</li>
-                  <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Imagens e vídeos nos nós</li>
-                  <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Modo apresentação cinematográfico</li>
-                  <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Gravação MP4 (1080p, 4K, vertical)</li>
-                  <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Importação via IA (Markdown/JSON)</li>
-                </ul>
-                <Button className="mt-6 w-full" onClick={() => subscribe(plan.id)} disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
-                  Assinar {plan.label}
-                </Button>
-                <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">{plan.renewal}</p>
+          {PLANS.map((plan) => (
+            <div key={plan.id} className="flex flex-col rounded-xl border border-border bg-card p-6">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-medium">Canvas Narrativo Pro — {plan.label}</div>
+                {plan.effective && (
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                    {plan.effective}
+                  </span>
+                )}
               </div>
-            );
-          })}
+              <div className="mt-4 text-3xl font-semibold">{plan.price}</div>
+              <div className="text-sm text-muted-foreground">{plan.detail}</div>
+              <ul className="mt-6 space-y-2 text-sm text-muted-foreground">
+                <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Mapas mentais ilimitados</li>
+                <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Nós ilimitados por mapa</li>
+                <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Imagens e vídeos nos nós</li>
+                <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Modo apresentação cinematográfico</li>
+                <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Gravação MP4 (1080p, 4K, vertical)</li>
+                <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Importação via IA (Markdown/JSON)</li>
+              </ul>
+              <Button className="mt-6 w-full" onClick={() => subscribe(plan.id)} disabled={loading}>
+                Assinar {plan.label}
+              </Button>
+              <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">{plan.renewal}</p>
+            </div>
+          ))}
         </div>
 
         <div className="mt-10 space-y-2 rounded-lg border border-border bg-card/50 p-5 text-xs leading-relaxed text-muted-foreground">
           <p>
-            <strong className="text-foreground">Preços em Reais (BRL).</strong> Impostos podem ser aplicados
-            e serão calculados no checkout conforme sua localização.
+            <strong className="text-foreground">Preços em Reais (BRL).</strong> Pagamento processado pela
+            Kiwify — cartão de crédito, Pix e boleto disponíveis no checkout.
           </p>
           <p>
             Todas as assinaturas <strong className="text-foreground">renovam automaticamente</strong> ao fim de
@@ -151,9 +143,8 @@ function PricingPage() {
             cartão de crédito.
           </p>
           <p>
-            O processo de pedido é conduzido pelo nosso revendedor online <strong className="text-foreground">Paddle.com</strong>,
-            Merchant of Record de todas as vendas. Consulte também nossa{" "}
-            <Link to="/refund" className="underline">Política de Reembolso</Link> (garantia de 30 dias) e os{" "}
+            Consulte também nossa{" "}
+            <Link to="/refund" className="underline">Política de Reembolso</Link> (garantia de 7 dias) e os{" "}
             <Link to="/terms" className="underline">Termos de Uso</Link>.
           </p>
         </div>
