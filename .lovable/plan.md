@@ -1,91 +1,97 @@
-## Canvas Narrativo — Plano de Implementação (Prompts 1–3)
+# Vídeo nos nós + gravação da apresentação
 
-Plataforma para transformar áudios em vídeos no estilo "quadro infinito textual cinematográfico". MVP sem IA generativa, sem imagens, focado em texto + canvas + câmera + som.
+## Resumo
 
-### Stack e arquitetura
-- TanStack Start (já configurado) + Tailwind v4 + shadcn/ui.
-- Zustand para estado global do projeto atual (leve, sem boilerplate).
-- LocalStorage para persistir projetos (mock de backend — Lovable Cloud fica para depois).
-- Sem backend agora; `assemblyService` preparado para edge function futura.
+Duas features independentes, ambas 100% client-side. Nada novo vai para o Supabase — o JSON do mapa continua leve, guardando só o `mediaRef` (id local). O vídeo real fica no computador do usuário (File System Access API, igual às imagens de hoje). A gravação da apresentação usa `getDisplayMedia` + `MediaRecorder` e devolve um `.webm` (ou `.mp4` no Safari) baixável na hora.
 
-### Estrutura de arquivos
-```text
-src/
-  routes/
-    index.tsx                 → redireciona para /projects
-    projects.tsx              → Dashboard de projetos
-    projects.$id.tsx          → Editor (layout principal)
-  components/
-    editor/
-      EditorLayout.tsx        → sidebar + canvas + properties + timeline
-      LeftSidebar.tsx         → navegação entre etapas (Audio, Transcript, Blocks, Canvas, Render)
-      CanvasPreview.tsx       → placeholder do quadro infinito (Prompt 4+)
-      PropertiesPanel.tsx     → propriedades contextuais
-      Timeline.tsx            → timeline inferior com playhead
-    audio/
-      AudioUploader.tsx       → drop/upload + player + meta
-      AssemblyConfig.tsx      → API key (sessionStorage), idioma, opções
-      TranscriptView.tsx      → texto + palavras com timestamps
-    blocks/
-      BlocksReview.tsx        → lista editável de blocos
-      BlockEditor.tsx         → editar texto/shortText/tipo, split/merge/delete
-    projects/
-      ProjectsDashboard.tsx
-      ProjectCard.tsx
-  lib/
-    types.ts                  → todos os tipos TS
-    store.ts                  → Zustand store (currentProject, projects)
-    mockProject.ts            → projeto exemplo completo
-    assemblyService.ts        → transcribeAudioMock + stub real
-    blockGenerator.ts         → algoritmo de blocos + shortText + classificação
-    triggers.ts               → mapas de palavras-gatilho
-  styles.css                  → tema escuro cinematográfico
-```
+## Parte 1 — Vídeo no nó
 
-### Tipos (lib/types.ts)
-`Project, AudioFile, Transcript, TranscriptWord, TranscriptBlock, TextNode, CameraKeyframe, SfxEvent, VisualPreset, SoundPreset, RenderConfig` + enum `ProjectStatus` com os 7 status (draft → exported).
+### É possível? Sim, e o encanamento já existe
 
-### Design System
-- Tema escuro: bg `oklch(0.14 0.01 270)`, surface elevada, accent ciano/violeta sutil.
-- Tipografia: Inter (UI) + JetBrains Mono (timestamps/dados).
-- Cards com borda sutil, sombra ambiente, hover com glow leve.
-- Botões: primary (accent), ghost, destructive — todos via shadcn variants.
-- Fontes carregadas via `<link>` em `__root.tsx`.
+O `src/lib/imageStorage.ts` já persiste referência para arquivos locais via File System Access API com fallback em IndexedDB. Vídeo funciona igual: o `<video>` do HTML aceita o mesmo `URL.createObjectURL(file)` que hoje usamos para imagem. A única mudança é o tipo do arquivo aceito e o componente que renderiza.
 
-### Prompt 1 — Fundação
-1. Criar `lib/types.ts`, `lib/store.ts`, `lib/mockProject.ts` (1 projeto com 15 blocos, keyframes, sfx).
-2. Tema escuro em `styles.css` com tokens semânticos.
-3. Rotas: dashboard `/projects` + editor `/projects/$id`.
-4. `EditorLayout` com 4 zonas (sidebar | canvas placeholder | properties | timeline).
-5. Navegação por etapas via `LeftSidebar` (controla qual painel central exibe).
+### Mudanças de dados
 
-### Prompt 2 — Áudio + AssemblyAI (mock)
-1. `AudioUploader`: drag/drop, `<audio>` player, mostra nome/tamanho/duração, botão trocar/remover. Arquivo via `URL.createObjectURL`.
-2. `AssemblyConfig`: API key (sessionStorage + aviso de segurança), idioma (default pt-BR), toggles word-timestamps e punctuation, botão "Transcrever".
-3. `assemblyService.ts`:
-   - `transcribeAudioMock(audio, opts)` → Promise com delay simulado, retorna `Transcript` rico (texto, ~80 palavras com start/end, parágrafos, duração, idioma).
-   - `transcribeAudioReal()` stub com comentários TODO indicando endpoint AssemblyAI e necessidade de edge function.
-   - Estados loading/error/success expostos via store.
-4. `TranscriptView`: texto completo, lista de palavras destacáveis, botão "Gerar blocos de fala".
+- Renomear `imageRef` → `mediaRef` no `MindNode` (com um campo `kind: "image" | "video"`), ou adicionar um `videoRef` paralelo. Prefiro **unificar em `mediaRef`** para não duplicar lógica de reflow, permissão, "reconectar" etc. Migração simples: ao hidratar, se existir `imageRef` antigo, tratamos como `mediaRef` com `kind: "image"`.
+- Manter o campo legacy `image` (base64) só para leitura retroativa — já sabemos que nada novo vai para lá.
 
-### Prompt 3 — Algoritmo de blocos
-1. `lib/triggers.ts`: mapas de palavras-gatilho por tipo (intro, contrast, problem, solution, example, conclusion, warning).
-2. `lib/blockGenerator.ts`:
-   - `generateBlocks(transcript)`: segmenta por pausa (>0.6s), pontuação forte, e limite de duração (5–12s) / caracteres (≤120). Divide frases longas; junta micro-segmentos.
-   - `classifyBlock(text)`: aplica triggers → tipo; primeiro bloco vira `intro`, último com gatilho de conclusão vira `conclusion`, default `main_idea` ou `detail`.
-   - `generateShortText(text)`: remove stopwords PT-BR, mantém 6–10 palavras-chave preservando ordem.
-   - `extractKeywords(text)`: top N substantivos/verbos por heurística simples.
-   - `computeEmphasis(block)`: 0–1 baseado em pontuação/maiúsculas/triggers.
-3. `BlocksReview`: lista ordenada com inline edit (texto, shortText, tipo via select), ações merge (juntar com próximo), split (no cursor), delete. Botão "Gerar canvas narrativo" muda status para `blocks_generated`.
+### Player dentro do nó
 
-### Persistência e estado
-- Store Zustand: `projects[]`, `currentProjectId`, ações `createProject, updateProject, setAudio, setTranscript, setBlocks, updateBlock, mergeBlocks, splitBlock, deleteBlock, setStatus`.
-- Persist middleware → localStorage (exceto API key, que vai em sessionStorage).
+- Componente `NodeMedia` substitui `NodeImage`. Se `kind === "video"`, renderiza `<video controls playsInline preload="metadata" />` com poster gerado do primeiro frame (capturado com `<canvas>` uma vez, cacheado em memória).
+- Controles nativos (`controls`) já dão play/pause/scrub. Ideal para o cenário "estou apresentando, chego no nó, aperto play, pauso, falo por cima, dou play de novo" — o áudio do vídeo continua tocando pelos alto-falantes e é capturado junto com a narração pela gravação (ver Parte 2).
+- Reflow: vídeo ocupa a mesma altura da imagem hoje (`IMAGE_NODE_H = 190`). Se quisermos aspect ratio 16:9 fiel, lemos `videoWidth/videoHeight` no `loadedmetadata` e ajustamos a altura do card.
 
-### Fora do escopo destes 3 prompts
-- Render real do canvas infinito, câmera, SFX (Prompt 4+).
-- Integração real AssemblyAI (stub pronto).
-- Export MP4 / Remotion.
-- Lovable Cloud / auth.
+### Modo apresentação
 
-Posso seguir e implementar os 3 prompts nesta ordem?
+- Quando a câmera "chega" no nó com vídeo, dá `video.currentTime = 0` e opcionalmente auto-play (config por nó: `autoPlayOnFocus?: boolean`). Ao sair do nó, `pause()`.
+- Se o usuário parar no nó e pausar para falar por cima, nada acontece — a câmera só se move quando ele avança com a seta, então o vídeo pausado fica lá esperando.
+
+### Limitações honestas
+
+- File System Access API só funciona em Chromium (Chrome/Edge/Brave/Arc). No Firefox e Safari cai no fallback IndexedDB — aí o arquivo do vídeo **fica gravado dentro do navegador** (não é upload, mas ocupa espaço no disco do usuário). Para vídeos de 200MB+ isso incomoda. Vou avisar na UI qual modo está ativo.
+- Sem thumbnails no cartão do projeto para vídeo por enquanto (dá para adicionar depois capturando o primeiro frame e cacheando em IndexedDB).
+
+## Parte 2 — Gravação da apresentação (tela + áudio)
+
+### É possível? Sim, nativo do navegador
+
+Duas APIs bastam, sem lib externa:
+
+- `navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })` — captura a tela (a aba, a janela ou o monitor inteiro, o usuário escolhe no diálogo do navegador). O `audio: true` captura o **áudio do sistema/aba** (o som do vídeo do nó toca e é gravado junto).
+- `navigator.mediaDevices.getUserMedia({ audio: true })` — captura o microfone (narração).
+- Junta as duas trilhas de áudio num `AudioContext` (dois `MediaStreamAudioSourceNode` → `MediaStreamAudioDestinationNode`), pega a trilha de vídeo do displayStream, monta um `MediaStream` final e passa para `MediaRecorder`.
+- `MediaRecorder` produz um Blob que vira download `.webm` (VP9+Opus) direto.
+
+### Fluxo de UX
+
+1. Botão "Gravar apresentação" na tela do editor (ao lado de "Apresentar").
+2. Ao clicar: pede permissão de tela (o próprio navegador mostra o seletor), depois pede o microfone. Se qualquer um for negado, aborta com toast explicando.
+3. Entra em fullscreen e no modo apresentação normal. Um indicador discreto no canto (bolinha vermelha + tempo) mostra que está gravando. Tecla **R** para parar (ou botão flutuante).
+4. Ao parar: gera Blob, cria `URL.createObjectURL`, dispara download `apresentacao-<titulo>-<data>.webm`. Também abre um mini-modal: "Baixar" / "Pré-visualizar" (`<video>` inline) / "Descartar".
+
+### Qualidade e formato
+
+- Codec padrão do Chrome/Edge: `video/webm;codecs=vp9,opus`. Ótima qualidade, arquivo compacto. **Não sai MP4 direto** — Chrome não gera MP4 no `MediaRecorder` (ainda). Duas alternativas:
+  - **Recomendado:** entregar `.webm` e explicar que roda em qualquer player moderno (VLC, navegador). É o que o Loom/Vimeo Record fazem.
+  - **Opcional (custo alto):** conversão para MP4 no cliente via `ffmpeg.wasm`. Funciona, mas: baixa ~30MB de wasm, é lento (RT ~0.3× a 0.5× num Mac decente, ou seja, 10min de vídeo levam ~20-30min para converter), e trava a aba se não for feito com Web Worker. **Não recomendo no v1** — deixamos como botão "Converter para MP4" opcional depois.
+  - Safari (macOS 14+) suporta `video/mp4;codecs=avc1,mp4a` no `MediaRecorder`, então detectamos com `MediaRecorder.isTypeSupported` e escolhemos o melhor formato disponível.
+- Bitrate configurável (default 5 Mbps para 1080p). Framerate deixa o browser decidir (30fps típico).
+- Sem limite de duração além da memória disponível. Para segurança, o `MediaRecorder` recebe `timeslice` de 1s — os chunks vão sendo acumulados num array de Blobs, então mesmo 1h de vídeo cabe (fica em disco via Blob, não em RAM contínua).
+
+### Detalhe importante sobre áudio
+
+- O usuário **precisa marcar "Compartilhar áudio da guia"** no diálogo do Chrome quando escolhe uma aba/tela. Se ele esquecer, só grava o mic. Vou colocar um lembrete visível antes do prompt.
+- No Safari, captura de áudio do sistema via `getDisplayMedia` é limitada. Se detectarmos Safari, avisamos que só o mic será gravado com garantia.
+- Se o usuário pausar o vídeo do nó e falar por cima, o mic capta a voz e o áudio do vídeo fica em silêncio nesse trecho — comportamento esperado.
+
+### Limitações honestas
+
+- Só funciona em desktop. Mobile browsers não expõem `getDisplayMedia`.
+- Requer HTTPS (o preview e a produção já são).
+- O usuário vê o próprio prompt de compartilhamento de tela do navegador — não dá para pular isso, é uma exigência de segurança da web.
+
+## Arquivos afetados
+
+- `src/lib/types.ts` — `MindNode.mediaRef: { id, name, size, lastModified, kind }` (unifica image/video).
+- `src/lib/imageStorage.ts` → renomear para `mediaStorage.ts`, aceitar `video/*` no picker, expor `resolveMedia` (devolve `{ url, kind }`).
+- `src/components/mindmap/NodeCard.tsx` — `NodeMedia` no lugar de `NodeImage`, com `<video>` quando `kind === "video"`.
+- `src/lib/store.ts` — `nodeIntrinsicHeight` continua igual (imagem e vídeo ocupam o mesmo espaço).
+- `src/components/mindmap/Presentation.tsx` — auto-play/pause do vídeo do nó focado.
+- `src/lib/screenRecorder.ts` **(novo)** — orquestra `getDisplayMedia` + `getUserMedia` + `AudioContext` mix + `MediaRecorder`, expõe `start()`, `stop(): Promise<Blob>`, evento de tempo decorrido.
+- `src/components/mindmap/RecordingControls.tsx` **(novo)** — indicador flutuante durante gravação, modal de download ao parar.
+- `src/components/mindmap/MindMapEditor.tsx` — botão "Gravar apresentação".
+- `src/routes/projects.$id.present.tsx` — hook `useScreenRecording` opcional quando entrou via botão de gravar.
+
+## Ordem sugerida de implementação
+
+1. Renomear `imageRef` → `mediaRef` com `kind` e migrar leitura retroativa (baixo risco, 1 passo).
+2. Aceitar vídeo no picker + `<video>` no card + auto play/pause no modo apresentação.
+3. `screenRecorder.ts` isolado (testável sozinho) + botão + modal de download.
+4. Polimentos: poster do primeiro frame do vídeo, detecção de codec, avisos de compat.
+
+## O que fica para depois (não faz parte deste plano)
+
+- Conversão automática para MP4 (`ffmpeg.wasm`).
+- Thumbnails de vídeo no card do projeto na página `/projects`.
+- Configuração de bitrate/resolução na UI de gravação.
+- Marcadores/capítulos no vídeo gerado (baseados nos nós visitados).
