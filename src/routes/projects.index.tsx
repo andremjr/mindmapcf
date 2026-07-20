@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Network, Trash2, Clock, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,59 @@ import {
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import type { Project } from "@/lib/types";
+import { resolveImage } from "@/lib/imageStorage";
+
+function ProjectThumb({ project }: { project: Project }) {
+  const root = project.nodes.find((n) => !n.parentId) ?? project.nodes[0];
+  const legacy = root?.image;
+  const refId = root?.imageRef?.id;
+  const [url, setUrl] = useState<string | null>(legacy ?? null);
+
+  useEffect(() => {
+    if (legacy) {
+      setUrl(legacy);
+      return;
+    }
+    if (!refId) {
+      setUrl(null);
+      return;
+    }
+    let alive = true;
+    resolveImage(refId).then((u) => {
+      if (alive) setUrl(u);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [legacy, refId]);
+
+  if (url) {
+    return (
+      <div className="aspect-video rounded-md mb-4 relative overflow-hidden border border-border/50 bg-muted">
+        <img
+          src={url}
+          alt=""
+          className="absolute inset-0 size-full object-cover"
+          loading="lazy"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-background/70 via-transparent to-transparent" />
+        <div className="absolute bottom-2 right-2 text-[10px] font-mono text-foreground/90 bg-background/70 px-2 py-0.5 rounded">
+          {project.nodes.length} {project.nodes.length === 1 ? "nó" : "nós"}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="aspect-video rounded-md bg-gradient-to-br from-muted to-background mb-4 relative overflow-hidden border border-border/50 grid place-items-center">
+      <Network className="size-8 text-foreground/20" />
+      <div className="absolute bottom-2 right-2 text-[10px] font-mono text-muted-foreground bg-background/70 px-2 py-0.5 rounded">
+        {project.nodes.length} {project.nodes.length === 1 ? "nó" : "nós"}
+      </div>
+    </div>
+  );
+}
 
 
 
