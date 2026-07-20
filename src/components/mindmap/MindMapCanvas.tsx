@@ -17,6 +17,8 @@ interface Props {
   pendingEdge?: PendingEdge | null;
   /** Effective accent color per node id (parent→child edge uses child's color). */
   colorById?: Map<string, string>;
+  /** Presentation mode: only the edge terminating at this node id is lit; others dim. */
+  activeEdgeToId?: string | null;
   onBackgroundPointerDown?: (e: React.PointerEvent) => void;
   onWheel?: (e: React.WheelEvent) => void;
   onBackgroundDoubleClick?: (e: React.MouseEvent) => void;
@@ -37,6 +39,7 @@ export const MindMapCanvas = forwardRef<HTMLDivElement, Props>(function MindMapC
     animated,
     pendingEdge,
     colorById,
+    activeEdgeToId,
     onBackgroundPointerDown,
     onWheel,
     onBackgroundDoubleClick,
@@ -118,16 +121,32 @@ export const MindMapCanvas = forwardRef<HTMLDivElement, Props>(function MindMapC
         >
           {edges.map(({ from, to }, i) => {
             const c = colorById?.get(to.id);
-            const stroke = c
-              ? `color-mix(in oklch, ${c} 70%, transparent)`
-              : "color-mix(in oklch, var(--primary) 55%, transparent)";
+            const isActive = activeEdgeToId != null && to.id === activeEdgeToId;
+            const dimMode = activeEdgeToId != null;
+            const strokeColor = c ?? "var(--primary)";
+            const stroke = isActive
+              ? strokeColor
+              : dimMode
+              ? `color-mix(in oklch, ${strokeColor} 14%, transparent)`
+              : `color-mix(in oklch, ${strokeColor} 70%, transparent)`;
             return (
               <path
-                key={i}
+                key={`${from.id}->${to.id}`}
                 d={edgePath(from, to)}
                 stroke={stroke}
-                strokeWidth={2}
+                strokeWidth={isActive ? 3 : 2}
+                strokeLinecap="round"
                 fill="none"
+                pathLength={isActive ? 1 : undefined}
+                strokeDasharray={isActive ? 1 : undefined}
+                style={
+                  isActive
+                    ? {
+                        animation: "mindmap-edge-fill 900ms ease-out forwards",
+                        filter: `drop-shadow(0 0 6px color-mix(in oklch, ${strokeColor} 55%, transparent))`,
+                      }
+                    : undefined
+                }
               />
             );
           })}
