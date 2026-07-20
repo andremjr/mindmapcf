@@ -487,6 +487,8 @@ export function MindMapEditor({ project }: { project: Project }) {
                       childCount={childCounts.get(n.id) ?? 0}
                       selected={selectedId === n.id}
                       editing={editingId === n.id}
+                      effectiveColor={colorMap.get(n.id)}
+                      hasDescendants={(childCounts.get(n.id) ?? 0) > 0}
                       onSelect={() => setSelectedId(n.id)}
                       onStartEdit={() => {
                         setSelectedId(n.id);
