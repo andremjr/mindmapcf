@@ -31,7 +31,7 @@ export function useSubscription(userId: string | undefined) {
         return;
       }
       setLoading(true);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("subscriptions")
         .select("status, current_period_end, price_id, environment")
         .eq("user_id", userId)

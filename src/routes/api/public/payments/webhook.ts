@@ -25,7 +25,7 @@ async function upsertSubscription(data: any, env: PaddleEnv) {
     return;
   }
 
-  const { error } = await supabaseAdmin.from("subscriptions").upsert(
+  const { error } = await (supabaseAdmin as any).from("subscriptions").upsert(
     {
       user_id: userId,
       paddle_subscription_id: data.id,
@@ -46,7 +46,7 @@ async function upsertSubscription(data: any, env: PaddleEnv) {
 
 async function updateSubscription(data: any, env: PaddleEnv, status?: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { error } = await supabaseAdmin
+  const { error } = await (supabaseAdmin as any)
     .from("subscriptions")
     .update({
       status: status ?? data.status,

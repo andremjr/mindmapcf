@@ -1,6 +1,10 @@
 import { getPaddleEnvironment } from "@/lib/paddle";
+import { useEffect, useState } from "react";
 
 export function PaymentTestModeBanner() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
   if (getPaddleEnvironment() !== "sandbox") return null;
 
   return (
