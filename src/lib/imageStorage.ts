@@ -88,7 +88,11 @@ function pickFileFallback(accept: string): Promise<File | null> {
 const IMAGE_EXT = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif", ".svg"];
 const VIDEO_EXT = [".mp4", ".webm", ".mov", ".m4v", ".ogg", ".ogv", ".mkv"];
 
-/** Prompt the user for an image or a video and persist a reference to it. */
+/** Prompt the user for an image or a video and persist a reference to it.
+ *  We always cache the file bytes in IndexedDB (local-only, never uploaded)
+ *  so page reloads work without a permission re-prompt. When the File System
+ *  Access API is available we ALSO keep the handle so future edits to the
+ *  same file on disk can refresh the cached bytes. */
 export async function pickMediaAndStore(
   kind: "image" | "video",
 ): Promise<ImageRef | null> {
@@ -112,7 +116,9 @@ export async function pickMediaAndStore(
         lastModified: file.lastModified,
         kind,
       };
-      await put({ ...ref, handle });
+      // Cache the bytes so a reload works without re-permission, and keep the
+      // handle so we can re-read from disk if the user updates the file.
+      await put({ ...ref, handle, blob: file });
       return ref;
     } catch (e: any) {
       if (e?.name === "AbortError") return null;
@@ -137,10 +143,10 @@ export function pickImageAndStore(): Promise<ImageRef | null> {
   return pickMediaAndStore("image");
 }
 
-async function readHandle(
+async function tryReadHandle(
   entry: Entry,
   interactive: boolean,
-): Promise<string | null> {
+): Promise<File | null> {
   if (!entry.handle) return null;
   const h: any = entry.handle;
   try {
@@ -154,17 +160,15 @@ async function readHandle(
       const req = await h.requestPermission({ mode: "read" });
       if (req !== "granted") return null;
     }
-    const file: File = await entry.handle.getFile();
-    const url = URL.createObjectURL(file);
-    urlCache.set(entry.id, url);
-    return url;
+    return await entry.handle.getFile();
   } catch {
     return null;
   }
 }
 
-/** Try to resolve an image without a user gesture. Returns null if unavailable
- *  (file moved/renamed/deleted, or the browser needs a permission prompt). */
+/** Resolve without a user gesture. Serves cached bytes first (survives
+ *  reloads), then tries the handle silently. Returns null only when the
+ *  entry is missing entirely. */
 export async function resolveImage(id: string): Promise<string | null> {
   const cached = urlCache.get(id);
   if (cached) return cached;
@@ -175,22 +179,81 @@ export async function resolveImage(id: string): Promise<string | null> {
     urlCache.set(id, url);
     return url;
   }
-  return readHandle(entry, false);
+  const file = await tryReadHandle(entry, false);
+  if (file) {
+    const url = URL.createObjectURL(file);
+    urlCache.set(id, url);
+    // Backfill blob cache so future reloads don't need permission.
+    await put({ ...entry, blob: file }).catch(() => {});
+    return url;
+  }
+  return null;
 }
 
-/** Called from a user gesture (button click) to reconnect a broken image. */
+/** Called from a user gesture to reconnect a broken reference. Tries the
+ *  stored handle first; if that fails (permission denied, file moved,
+ *  handle lost), opens a fresh file picker so the user can point at the
+ *  file again. The new selection reuses the same id, so every node that
+ *  referenced it lights up at once. */
 export async function requestImageAccess(id: string): Promise<string | null> {
   const cached = urlCache.get(id);
   if (cached) return cached;
   const entry = await getEntry(id).catch(() => undefined);
-  if (!entry) return null;
-  if (entry.blob) {
+  if (entry?.blob) {
     const url = URL.createObjectURL(entry.blob);
     urlCache.set(id, url);
     return url;
   }
-  return readHandle(entry, true);
+  if (entry) {
+    const file = await tryReadHandle(entry, true);
+    if (file) {
+      const url = URL.createObjectURL(file);
+      urlCache.set(id, url);
+      await put({ ...entry, blob: file }).catch(() => {});
+      return url;
+    }
+  }
+  // Last resort: prompt the user to re-select the file.
+  const kind = entry?.kind ?? "image";
+  const mime = kind === "image" ? "image/*" : "video/*";
+  const exts = kind === "image" ? IMAGE_EXT : VIDEO_EXT;
+  let file: File | null = null;
+  let handle: FileSystemFileHandle | undefined;
+  if (hasFSAccess()) {
+    try {
+      const [h] = await (window as any).showOpenFilePicker({
+        types: [
+          {
+            description: kind === "image" ? "Imagens" : "Vídeos",
+            accept: { [mime]: exts },
+          },
+        ],
+        multiple: false,
+        excludeAcceptAllOption: false,
+      });
+      handle = h;
+      file = await h.getFile();
+    } catch (e: any) {
+      if (e?.name === "AbortError") return null;
+    }
+  }
+  if (!file) file = await pickFileFallback(mime);
+  if (!file) return null;
+  const nextEntry: Entry = {
+    id,
+    name: file.name,
+    size: file.size,
+    lastModified: file.lastModified,
+    kind,
+    handle,
+    blob: file,
+  };
+  await put(nextEntry);
+  const url = URL.createObjectURL(file);
+  urlCache.set(id, url);
+  return url;
 }
+
 
 export async function deleteImage(id: string) {
   const url = urlCache.get(id);
