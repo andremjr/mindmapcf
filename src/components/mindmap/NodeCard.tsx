@@ -260,7 +260,7 @@ function NodeMedia({
     }
     setBroken(false);
     setUrl(null);
-    resolveImage(ref.id).then((u) => {
+    resolveImage(ref).then((u) => {
       if (!alive) return;
       if (u) {
         setUrl(u);
@@ -309,7 +309,7 @@ function NodeMedia({
               disabled={reconnecting}
               onClick={async () => {
                 setReconnecting(true);
-                const u = await requestImageAccess(ref.id);
+                const u = await requestImageAccess(ref);
                 setReconnecting(false);
                 if (u) {
                   setUrl(u);
