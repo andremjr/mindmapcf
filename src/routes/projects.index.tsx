@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Plus, Network, Trash2, Clock, LogOut } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Plus, Network, Trash2, Clock, LogOut, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,6 +16,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import type { Project } from "@/lib/types";
 import { resolveImage } from "@/lib/imageStorage";
+import { importFromText, buildImportedProject } from "@/lib/mindmapImport";
+import { toast } from "sonner";
 
 function ProjectThumb({ project }: { project: Project }) {
   const root = project.nodes.find((n) => !n.parentId) ?? project.nodes[0];
