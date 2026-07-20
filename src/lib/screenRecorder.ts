@@ -135,7 +135,10 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
   const mimeType = pickMimeType();
   const recorder = new MediaRecorder(mixed, {
     mimeType,
-    videoBitsPerSecond: opts.videoBitsPerSecond ?? 5_000_000,
+    // ~16 Mbps at 1080p60 → visually lossless for screen recordings, well
+    // within YouTube's ingest recommendation for 1080p60 (12 Mbps).
+    videoBitsPerSecond: opts.videoBitsPerSecond ?? 16_000_000,
+    audioBitsPerSecond: opts.audioBitsPerSecond ?? 192_000,
   });
   const chunks: Blob[] = [];
 
