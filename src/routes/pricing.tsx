@@ -76,8 +76,8 @@ function PricingPage() {
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link to="/projects" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="size-4" /> Voltar
+          <Link to="/" className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="size-4" /> Voltar ao início
           </Link>
           <div className="flex items-center gap-2 text-sm font-semibold">
             <Network className="size-4 text-primary" /> Canvas Narrativo
@@ -89,7 +89,9 @@ function PricingPage() {
         <div className="max-w-2xl">
           <h1 className="text-4xl font-semibold tracking-tight">Canvas Narrativo Pro</h1>
           <p className="mt-3 text-muted-foreground">
-            Comece grátis com 3 mapas e 30 nós por mapa. Assine para criar mapas e nós ilimitados, com apresentação e gravação completas.
+            Ferramenta web para criação de mapas mentais com imagens, vídeos, modo apresentação com câmera
+            cinematográfica e gravação em MP4. Comece grátis com até 3 mapas e 30 nós por mapa. Assine o
+            <strong> Pro</strong> para desbloquear mapas e nós ilimitados.
           </p>
           {isPro && (
             <div className="mt-6 flex items-center gap-3 rounded-lg border border-primary/40 bg-primary/5 p-4 text-sm">
@@ -104,22 +106,56 @@ function PricingPage() {
           {PLANS.map((plan) => {
             const isLoading = loading || loadingPriceId === plan.id;
             return (
-              <div key={plan.id} className="rounded-xl border border-border bg-card p-6">
-                <div className="text-sm font-medium">{plan.label}</div>
+              <div key={plan.id} className="flex flex-col rounded-xl border border-border bg-card p-6">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium">Canvas Narrativo Pro — {plan.label}</div>
+                  {plan.effective && (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                      {plan.effective}
+                    </span>
+                  )}
+                </div>
                 <div className="mt-4 text-3xl font-semibold">{plan.price}</div>
                 <div className="text-sm text-muted-foreground">{plan.detail}</div>
                 <ul className="mt-6 space-y-2 text-sm text-muted-foreground">
-                  <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Mapas ilimitados</li>
-                  <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Nós ilimitados</li>
-                  <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Imagens, vídeos e gravação</li>
+                  <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Mapas mentais ilimitados</li>
+                  <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Nós ilimitados por mapa</li>
+                  <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Imagens e vídeos nos nós</li>
+                  <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Modo apresentação cinematográfico</li>
+                  <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Gravação MP4 (1080p, 4K, vertical)</li>
+                  <li className="flex gap-2"><Check className="mt-0.5 size-4 text-primary" /> Importação via IA (Markdown/JSON)</li>
                 </ul>
                 <Button className="mt-6 w-full" onClick={() => subscribe(plan.id)} disabled={isLoading}>
                   {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
-                  Assinar
+                  Assinar {plan.label}
                 </Button>
+                <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">{plan.renewal}</p>
               </div>
             );
           })}
+        </div>
+
+        <div className="mt-10 space-y-2 rounded-lg border border-border bg-card/50 p-5 text-xs leading-relaxed text-muted-foreground">
+          <p>
+            <strong className="text-foreground">Preços em Reais (BRL).</strong> Impostos podem ser aplicados
+            e serão calculados no checkout conforme sua localização.
+          </p>
+          <p>
+            Todas as assinaturas <strong className="text-foreground">renovam automaticamente</strong> ao fim de
+            cada ciclo pelo mesmo valor, até que sejam canceladas. Você pode cancelar a qualquer momento em{" "}
+            <Link to="/account" className="underline">Minha conta</Link> e mantém o acesso Pro até o fim do
+            período já pago.
+          </p>
+          <p>
+            Não oferecemos período de teste pago — o plano grátis (3 mapas, 30 nós por mapa) é permanente e sem
+            cartão de crédito.
+          </p>
+          <p>
+            O processo de pedido é conduzido pelo nosso revendedor online <strong className="text-foreground">Paddle.com</strong>,
+            Merchant of Record de todas as vendas. Consulte também nossa{" "}
+            <Link to="/refund" className="underline">Política de Reembolso</Link> (garantia de 30 dias) e os{" "}
+            <Link to="/terms" className="underline">Termos de Uso</Link>.
+          </p>
         </div>
       </main>
       <SiteFooter />
