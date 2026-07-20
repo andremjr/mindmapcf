@@ -307,17 +307,16 @@ export function MindMapEditor({ project }: { project: Project }) {
     navigate({ to: "/projects/$id/present", params: { id: project.id } });
   }
 
-  async function handleRecordAndPresent() {
-    setViewportPersist(project.id, viewport);
-    const ok = confirm(
-      "O navegador vai pedir permissão para capturar esta aba.\n\n" +
-        "• Confirme o compartilhamento da aba atual.\n" +
-        "• Marque \"Compartilhar áudio da guia\" para gravar o som dos vídeos.\n" +
-        "• Você também vai autorizar o microfone para narrar por cima.\n\n" +
-        "Aperte R (ou o botão Parar no painel flutuante) para finalizar.",
-    );
+  const [recordFormatOpen, setRecordFormatOpen] = useState(false);
 
-    if (!ok) return;
+  function handleRecordAndPresent() {
+    setViewportPersist(project.id, viewport);
+    setRecordFormatOpen(true);
+  }
+
+  async function startRecordingWithFormat(fmt: RecordFormat) {
+    setRecordFormatOpen(false);
+    saveRecordFormat(project.id, fmt);
     try {
       await startRecording({ filenameBase: project.title || "apresentacao" });
     } catch (e: any) {
@@ -326,9 +325,6 @@ export function MindMapEditor({ project }: { project: Project }) {
         alert(e?.message || "Não foi possível iniciar a gravação.");
       }
       return;
-    }
-    if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {});
     }
     navigate({
       to: "/projects/$id/present",
