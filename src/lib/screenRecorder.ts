@@ -286,3 +286,28 @@ export async function cancelRecording(): Promise<void> {
 export function isRecording(): boolean {
   return !!active && active.recorder.state === "recording";
 }
+
+/**
+ * Region Capture: crop the tab video track to an on-page element so only
+ * the mind-map frame ends up in the recording. Chrome/Edge only; returns
+ * `false` when the API isn't available (Safari/Firefox), so the caller can
+ * fall back to whole-tab capture.
+ */
+export async function cropRecordingToElement(el: Element): Promise<boolean> {
+  if (!active) return false;
+  const track = active.displayStream.getVideoTracks()[0] as unknown as {
+    cropTo?: (target: unknown) => Promise<void>;
+  };
+  const CropTargetCtor = (globalThis as any).CropTarget as
+    | { fromElement: (el: Element) => Promise<unknown> }
+    | undefined;
+  if (!CropTargetCtor || typeof track?.cropTo !== "function") return false;
+  try {
+    const target = await CropTargetCtor.fromElement(el);
+    await track.cropTo(target);
+    return true;
+  } catch (e) {
+    console.warn("[screenRecorder] cropTo failed", e);
+    return false;
+  }
+}
