@@ -64,9 +64,7 @@ function AuthPage() {
     <div className="min-h-screen grid place-items-center bg-background px-4">
       <div className="w-full max-w-md">
         <div className="flex items-center gap-3 justify-center mb-8">
-          <div className="size-10 rounded-lg bg-gradient-to-br from-primary to-accent grid place-items-center shadow-lg">
-            <Network className="size-5 text-primary-foreground" />
-          </div>
+          <img src="/favicon.png" alt="Canvas Narrativo" className="size-10 rounded-lg shadow-lg" />
           <div>
             <h1 className="text-lg font-semibold">Canvas Narrativo</h1>
             <p className="text-xs text-muted-foreground">Mapas mentais + apresentação cinemática</p>
