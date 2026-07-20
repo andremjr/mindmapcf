@@ -90,19 +90,16 @@ export interface StartOptions {
   videoBitsPerSecond?: number;
   audioBitsPerSecond?: number;
   frameRate?: number;
-  /**
-   * When provided, we (a) ask Chromium to pre-select the current tab via
-   * preferCurrentTab and (b) crop the captured video to this element's
-   * rect using the Region Capture API. Result: the recording contains
-   * ONLY the pixels inside this element — no browser chrome, no HUD,
-   * no on-page overlays painted outside it.
-   */
-  cropTargetElement?: HTMLElement | null;
 }
 
 /**
  * Start a screen + mic recording. Must be called from a user gesture.
  * Throws on permission denial. On success, `stopRecording()` yields the Blob.
+ *
+ * On Chromium the picker is biased toward the current tab via
+ * `preferCurrentTab: true`, so the user only has to confirm — no "entire
+ * screen / window / tab" choice — and the recording is scoped to this tab
+ * only.
  */
 export async function startRecording(opts: StartOptions = {}): Promise<void> {
   if (active) throw new Error("Já existe uma gravação em andamento.");
@@ -113,11 +110,6 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
     throw new Error("Seu navegador não permite captura de tela (tente Chrome/Edge no desktop).");
   }
 
-  const canCrop =
-    !!opts.cropTargetElement &&
-    typeof (window as any).CropTarget !== "undefined" &&
-    typeof (window as any).CropTarget.fromElement === "function";
-
   const displayMediaOpts: any = {
     video: {
       frameRate: opts.frameRate ?? 60,
@@ -125,34 +117,18 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
       height: { ideal: 1080 },
     },
     audio: true,
+    // Chromium-only: pre-select the current tab so the user doesn't get the
+    // "entire screen / window / tab" menu. Ignored elsewhere.
+    preferCurrentTab: true,
+    selfBrowserSurface: "include",
+    surfaceSwitching: "exclude",
+    systemAudio: "include",
   };
-  if (canCrop) {
-    // Chromium: skip the "choose what to share" picker friction and
-    // pre-select the current tab. Combined with cropTo, we get a
-    // mind-map-only recording with no browser chrome.
-    displayMediaOpts.preferCurrentTab = true;
-    displayMediaOpts.selfBrowserSurface = "include";
-    displayMediaOpts.surfaceSwitching = "exclude";
-    displayMediaOpts.systemAudio = "exclude";
-  }
 
   const displayStream: MediaStream = await (navigator.mediaDevices as any).getDisplayMedia(
     displayMediaOpts,
   );
 
-  if (canCrop && opts.cropTargetElement) {
-    try {
-      const cropTarget = await (window as any).CropTarget.fromElement(
-        opts.cropTargetElement,
-      );
-      const videoTrack: any = displayStream.getVideoTracks()[0];
-      if (videoTrack && typeof videoTrack.cropTo === "function") {
-        await videoTrack.cropTo(cropTarget);
-      }
-    } catch (err) {
-      console.warn("[screenRecorder] region capture unavailable — full tab will be recorded", err);
-    }
-  }
 
 
   let micStream: MediaStream | null = null;
