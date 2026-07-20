@@ -741,7 +741,20 @@ export function MindMapEditor({ project }: { project: Project }) {
                 A gravação usa <b>Region Capture</b> — só o quadro selecionado entra no vídeo.
                 Controles, timer e navegação ficam fora do quadro e não aparecem no arquivo final.
               </p>
+              <button
+                onClick={() => {
+                  setRecordFormatOpen(false);
+                  setAvatarOpen(true);
+                }}
+                className="mt-3 inline-flex items-center gap-2 text-xs rounded-md border border-border/60 hover:border-primary hover:bg-muted/50 px-3 py-1.5"
+              >
+                <Mic className="size-3.5" />
+                {project.sonicAvatar?.enabled && project.sonicAvatar?.imageRef
+                  ? "Editar avatar sonoro"
+                  : "Adicionar avatar sonoro (opcional)"}
+              </button>
             </div>
+
             <div className="p-3 grid gap-2">
               {RECORD_FORMATS.map((f) => (
                 <button
