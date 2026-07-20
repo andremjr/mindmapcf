@@ -234,6 +234,12 @@ function ProjectsDashboard() {
           </div>
         )}
       </main>
+
+      <ImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onFile={handleImportFile}
+      />
     </div>
   );
 }
