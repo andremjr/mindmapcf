@@ -593,6 +593,14 @@ export function MindMapEditor({ project }: { project: Project }) {
         )}
       </div>
 
+      <ImportDialog
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onFile={handleImportFile}
+        title="Importar mapa de IA"
+        warning="Importar vai SUBSTITUIR todos os nós do mapa atual. Essa ação não pode ser desfeita."
+      />
+
       {recordFormatOpen && (
         <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur grid place-items-center p-4">
           <div className="w-full max-w-lg rounded-2xl border border-border/60 bg-card shadow-2xl overflow-hidden">
