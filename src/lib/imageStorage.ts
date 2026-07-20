@@ -20,6 +20,10 @@ interface Entry extends ImageRef {
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
+    if (typeof indexedDB === "undefined") {
+      reject(new Error("IndexedDB indisponível neste navegador."));
+      return;
+    }
     const req = indexedDB.open(DB_NAME, 1);
     req.onupgradeneeded = () => {
       const db = req.result;
@@ -82,6 +86,7 @@ function pickFileFallback(): Promise<File | null> {
 
 /** Prompt the user for an image, persist a reference to it, return the ref. */
 export async function pickImageAndStore(): Promise<ImageRef | null> {
+  if (typeof window === "undefined" || typeof document === "undefined") return null;
   const id = crypto.randomUUID();
   if (hasFSAccess()) {
     try {
@@ -154,7 +159,7 @@ async function readHandle(
 export async function resolveImage(id: string): Promise<string | null> {
   const cached = urlCache.get(id);
   if (cached) return cached;
-  const entry = await getEntry(id);
+  const entry = await getEntry(id).catch(() => undefined);
   if (!entry) return null;
   if (entry.blob) {
     const url = URL.createObjectURL(entry.blob);
@@ -168,7 +173,7 @@ export async function resolveImage(id: string): Promise<string | null> {
 export async function requestImageAccess(id: string): Promise<string | null> {
   const cached = urlCache.get(id);
   if (cached) return cached;
-  const entry = await getEntry(id);
+  const entry = await getEntry(id).catch(() => undefined);
   if (!entry) return null;
   if (entry.blob) {
     const url = URL.createObjectURL(entry.blob);
@@ -182,5 +187,5 @@ export async function deleteImage(id: string) {
   const url = urlCache.get(id);
   if (url) URL.revokeObjectURL(url);
   urlCache.delete(id);
-  await del(id);
+  await del(id).catch(() => undefined);
 }

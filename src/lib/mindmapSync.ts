@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStore } from "@/lib/store";
-import type { Project } from "@/lib/types";
+import type { MindNode, Project } from "@/lib/types";
 
 
 interface Row {
@@ -21,6 +21,18 @@ function toProject(r: Row): Project {
     nodes: r.data?.nodes ?? [],
     viewport: r.data?.viewport ?? { x: 0, y: 0, zoom: 1 },
   };
+}
+
+function stripInlineImages(nodes: Project["nodes"]): MindNode[] {
+  return nodes.map((node) => {
+    if (!node.image || node.imageRef) return node;
+
+    const { image: _image, ...rest } = node;
+    return {
+      ...rest,
+      imageName: node.imageName ?? "Imagem local não reconectada",
+    };
+  });
 }
 
 /**
@@ -57,7 +69,10 @@ export function useMindmapSync(userId: string | undefined) {
         setHydrated(true);
         return;
       }
-      const projects = (data ?? []).map((r) => toProject(r as unknown as Row));
+      const projects = (data ?? []).map((r) => {
+        const project = toProject(r as unknown as Row);
+        return { ...project, nodes: stripInlineImages(project.nodes) };
+      });
       hydrate(projects);
       prevRef.current = new Map(projects.map((p) => [p.id, p]));
       knownIdsRef.current = new Set(projects.map((p) => p.id));
@@ -102,7 +117,7 @@ export function useMindmapSync(userId: string | undefined) {
                   id: p.id,
                   user_id: userId,
                   title: p.title,
-                  data: { nodes: p.nodes, viewport: p.viewport } as any,
+                  data: { nodes: stripInlineImages(p.nodes), viewport: p.viewport } as any,
                 },
                 { onConflict: "id" },
               )
