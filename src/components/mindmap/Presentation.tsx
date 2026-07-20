@@ -1,10 +1,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, X, Circle, Square, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Download } from "lucide-react";
 import type { Project } from "@/lib/types";
 import { presentationOrder, descendantIds } from "@/lib/store";
 import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
+import { RecorderHUD } from "./RecorderHUD";
 import {
   isRecording,
   stopRecording,
