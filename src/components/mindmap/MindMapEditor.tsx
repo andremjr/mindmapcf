@@ -732,11 +732,17 @@ export function MindMapEditor({ project }: { project: Project }) {
         warning="Importar vai SUBSTITUIR todos os nós do mapa atual. Essa ação não pode ser desfeita."
       />
 
-      <SonicAvatarDialog
-        project={project}
-        open={avatarOpen}
-        onClose={() => setAvatarOpen(false)}
-      />
+      {user?.id && (
+        <SonicAvatarDialog
+          userId={user.id}
+          isPro={isPro}
+          open={avatarOpen}
+          onClose={() => setAvatarOpen(false)}
+          selectionProjectId={project.id}
+          onUpgrade={() => setUpgradeOpen(true)}
+        />
+      )}
+
 
 
       {recordFormatOpen && (
@@ -756,9 +762,10 @@ export function MindMapEditor({ project }: { project: Project }) {
                 className="mt-3 inline-flex items-center gap-2 text-xs rounded-md border border-border/60 hover:border-primary hover:bg-muted/50 px-3 py-1.5"
               >
                 <Mic className="size-3.5" />
-                {project.sonicAvatar?.enabled && project.sonicAvatar?.imageRef
+                {project.sonicAvatar?.avatarId && project.sonicAvatar?.enabled
                   ? "Editar avatar sonoro"
-                  : "Adicionar avatar sonoro (opcional)"}
+                  : "Escolher avatar sonoro (Pro)"}
+
               </button>
             </div>
 
