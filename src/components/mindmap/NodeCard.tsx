@@ -7,9 +7,13 @@ import {
   ChevronDown,
   AlertTriangle,
   Film,
+  Palette,
+  Check,
 } from "lucide-react";
 import type { MindNode } from "@/lib/types";
 import { resolveImage, requestImageAccess } from "@/lib/imageStorage";
+import { NODE_COLOR_PALETTE, DEFAULT_ACCENT } from "@/lib/nodeColors";
+
 
 
 interface Props {
