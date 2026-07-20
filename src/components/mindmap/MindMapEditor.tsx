@@ -585,12 +585,61 @@ export function MindMapEditor({ project }: { project: Project }) {
         </main>
 
         {selectedId && (
-          <aside className="w-64 shrink-0 border-l border-border/60 bg-card/40 flex flex-col">
+          <aside className="w-72 shrink-0 border-l border-border/60 bg-card/40 flex flex-col">
             <div className="px-4 py-3 border-b border-border/60">
               <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Nó selecionado</div>
             </div>
             <SelectedPanel
               node={project.nodes.find((n) => n.id === selectedId)}
+              effectiveColor={selectedId ? colorMap.get(selectedId) : undefined}
+              hasChildren={selectedId ? (childCounts.get(selectedId) ?? 0) > 0 : false}
+              onChangeText={(text) =>
+                selectedId && updateNode(project.id, selectedId, { text })
+              }
+              onPickImage={async () => {
+                if (!selectedId) return;
+                try {
+                  const ref = await pickMediaAndStore("image");
+                  if (!ref) return;
+                  updateNode(project.id, selectedId, {
+                    imageRef: ref,
+                    imageName: ref.name,
+                    image: undefined,
+                  });
+                } catch (error) {
+                  console.error("[mindmap] image pick", error);
+                  toast.error("Não foi possível adicionar essa imagem.");
+                }
+              }}
+              onPickVideo={async () => {
+                if (!selectedId) return;
+                try {
+                  const ref = await pickMediaAndStore("video");
+                  if (!ref) return;
+                  updateNode(project.id, selectedId, {
+                    imageRef: ref,
+                    imageName: ref.name,
+                    image: undefined,
+                  });
+                } catch (error) {
+                  console.error("[mindmap] video pick", error);
+                  toast.error("Não foi possível adicionar esse vídeo.");
+                }
+              }}
+              onClearMedia={() =>
+                selectedId &&
+                updateNode(project.id, selectedId, {
+                  imageRef: undefined,
+                  imageName: undefined,
+                  image: undefined,
+                })
+              }
+              onSetColor={(color, cascade) =>
+                selectedId && setNodeColor(project.id, selectedId, color, cascade)
+              }
+              onToggleCollapsed={() =>
+                selectedId && toggleCollapsed(project.id, selectedId)
+              }
               onDetach={() => selectedId && setParent(project.id, selectedId, null)}
               onDelete={() => {
                 if (!selectedId) return;
