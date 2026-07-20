@@ -224,6 +224,14 @@ export const useStore = create<State & Actions>()((set) => ({
     return id;
   },
 
+  importProject: (project) => {
+    const now = new Date().toISOString();
+    const laidOut = reflowTree(project.nodes);
+    const withTimestamps: Project = { ...project, nodes: laidOut, createdAt: now, updatedAt: now };
+    set((s) => ({ projects: [withTimestamps, ...s.projects] }));
+    return project.id;
+  },
+
   deleteProject: (id) =>
     set((s) => ({ projects: s.projects.filter((p) => p.id !== id) })),
 
