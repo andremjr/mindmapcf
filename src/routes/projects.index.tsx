@@ -20,8 +20,8 @@ import { resolveImage } from "@/lib/imageStorage";
 function ProjectThumb({ project }: { project: Project }) {
   const root = project.nodes.find((n) => !n.parentId) ?? project.nodes[0];
   const legacy = root?.image;
-  const refId = root?.imageRef?.id;
-  const refKind = root?.imageRef?.kind ?? "image";
+  const ref = root?.imageRef;
+  const refKind = ref?.kind ?? "image";
   const [url, setUrl] = useState<string | null>(legacy ?? null);
 
   useEffect(() => {
@@ -29,18 +29,19 @@ function ProjectThumb({ project }: { project: Project }) {
       setUrl(legacy);
       return;
     }
-    if (!refId || refKind !== "image") {
+    if (!ref || refKind !== "image") {
       setUrl(null);
       return;
     }
     let alive = true;
-    resolveImage(refId).then((u) => {
+    resolveImage(ref).then((u) => {
       if (alive) setUrl(u);
     });
     return () => {
       alive = false;
     };
-  }, [legacy, refId, refKind]);
+  }, [legacy, ref, refKind]);
+
 
   if (url) {
     return (
