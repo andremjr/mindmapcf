@@ -9,6 +9,7 @@ import {
   Trash2,
   Circle,
   Upload,
+  Mic,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MindNode, Project } from "@/lib/types";
@@ -16,6 +17,7 @@ import { useStore, descendantIds } from "@/lib/store";
 import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
 import { ImportDialog } from "./ImportDialog";
+import { SonicAvatarDialog } from "./SonicAvatarDialog";
 import { importFromText } from "@/lib/mindmapImport";
 import { buildColorMap, NODE_COLOR_PALETTE } from "@/lib/nodeColors";
 import { toast } from "sonner";
@@ -26,6 +28,7 @@ import { RECORD_FORMATS, saveRecordFormat, type RecordFormat } from "@/lib/recor
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
+
 
 const FREE_NODE_LIMIT = 30;
 
@@ -352,11 +355,13 @@ export function MindMapEditor({ project }: { project: Project }) {
 
   const [recordFormatOpen, setRecordFormatOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [avatarOpen, setAvatarOpen] = useState(false);
 
   function handleRecordAndPresent() {
     setViewportPersist(project.id, viewport);
     setRecordFormatOpen(true);
   }
+
 
   async function handleImportFile(file: File) {
     try {
