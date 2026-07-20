@@ -112,6 +112,8 @@ export function Presentation({
     return new Set(project.nodes.map((n) => n.id).filter((id) => !hidden.has(id)));
   }, [project.nodes]);
 
+  const colorMap = useMemo(() => buildColorMap(project.nodes), [project.nodes]);
+
   const activeId = order[idx];
   const activeNode = project.nodes.find((n) => n.id === activeId);
 
