@@ -453,14 +453,7 @@ function NodeMedia({
   return (
     <div className="relative" data-nodrag={kind === "video" ? "" : undefined}>
       {kind === "video" ? (
-        <video
-          ref={videoElRef}
-          src={url}
-          controls
-          playsInline
-          preload="metadata"
-          className="w-full max-h-[420px] object-contain rounded-t-xl bg-black"
-        />
+        <VideoPlayer url={url} videoRef={videoElRef} />
       ) : (
         <img
           src={url}
