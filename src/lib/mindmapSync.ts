@@ -40,6 +40,7 @@ export function useMindmapSync(userId: string | undefined) {
   // Load once per user
   useEffect(() => {
     readyRef.current = false;
+    setHydrated(false);
     if (!userId) {
       reset();
       prevRef.current = new Map();
@@ -53,6 +54,7 @@ export function useMindmapSync(userId: string | undefined) {
         .order("updated_at", { ascending: false });
       if (error) {
         console.error("[mindmapSync] load", error);
+        setHydrated(true);
         return;
       }
       const projects = (data ?? []).map((r) => toProject(r as unknown as Row));
@@ -60,8 +62,10 @@ export function useMindmapSync(userId: string | undefined) {
       prevRef.current = new Map(projects.map((p) => [p.id, p]));
       knownIdsRef.current = new Set(projects.map((p) => p.id));
       readyRef.current = true;
+      setHydrated(true);
     })();
   }, [userId, hydrate, reset]);
+
 
   // Mirror store changes back to Supabase (debounced per project).
   useEffect(() => {
