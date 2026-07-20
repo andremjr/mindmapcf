@@ -22,7 +22,7 @@ export function SiteFooter() {
       </div>
       <div className="border-t border-border">
         <div className="mx-auto max-w-6xl px-6 py-3 text-xs text-muted-foreground">
-          Pagamentos processados de forma segura pela <strong>Kiwify</strong> (cartão, Pix e boleto).
+          Pagamentos processados de forma segura pela <strong>Kiwify</strong> (cartão e Pix).
         </div>
       </div>
     </footer>
