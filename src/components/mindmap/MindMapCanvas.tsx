@@ -39,6 +39,7 @@ export const MindMapCanvas = forwardRef<HTMLDivElement, Props>(function MindMapC
     animated,
     pendingEdge,
     colorById,
+    activeEdgeToId,
     onBackgroundPointerDown,
     onWheel,
     onBackgroundDoubleClick,
