@@ -264,16 +264,24 @@ export const useStore = create<State & Actions>()((set) => ({
 
   updateNode: (projectId, nodeId, patch) =>
     set((s) => ({
-      projects: s.projects.map((p) =>
-        p.id === projectId
-          ? {
-              ...p,
-              nodes: p.nodes.map((n) => (n.id === nodeId ? { ...n, ...patch } : n)),
-              updatedAt: new Date().toISOString(),
-            }
-          : p,
-      ),
+      projects: s.projects.map((p) => {
+        if (p.id !== projectId) return p;
+        const nextNodes = p.nodes.map((n) =>
+          n.id === nodeId ? { ...n, ...patch } : n,
+        );
+        // If the change affects intrinsic height, reflow to keep spacing right.
+        const heightAffecting =
+          "imageRef" in patch ||
+          "image" in patch ||
+          "text" in patch;
+        return {
+          ...p,
+          nodes: heightAffecting ? reflowTree(nextNodes) : nextNodes,
+          updatedAt: new Date().toISOString(),
+        };
+      }),
     })),
+
 
   deleteNode: (projectId, nodeId) =>
     set((s) => ({
