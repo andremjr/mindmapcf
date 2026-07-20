@@ -8,12 +8,16 @@ import {
   LayoutGrid,
   Trash2,
   Circle,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MindNode, Project } from "@/lib/types";
 import { useStore, descendantIds } from "@/lib/store";
 import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
+import { ImportDialog } from "./ImportDialog";
+import { importFromText } from "@/lib/mindmapImport";
+import { toast } from "sonner";
 
 import { pickMediaAndStore } from "@/lib/imageStorage";
 import { startRecording } from "@/lib/screenRecorder";
@@ -29,6 +33,7 @@ export function MindMapEditor({ project }: { project: Project }) {
   const toggleCollapsed = useStore((s) => s.toggleCollapsed);
   const runAutoLayout = useStore((s) => s.autoLayout);
   const renameProject = useStore((s) => s.renameProject);
+  const replaceProjectNodes = useStore((s) => s.replaceProjectNodes);
   const setViewportPersist = useStore((s) => s.setViewport);
   const navigate = useNavigate();
 
