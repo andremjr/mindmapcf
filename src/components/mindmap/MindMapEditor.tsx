@@ -541,6 +541,7 @@ export function MindMapEditor({ project }: { project: Project }) {
                         setNodeColor(project.id, n.id, color, cascade)
                       }
                     />
+                  </div>
                 );
               })}
             </MindMapCanvas>
