@@ -199,23 +199,13 @@ export function NodeCard({
             Editar
           </button>
           <button
-            onClick={() => fileRef.current?.click()}
+            onClick={() => onPickImage?.()}
             className="px-2 py-1 text-xs rounded hover:bg-muted flex items-center gap-1"
           >
             <ImageIcon className="size-3" />
             Imagem
           </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) onImageUpload?.(file);
-              e.target.value = "";
-            }}
-          />
+
           <div className="h-4 w-px bg-border mx-1" />
           <button
             onClick={onDelete}
