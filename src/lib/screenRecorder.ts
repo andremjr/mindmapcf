@@ -56,11 +56,15 @@ export function getRecorderState(): {
 }
 
 function pickMimeType(): string {
+  // Ordered by preference: highest-quality VP9 first (YouTube-friendly),
+  // then AV1 if available, then fallbacks. MP4 goes last — WebM VP9 gives
+  // better visual fidelity for screen content and YouTube accepts it natively.
   const candidates = [
-    "video/mp4;codecs=avc1,mp4a", // Safari 14.1+
     "video/webm;codecs=vp9,opus",
+    "video/webm;codecs=av01,opus",
     "video/webm;codecs=vp8,opus",
     "video/webm",
+    "video/mp4;codecs=avc1,mp4a", // Safari fallback only
   ];
   for (const t of candidates) {
     if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t)) return t;
@@ -71,6 +75,8 @@ function pickMimeType(): string {
 export interface StartOptions {
   filenameBase?: string;
   videoBitsPerSecond?: number;
+  audioBitsPerSecond?: number;
+  frameRate?: number;
 }
 
 /**
@@ -87,9 +93,14 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
   }
 
   const displayStream: MediaStream = await (navigator.mediaDevices as any).getDisplayMedia({
-    video: { frameRate: 30 },
+    video: {
+      frameRate: opts.frameRate ?? 60,
+      width: { ideal: 1920 },
+      height: { ideal: 1080 },
+    },
     audio: true, // captures tab/system audio when the user checks the box
   });
+
 
   let micStream: MediaStream | null = null;
   try {
