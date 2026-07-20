@@ -424,6 +424,15 @@ export function MindMapEditor({ project }: { project: Project }) {
             <Plus className="size-4" /> Nó
           </Button>
           <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setImportOpen(true)}
+            className="gap-2"
+            title="Importar mapa de IA (substitui o mapa atual)"
+          >
+            <Upload className="size-4" /> Importar
+          </Button>
+          <Button
             variant="outline"
             size="sm"
             onClick={handleRecordAndPresent}
