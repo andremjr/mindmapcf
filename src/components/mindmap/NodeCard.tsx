@@ -1,6 +1,15 @@
-import { useEffect, useRef } from "react";
-import { Image as ImageIcon, Trash2, X, ChevronRight, ChevronDown } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Image as ImageIcon,
+  Trash2,
+  X,
+  ChevronRight,
+  ChevronDown,
+  AlertTriangle,
+} from "lucide-react";
 import type { MindNode } from "@/lib/types";
+import { resolveImage, requestImageAccess } from "@/lib/imageStorage";
+
 
 interface Props {
   node: MindNode;
@@ -18,7 +27,7 @@ interface Props {
   onStartConnect?: (e: React.PointerEvent) => void;
   onAddChild?: () => void;
   onToggleCollapsed?: () => void;
-  onImageUpload?: (file: File) => void;
+  onPickImage?: () => void;
 }
 
 export function NodeCard({
@@ -37,10 +46,10 @@ export function NodeCard({
   onStartConnect,
   onAddChild,
   onToggleCollapsed,
-  onImageUpload,
+  onPickImage,
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+
 
   useEffect(() => {
     if (editing && textareaRef.current) {
@@ -86,28 +95,14 @@ export function NodeCard({
         onStartEdit();
       }}
     >
-      {node.image && (
-        <div className="relative">
-          <img
-            src={node.image}
-            alt=""
-            className="w-full max-h-56 object-cover rounded-t-xl"
-            draggable={false}
-          />
-          {!presentation && (
-            <button
-              data-nodrag
-              onClick={() => onChange({ image: undefined, imageName: undefined })}
-              className="absolute top-1.5 right-1.5 size-6 grid place-items-center rounded-full bg-background/80 hover:bg-background"
-              aria-label="Remover imagem"
-            >
-              <X className="size-3" />
-            </button>
-          )}
-        </div>
-      )}
+      <NodeImage
+        node={node}
+        presentation={presentation}
+        onClear={() => onChange({ image: undefined, imageRef: undefined, imageName: undefined })}
+      />
 
-      <div className={`px-4 ${node.image ? "py-3" : "py-3"}`}>
+      <div className="px-4 py-3">
+
         {editing && !presentation ? (
           <textarea
             ref={textareaRef}
@@ -204,23 +199,13 @@ export function NodeCard({
             Editar
           </button>
           <button
-            onClick={() => fileRef.current?.click()}
+            onClick={() => onPickImage?.()}
             className="px-2 py-1 text-xs rounded hover:bg-muted flex items-center gap-1"
           >
             <ImageIcon className="size-3" />
             Imagem
           </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) onImageUpload?.(file);
-              e.target.value = "";
-            }}
-          />
+
           <div className="h-4 w-px bg-border mx-1" />
           <button
             onClick={onDelete}
@@ -233,3 +218,114 @@ export function NodeCard({
     </div>
   );
 }
+
+function NodeImage({
+  node,
+  presentation,
+  onClear,
+}: {
+  node: MindNode;
+  presentation?: boolean;
+  onClear: () => void;
+}) {
+  const ref = node.imageRef;
+  const legacy = node.image;
+  const [url, setUrl] = useState<string | null>(legacy ?? null);
+  const [broken, setBroken] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    if (!ref) {
+      setUrl(legacy ?? null);
+      setBroken(false);
+      return;
+    }
+    setBroken(false);
+    setUrl(null);
+    resolveImage(ref.id).then((u) => {
+      if (!alive) return;
+      if (u) {
+        setUrl(u);
+        setBroken(false);
+      } else {
+        setBroken(true);
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [ref?.id, legacy]);
+
+  if (!ref && !legacy) return null;
+
+  if (broken && ref) {
+    return (
+      <div className="relative rounded-t-xl border-b border-destructive/40 bg-destructive/10 px-3 py-4 text-xs text-destructive flex items-start gap-2">
+        <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+        <div className="min-w-0 flex-1">
+          <div className="font-semibold truncate">Imagem indisponível</div>
+          <div className="text-destructive/80 truncate" title={ref.name}>
+            {ref.name}
+          </div>
+          {!presentation && (
+            <button
+              data-nodrag
+              disabled={reconnecting}
+              onClick={async () => {
+                setReconnecting(true);
+                const u = await requestImageAccess(ref.id);
+                setReconnecting(false);
+                if (u) {
+                  setUrl(u);
+                  setBroken(false);
+                }
+              }}
+              className="mt-1 rounded bg-destructive/20 hover:bg-destructive/30 px-2 py-0.5 text-[11px] font-medium"
+            >
+              {reconnecting ? "…" : "Reconectar arquivo"}
+            </button>
+          )}
+        </div>
+        {!presentation && (
+          <button
+            data-nodrag
+            onClick={onClear}
+            className="absolute top-1.5 right-1.5 size-6 grid place-items-center rounded-full bg-background/80 hover:bg-background text-foreground"
+            aria-label="Remover imagem"
+          >
+            <X className="size-3" />
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  if (!url) {
+    return (
+      <div className="rounded-t-xl bg-muted/40 animate-pulse" style={{ height: 140 }} />
+    );
+  }
+
+  return (
+    <div className="relative">
+      <img
+        src={url}
+        alt=""
+        className="w-full max-h-56 object-cover rounded-t-xl"
+        draggable={false}
+      />
+      {!presentation && (
+        <button
+          data-nodrag
+          onClick={onClear}
+          className="absolute top-1.5 right-1.5 size-6 grid place-items-center rounded-full bg-background/80 hover:bg-background"
+          aria-label="Remover imagem"
+        >
+          <X className="size-3" />
+        </button>
+      )}
+    </div>
+  );
+}
+

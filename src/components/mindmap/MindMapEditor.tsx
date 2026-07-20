@@ -14,37 +14,8 @@ import { useStore, descendantIds } from "@/lib/store";
 import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
 
-const MAX_IMAGE_SIDE = 1200;
-const IMAGE_QUALITY = 0.78;
+import { pickImageAndStore } from "@/lib/imageStorage";
 
-function compressImageFile(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Não foi possível ler a imagem."));
-    reader.onload = () => {
-      const source = String(reader.result ?? "");
-      const img = new Image();
-      img.onerror = () => reject(new Error("Não foi possível carregar a imagem."));
-      img.onload = () => {
-        const scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(img.width, img.height));
-        const width = Math.max(1, Math.round(img.width * scale));
-        const height = Math.max(1, Math.round(img.height * scale));
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          reject(new Error("Não foi possível processar a imagem."));
-          return;
-        }
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL("image/jpeg", IMAGE_QUALITY));
-      };
-      img.src = source;
-    };
-    reader.readAsDataURL(file);
-  });
-}
 
 export function MindMapEditor({ project }: { project: Project }) {
   const addNode = useStore((s) => s.addNode);
@@ -450,19 +421,21 @@ export function MindMapEditor({ project }: { project: Project }) {
                         setEditingId(id);
                       }}
                       onToggleCollapsed={() => toggleCollapsed(project.id, n.id)}
-                      onImageUpload={(file) => {
-                        compressImageFile(file)
-                          .then((image) => {
-                            updateNode(project.id, n.id, {
-                              image,
-                              imageName: file.name,
-                            });
-                          })
-                          .catch((error) => {
-                            console.error("[mindmap] image upload", error);
-                            alert("Não foi possível adicionar essa imagem.");
+                      onPickImage={async () => {
+                        try {
+                          const ref = await pickImageAndStore();
+                          if (!ref) return;
+                          updateNode(project.id, n.id, {
+                            imageRef: ref,
+                            imageName: ref.name,
+                            image: undefined,
                           });
+                        } catch (error) {
+                          console.error("[mindmap] image pick", error);
+                          alert("Não foi possível adicionar essa imagem.");
+                        }
                       }}
+
                     />
                   </div>
                 );

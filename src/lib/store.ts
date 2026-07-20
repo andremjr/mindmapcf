@@ -35,7 +35,22 @@ interface Actions {
 }
 
 const H_GAP = 340;
-const V_GAP = 130;
+const SIBLING_GAP = 40;
+/** Baseline card height (no image, single-line text). */
+const BASE_NODE_H = 88;
+/** Extra vertical space added when a node shows an image. */
+const IMAGE_NODE_H = 190;
+/** Extra per additional line of text (rough). */
+const LINE_H = 22;
+/** Minimum vertical "slot" for a leaf without image (keeps a nice rhythm). */
+const MIN_SLOT_H = 120;
+
+function nodeIntrinsicHeight(n: MindNode): number {
+  const lines = Math.max(1, (n.text || "").split(/\r?\n/).length);
+  const hasImage = !!(n.imageRef || n.image);
+  const h = BASE_NODE_H + (hasImage ? IMAGE_NODE_H : 0) + Math.max(0, lines - 1) * LINE_H;
+  return Math.max(MIN_SLOT_H, h);
+}
 
 /** Descendants (excluding node itself). */
 export function descendantIds(nodes: MindNode[], id: string): string[] {
@@ -91,57 +106,17 @@ export function presentationOrder(project: Project): string[] {
 }
 
 function computeAutoLayout(nodes: MindNode[]): MindNode[] {
-  const byParent = new Map<string | null, MindNode[]>();
-  for (const n of nodes) {
-    const arr = byParent.get(n.parentId ?? null) ?? [];
-    arr.push(n);
-    byParent.set(n.parentId ?? null, arr);
-  }
-  const leafHeight = new Map<string, number>();
-  function measure(id: string): number {
-    const kids = byParent.get(id) ?? [];
-    if (kids.length === 0) {
-      leafHeight.set(id, 1);
-      return 1;
-    }
-    const h = kids.reduce((s, k) => s + measure(k.id), 0);
-    leafHeight.set(id, h);
-    return h;
-  }
-  const roots = byParent.get(null) ?? [];
-  roots.forEach((r) => measure(r.id));
-
-  const pos = new Map<string, { x: number; y: number }>();
-  function place(node: MindNode, depth: number, yStart: number) {
-    const h = leafHeight.get(node.id) ?? 1;
-    const yCenter = yStart + (h * V_GAP) / 2 - V_GAP / 2;
-    pos.set(node.id, { x: depth * H_GAP, y: yCenter });
-    let cy = yStart;
-    for (const kid of byParent.get(node.id) ?? []) {
-      const kh = leafHeight.get(kid.id) ?? 1;
-      place(kid, depth + 1, cy);
-      cy += kh * V_GAP;
-    }
-  }
-  let offset = 0;
-  for (const r of roots) {
-    place(r, 0, offset);
-    offset += (leafHeight.get(r.id) ?? 1) * V_GAP + V_GAP;
-  }
-  return nodes.map((n) => {
-    const p = pos.get(n.id);
-    return p ? { ...n, x: p.x, y: p.y } : n;
-  });
+  // Alias to reflowTree — same algorithm, run from every root.
+  return reflowTree(nodes);
 }
 
 /** Place a new node relative to its parent (right side, below existing siblings). */
 function positionForNewChild(nodes: MindNode[], parentId: string | null) {
   if (!parentId) {
-    // New root — place below existing roots.
     const roots = nodes.filter((n) => !n.parentId);
     if (roots.length === 0) return { x: 0, y: 0 };
     const maxY = Math.max(...roots.map((n) => n.y));
-    return { x: 0, y: maxY + V_GAP };
+    return { x: 0, y: maxY + MIN_SLOT_H };
   }
   const parent = nodes.find((n) => n.id === parentId);
   if (!parent) return { x: 0, y: 0 };
@@ -149,15 +124,13 @@ function positionForNewChild(nodes: MindNode[], parentId: string | null) {
   const x = parent.x + H_GAP;
   if (siblings.length === 0) return { x, y: parent.y };
   const maxY = Math.max(...siblings.map((n) => n.y));
-  return { x, y: maxY + V_GAP };
+  return { x, y: maxY + MIN_SLOT_H };
 }
 
 /**
  * Redistribute descendants of every root so subtrees never overlap vertically.
- * Roots keep their (x,y); each child block is centered on its parent and
- * given `subtreeLeafCount * V_GAP` of vertical space. Runs after every
- * structural change (add / delete / reparent) so new nodes automatically
- * push siblings apart.
+ * Uses each node's *intrinsic pixel height* (bigger for nodes with images) so
+ * only image-adjacent siblings get pushed apart — plain nodes stay tight.
  */
 function reflowTree(nodes: MindNode[]): MindNode[] {
   const byParent = new Map<string | null, MindNode[]>();
@@ -168,15 +141,22 @@ function reflowTree(nodes: MindNode[]): MindNode[] {
   }
   for (const arr of byParent.values()) arr.sort((a, b) => a.y - b.y);
 
-  const leaves = new Map<string, number>();
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+  const subtreeH = new Map<string, number>();
   function measure(id: string): number {
+    const self = nodeIntrinsicHeight(nodeById.get(id)!);
     const kids = byParent.get(id) ?? [];
     if (!kids.length) {
-      leaves.set(id, 1);
-      return 1;
+      subtreeH.set(id, self);
+      return self;
     }
-    const h = kids.reduce((s, k) => s + measure(k.id), 0);
-    leaves.set(id, h);
+    let total = 0;
+    for (let i = 0; i < kids.length; i++) {
+      total += measure(kids[i].id);
+      if (i > 0) total += SIBLING_GAP;
+    }
+    const h = Math.max(self, total);
+    subtreeH.set(id, h);
     return h;
   }
 
@@ -184,14 +164,18 @@ function reflowTree(nodes: MindNode[]): MindNode[] {
   function place(parentId: string, px: number, py: number) {
     const kids = byParent.get(parentId) ?? [];
     if (!kids.length) return;
-    const total = kids.reduce((s, k) => s + (leaves.get(k.id) ?? 1), 0);
-    let cursor = py - (total * V_GAP) / 2;
+    let total = 0;
+    for (let i = 0; i < kids.length; i++) {
+      total += subtreeH.get(kids[i].id) ?? MIN_SLOT_H;
+      if (i > 0) total += SIBLING_GAP;
+    }
+    let cursor = py - total / 2;
     for (const k of kids) {
-      const lh = leaves.get(k.id) ?? 1;
+      const kh = subtreeH.get(k.id) ?? MIN_SLOT_H;
       const kx = px + H_GAP;
-      const ky = cursor + (lh * V_GAP) / 2;
+      const ky = cursor + kh / 2;
       pos.set(k.id, { x: kx, y: ky });
-      cursor += lh * V_GAP;
+      cursor += kh + SIBLING_GAP;
       place(k.id, kx, ky);
     }
   }
@@ -205,6 +189,7 @@ function reflowTree(nodes: MindNode[]): MindNode[] {
     return p ? { ...n, x: p.x, y: p.y } : n;
   });
 }
+
 
 export const useStore = create<State & Actions>()((set) => ({
   projects: [],
@@ -262,6 +247,7 @@ export const useStore = create<State & Actions>()((set) => ({
           width: patch?.width ?? (parentId ? 260 : 300),
           parentId,
           image: patch?.image,
+          imageRef: patch?.imageRef,
           imageName: patch?.imageName,
           color: patch?.color,
         };
@@ -270,6 +256,7 @@ export const useStore = create<State & Actions>()((set) => ({
           nodes: reflowTree([...p.nodes, node]),
           updatedAt: new Date().toISOString(),
         };
+
       }),
     }));
     return id;
@@ -277,16 +264,24 @@ export const useStore = create<State & Actions>()((set) => ({
 
   updateNode: (projectId, nodeId, patch) =>
     set((s) => ({
-      projects: s.projects.map((p) =>
-        p.id === projectId
-          ? {
-              ...p,
-              nodes: p.nodes.map((n) => (n.id === nodeId ? { ...n, ...patch } : n)),
-              updatedAt: new Date().toISOString(),
-            }
-          : p,
-      ),
+      projects: s.projects.map((p) => {
+        if (p.id !== projectId) return p;
+        const nextNodes = p.nodes.map((n) =>
+          n.id === nodeId ? { ...n, ...patch } : n,
+        );
+        // If the change affects intrinsic height, reflow to keep spacing right.
+        // Only reflow when image presence changes — text edits shouldn't
+        // shove the layout around on every keystroke.
+        const heightAffecting = "imageRef" in patch || "image" in patch;
+
+        return {
+          ...p,
+          nodes: heightAffecting ? reflowTree(nextNodes) : nextNodes,
+          updatedAt: new Date().toISOString(),
+        };
+      }),
     })),
+
 
   deleteNode: (projectId, nodeId) =>
     set((s) => ({
