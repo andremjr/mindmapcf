@@ -302,7 +302,9 @@ export const useStore = create<State & Actions>()(
             if (wouldCycle(p.nodes, nodeId, parentId)) return p;
             return {
               ...p,
-              nodes: p.nodes.map((n) => (n.id === nodeId ? { ...n, parentId } : n)),
+              nodes: reflowTree(
+                p.nodes.map((n) => (n.id === nodeId ? { ...n, parentId } : n)),
+              ),
               updatedAt: new Date().toISOString(),
             };
           }),
