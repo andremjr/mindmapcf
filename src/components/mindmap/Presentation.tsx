@@ -53,17 +53,33 @@ export function Presentation({ project }: { project: Project }) {
   const rafRef = useRef<number | null>(null);
   const viewportRef = useRef<Viewport>(initialVp);
   viewportRef.current = viewport;
+  const prevIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!activeNode) return;
     const from = viewportRef.current;
     const target: Viewport = { x: activeNode.x, y: activeNode.y, zoom: FOCUS_ZOOM };
 
-    // distance-aware mid zoom-out (bigger jump = more zoom out)
+    // Camera style based on hierarchical relation to previous node:
+    // - descending to a child OR moving between siblings → straight pan (no zoom arc)
+    // - going back up / jumping across branches / first entry → zoom-out arc
+    const prevId = prevIdRef.current;
+    const prevNode = prevId ? project.nodes.find((n) => n.id === prevId) : null;
+    let useArc = true;
+    if (prevNode) {
+      const descending = activeNode.parentId === prevNode.id;
+      const sibling =
+        !!activeNode.parentId && activeNode.parentId === prevNode.parentId;
+      if (descending || sibling) useArc = false;
+    }
+    prevIdRef.current = activeNode.id;
+
     const dx = target.x - from.x;
     const dy = target.y - from.y;
     const dist = Math.hypot(dx, dy);
-    const midZoom = Math.max(0.55, FOCUS_ZOOM - Math.min(0.85, dist / 1200));
+    const midZoom = useArc
+      ? Math.max(0.55, FOCUS_ZOOM - Math.min(0.85, dist / 1200))
+      : from.zoom;
 
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     const start = performance.now();
@@ -71,11 +87,11 @@ export function Presentation({ project }: { project: Project }) {
     function step(now: number) {
       const t = Math.min(1, (now - start) / TRANSITION_MS);
       const e = ease(t);
-      // Zoom curve: from → midZoom (at t=0.5) → target.zoom
-      const zoomCurve =
-        t < 0.5
+      const zoomCurve = useArc
+        ? t < 0.5
           ? from.zoom + (midZoom - from.zoom) * ease(t * 2)
-          : midZoom + (target.zoom - midZoom) * ease((t - 0.5) * 2);
+          : midZoom + (target.zoom - midZoom) * ease((t - 0.5) * 2)
+        : from.zoom + (target.zoom - from.zoom) * e;
       setViewport({
         x: from.x + (target.x - from.x) * e,
         y: from.y + (target.y - from.y) * e,
