@@ -58,6 +58,16 @@ export function getRecorderState(): {
   };
 }
 
+/** AnalyserNode for the mic (or display audio if no mic). Null when idle. */
+export function getRecordingAnalyser(): AnalyserNode | null {
+  return active?.audioAnalyser ?? null;
+}
+
+export function getRecordingHasMic(): boolean {
+  return !!active?.hasMic;
+}
+
+
 function pickMimeType(): string {
   // Ordered by preference: highest-quality VP9 first (YouTube-friendly),
   // then AV1 if available, then fallbacks. MP4 goes last — WebM VP9 gives
