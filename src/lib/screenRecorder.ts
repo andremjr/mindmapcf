@@ -90,6 +90,14 @@ export interface StartOptions {
   videoBitsPerSecond?: number;
   audioBitsPerSecond?: number;
   frameRate?: number;
+  /**
+   * When provided, we (a) ask Chromium to pre-select the current tab via
+   * preferCurrentTab and (b) crop the captured video to this element's
+   * rect using the Region Capture API. Result: the recording contains
+   * ONLY the pixels inside this element — no browser chrome, no HUD,
+   * no on-page overlays painted outside it.
+   */
+  cropTargetElement?: HTMLElement | null;
 }
 
 /**
@@ -105,14 +113,46 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
     throw new Error("Seu navegador não permite captura de tela (tente Chrome/Edge no desktop).");
   }
 
-  const displayStream: MediaStream = await (navigator.mediaDevices as any).getDisplayMedia({
+  const canCrop =
+    !!opts.cropTargetElement &&
+    typeof (window as any).CropTarget !== "undefined" &&
+    typeof (window as any).CropTarget.fromElement === "function";
+
+  const displayMediaOpts: any = {
     video: {
       frameRate: opts.frameRate ?? 60,
       width: { ideal: 1920 },
       height: { ideal: 1080 },
     },
-    audio: true, // captures tab/system audio when the user checks the box
-  });
+    audio: true,
+  };
+  if (canCrop) {
+    // Chromium: skip the "choose what to share" picker friction and
+    // pre-select the current tab. Combined with cropTo, we get a
+    // mind-map-only recording with no browser chrome.
+    displayMediaOpts.preferCurrentTab = true;
+    displayMediaOpts.selfBrowserSurface = "include";
+    displayMediaOpts.surfaceSwitching = "exclude";
+    displayMediaOpts.systemAudio = "exclude";
+  }
+
+  const displayStream: MediaStream = await (navigator.mediaDevices as any).getDisplayMedia(
+    displayMediaOpts,
+  );
+
+  if (canCrop && opts.cropTargetElement) {
+    try {
+      const cropTarget = await (window as any).CropTarget.fromElement(
+        opts.cropTargetElement,
+      );
+      const videoTrack: any = displayStream.getVideoTracks()[0];
+      if (videoTrack && typeof videoTrack.cropTo === "function") {
+        await videoTrack.cropTo(cropTarget);
+      }
+    } catch (err) {
+      console.warn("[screenRecorder] region capture unavailable — full tab will be recorded", err);
+    }
+  }
 
 
   let micStream: MediaStream | null = null;
