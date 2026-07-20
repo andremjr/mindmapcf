@@ -7,6 +7,7 @@ import {
   Maximize,
   LayoutGrid,
   Trash2,
+  Circle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MindNode, Project } from "@/lib/types";
@@ -14,7 +15,9 @@ import { useStore, descendantIds } from "@/lib/store";
 import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
 
-import { pickImageAndStore } from "@/lib/imageStorage";
+import { pickMediaAndStore } from "@/lib/imageStorage";
+import { startRecording } from "@/lib/screenRecorder";
+
 
 
 export function MindMapEditor({ project }: { project: Project }) {
@@ -303,6 +306,36 @@ export function MindMapEditor({ project }: { project: Project }) {
     navigate({ to: "/projects/$id/present", params: { id: project.id } });
   }
 
+  async function handleRecordAndPresent() {
+    setViewportPersist(project.id, viewport);
+    const ok = confirm(
+      "Ao clicar em OK, o navegador vai pedir permissão para capturar a tela.\n\n" +
+        "• Escolha a aba/janela desta apresentação.\n" +
+        "• Marque \"Compartilhar áudio da guia\" para gravar o som dos vídeos.\n" +
+        "• Você também vai autorizar o microfone para narrar por cima.\n\n" +
+        "Aperte R (ou o botão Parar) para finalizar. O arquivo é baixado automaticamente.",
+    );
+    if (!ok) return;
+    try {
+      await startRecording({ filenameBase: project.title || "apresentacao" });
+    } catch (e: any) {
+      console.error("[mindmap] recording start", e);
+      if (e?.name !== "NotAllowedError") {
+        alert(e?.message || "Não foi possível iniciar a gravação.");
+      }
+      return;
+    }
+    if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+    navigate({
+      to: "/projects/$id/present",
+      params: { id: project.id },
+      search: { record: "1" },
+    });
+  }
+
+
   function fitAll() {
     const visibleNodes = project.nodes.filter((n) => visibleIds.has(n.id));
     if (visibleNodes.length === 0) {
@@ -362,6 +395,16 @@ export function MindMapEditor({ project }: { project: Project }) {
           </Button>
           <Button variant="secondary" size="sm" onClick={handleAdd} className="gap-2">
             <Plus className="size-4" /> Nó
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRecordAndPresent}
+            className="gap-2"
+            disabled={project.nodes.length === 0}
+            title="Grava tela + microfone durante a apresentação"
+          >
+            <Circle className="size-3 fill-destructive text-destructive" /> Gravar
           </Button>
           <Button size="sm" onClick={handlePresent} className="gap-2" disabled={project.nodes.length === 0}>
             <Play className="size-4" /> Apresentar
@@ -423,7 +466,7 @@ export function MindMapEditor({ project }: { project: Project }) {
                       onToggleCollapsed={() => toggleCollapsed(project.id, n.id)}
                       onPickImage={async () => {
                         try {
-                          const ref = await pickImageAndStore();
+                          const ref = await pickMediaAndStore("image");
                           if (!ref) return;
                           updateNode(project.id, n.id, {
                             imageRef: ref,
@@ -435,6 +478,21 @@ export function MindMapEditor({ project }: { project: Project }) {
                           alert("Não foi possível adicionar essa imagem.");
                         }
                       }}
+                      onPickVideo={async () => {
+                        try {
+                          const ref = await pickMediaAndStore("video");
+                          if (!ref) return;
+                          updateNode(project.id, n.id, {
+                            imageRef: ref,
+                            imageName: ref.name,
+                            image: undefined,
+                          });
+                        } catch (error) {
+                          console.error("[mindmap] video pick", error);
+                          alert("Não foi possível adicionar esse vídeo.");
+                        }
+                      }}
+
 
                     />
                   </div>

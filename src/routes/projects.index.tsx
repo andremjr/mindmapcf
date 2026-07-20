@@ -21,6 +21,7 @@ function ProjectThumb({ project }: { project: Project }) {
   const root = project.nodes.find((n) => !n.parentId) ?? project.nodes[0];
   const legacy = root?.image;
   const refId = root?.imageRef?.id;
+  const refKind = root?.imageRef?.kind ?? "image";
   const [url, setUrl] = useState<string | null>(legacy ?? null);
 
   useEffect(() => {
@@ -28,7 +29,7 @@ function ProjectThumb({ project }: { project: Project }) {
       setUrl(legacy);
       return;
     }
-    if (!refId) {
+    if (!refId || refKind !== "image") {
       setUrl(null);
       return;
     }
@@ -39,7 +40,7 @@ function ProjectThumb({ project }: { project: Project }) {
     return () => {
       alive = false;
     };
-  }, [legacy, refId]);
+  }, [legacy, refId, refKind]);
 
   if (url) {
     return (

@@ -11,6 +11,8 @@ export interface ImageRef {
   name: string;
   size: number;
   lastModified: number;
+  /** Media kind. Missing = image (backwards compatible). */
+  kind?: "image" | "video";
 }
 
 interface Entry extends ImageRef {
@@ -72,33 +74,33 @@ function hasFSAccess() {
   return typeof window !== "undefined" && "showOpenFilePicker" in window;
 }
 
-function pickFileFallback(): Promise<File | null> {
+function pickFileFallback(accept: string): Promise<File | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = "image/*";
+    input.accept = accept;
     input.onchange = () => resolve(input.files?.[0] ?? null);
-    // Not all browsers fire oncancel — resolve null on next tick if unused.
     input.addEventListener("cancel", () => resolve(null));
     input.click();
   });
 }
 
-/** Prompt the user for an image, persist a reference to it, return the ref. */
-export async function pickImageAndStore(): Promise<ImageRef | null> {
+const IMAGE_EXT = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif", ".svg"];
+const VIDEO_EXT = [".mp4", ".webm", ".mov", ".m4v", ".ogg", ".ogv", ".mkv"];
+
+/** Prompt the user for an image or a video and persist a reference to it. */
+export async function pickMediaAndStore(
+  kind: "image" | "video",
+): Promise<ImageRef | null> {
   if (typeof window === "undefined" || typeof document === "undefined") return null;
   const id = crypto.randomUUID();
+  const description = kind === "image" ? "Imagens" : "Vídeos";
+  const mime = kind === "image" ? "image/*" : "video/*";
+  const exts = kind === "image" ? IMAGE_EXT : VIDEO_EXT;
   if (hasFSAccess()) {
     try {
       const [handle] = await (window as any).showOpenFilePicker({
-        types: [
-          {
-            description: "Imagens",
-            accept: {
-              "image/*": [".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif", ".svg"],
-            },
-          },
-        ],
+        types: [{ description, accept: { [mime]: exts } }],
         multiple: false,
         excludeAcceptAllOption: false,
       });
@@ -108,6 +110,7 @@ export async function pickImageAndStore(): Promise<ImageRef | null> {
         name: file.name,
         size: file.size,
         lastModified: file.lastModified,
+        kind,
       };
       await put({ ...ref, handle });
       return ref;
@@ -116,16 +119,22 @@ export async function pickImageAndStore(): Promise<ImageRef | null> {
       // Fall through to fallback
     }
   }
-  const file = await pickFileFallback();
+  const file = await pickFileFallback(mime);
   if (!file) return null;
   const ref: ImageRef = {
     id,
     name: file.name,
     size: file.size,
     lastModified: file.lastModified,
+    kind,
   };
   await put({ ...ref, blob: file });
   return ref;
+}
+
+/** Back-compat alias — always picks an image. */
+export function pickImageAndStore(): Promise<ImageRef | null> {
+  return pickMediaAndStore("image");
 }
 
 async function readHandle(
