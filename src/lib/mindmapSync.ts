@@ -25,12 +25,12 @@ function toProject(r: Row): Project {
 
 function stripInlineImages(nodes: Project["nodes"]): MindNode[] {
   return nodes.map((node) => {
-    if (!node.image || node.imageRef) return node;
+    if (!node.image) return node;
 
     const { image: _image, ...rest } = node;
     return {
       ...rest,
-      imageName: node.imageName ?? "Imagem local não reconectada",
+      imageName: node.imageName ?? node.imageRef?.name ?? "Imagem local não reconectada",
     };
   });
 }
