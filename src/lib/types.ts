@@ -3,10 +3,13 @@
 export interface ImageRef {
   /** Stable id used to look up the file handle / blob in IndexedDB. */
   id: string;
+  /** Private Supabase Storage path. This is the durable source after reloads. */
+  storagePath?: string;
   /** Original filename — shown in UI and used for the broken-image label. */
   name: string;
   size: number;
   lastModified: number;
+  contentType?: string;
   /** Media kind. Missing = image (backwards compatible). */
   kind?: "image" | "video";
 }

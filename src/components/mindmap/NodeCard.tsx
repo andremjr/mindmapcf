@@ -10,7 +10,7 @@ import {
   Palette,
   Check,
 } from "lucide-react";
-import type { MindNode } from "@/lib/types";
+import type { ImageRef, MindNode } from "@/lib/types";
 import { resolveImage, requestImageAccess } from "@/lib/imageStorage";
 import { NODE_COLOR_PALETTE, DEFAULT_ACCENT } from "@/lib/nodeColors";
 
@@ -142,6 +142,7 @@ export function NodeCard({
         node={node}
         presentation={presentation}
         active={active}
+        onReconnect={(ref) => onChange({ imageRef: ref, imageName: ref.name, image: undefined })}
         onClear={() =>
           onChange({ image: undefined, imageRef: undefined, imageName: undefined })
         }
@@ -341,11 +342,13 @@ function NodeMedia({
   presentation,
   active,
   onClear,
+  onReconnect,
 }: {
   node: MindNode;
   presentation?: boolean;
   active?: boolean;
   onClear: () => void;
+  onReconnect: (ref: ImageRef) => void;
 }) {
   const ref = node.imageRef;
   const legacy = node.image;
@@ -376,7 +379,7 @@ function NodeMedia({
     return () => {
       alive = false;
     };
-  }, [ref?.id, legacy]);
+  }, [ref?.id, ref?.storagePath, legacy]);
 
   // Presentation: pause video when leaving the active node. Never autoplay —
   // the presenter clicks play when they're ready to show it.
@@ -413,10 +416,11 @@ function NodeMedia({
               disabled={reconnecting}
               onClick={async () => {
                 setReconnecting(true);
-                const u = await requestImageAccess(ref);
+                const result = await requestImageAccess(ref);
                 setReconnecting(false);
-                if (u) {
-                  setUrl(u);
+                if (result) {
+                  setUrl(result.url);
+                  if (result.ref) onReconnect(result.ref);
                   setBroken(false);
                 }
               }}
