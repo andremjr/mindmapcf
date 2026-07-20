@@ -21,6 +21,7 @@ interface ActiveRecording {
   audioCtx: AudioContext | null;
   audioAnalyser: AnalyserNode | null;
   hasMic: boolean;
+  cropApplied: boolean;
   mimeType: string;
   startedAt: number;
   filenameBase: string;
@@ -128,6 +129,27 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
   const displayStream: MediaStream = await (navigator.mediaDevices as any).getDisplayMedia(
     displayMediaOpts,
   );
+
+  const selectedVideoTrack = displayStream.getVideoTracks()[0] as MediaStreamTrack & {
+    cropTo?: (target: unknown) => Promise<void>;
+    getSettings?: () => MediaTrackSettings & { displaySurface?: string };
+  };
+  const CropTargetCtor = (globalThis as any).CropTarget as
+    | { fromElement: (el: Element) => Promise<unknown> }
+    | undefined;
+  const displaySurface = selectedVideoTrack?.getSettings?.().displaySurface;
+  if (!selectedVideoTrack || !CropTargetCtor || typeof selectedVideoTrack.cropTo !== "function") {
+    for (const t of displayStream.getTracks()) t.stop();
+    throw new Error(
+      "Para gravar só o quadro, use Chrome ou Edge no desktop e selecione a guia atual.",
+    );
+  }
+  if (displaySurface && displaySurface !== "browser") {
+    for (const t of displayStream.getTracks()) t.stop();
+    throw new Error(
+      "Selecione a guia atual do Canvas Narrativo na janela de compartilhamento. Janela/tela inteira não pode ser recortada com segurança.",
+    );
+  }
 
 
 
@@ -238,6 +260,7 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
     audioCtx,
     audioAnalyser,
     hasMic,
+    cropApplied: false,
     mimeType,
     startedAt: performance.now(),
     filenameBase: opts.filenameBase || "apresentacao",
@@ -305,6 +328,7 @@ export async function cropRecordingToElement(el: Element): Promise<boolean> {
   try {
     const target = await CropTargetCtor.fromElement(el);
     await track.cropTo(target);
+    active.cropApplied = true;
     return true;
   } catch (e) {
     console.warn("[screenRecorder] cropTo failed", e);

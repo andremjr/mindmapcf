@@ -1,22 +1,23 @@
-// Media storage for mind-map nodes.
-// Durable source: private Supabase Storage path saved in the node's ImageRef.
-// Local source: IndexedDB blob cache + optional File System Access handle for
-// fast reloads. Browser security does not allow a website to re-open an
-// arbitrary local file path after restart, so the private storage path is the
-// only reliable cross-session source.
+// Media storage.
+// Node images/videos stay local: the map stores only a lightweight file
+// reference and IndexedDB keeps the Blob/FileSystemHandle cache. We never
+// upload node media to Supabase Storage.
+// Sonic avatar images are the only media uploaded to Supabase Storage.
 
 import { supabase } from "@/integrations/supabase/client";
 
 const DB_NAME = "mindmap-images";
 const STORE = "images";
-const BUCKET = "mindmap-media";
 export const AVATAR_BUCKET = "avatar-images";
 export const AVATAR_MAX_BYTES = 3 * 1024 * 1024; // 3MB per avatar image
 
 export interface ImageRef {
   id: string;
+  /** Local reference shown to the user. Browsers expose the filename, not the full OS path. */
+  localPath?: string;
+  /** Private Supabase Storage path. Only avatar images should set this. */
   storagePath?: string;
-  /** Storage bucket. Missing = default `mindmap-media` bucket. */
+  /** Storage bucket. Only avatar images should set this to `avatar-images`. */
   bucket?: string;
   name: string;
   size: number;
@@ -30,6 +31,10 @@ interface Entry extends ImageRef {
   handle?: FileSystemFileHandle;
   blob?: Blob;
 }
+
+const IMAGE_EXT = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif", ".svg"];
+const VIDEO_EXT = [".mp4", ".webm", ".mov", ".m4v", ".ogg", ".ogv", ".mkv"];
+const urlCache = new Map<string, string>();
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -63,8 +68,8 @@ async function safePut(entry: Entry) {
   try {
     await put(entry);
   } catch {
-    // Some browsers refuse to persist FileSystemHandle objects. Keep the
-    // durable storage path + blob cache instead.
+    // Some browsers refuse to persist FileSystemHandle objects. Keep the blob
+    // cache + metadata instead; node media remains local-only either way.
     const { handle: _handle, ...withoutHandle } = entry;
     await put(withoutHandle).catch(() => undefined);
   }
@@ -80,9 +85,7 @@ async function getEntry(id: string): Promise<Entry | undefined> {
   });
 }
 
-/** Scan the cache for any previously-picked file with the same fingerprint
- *  (name+size+lastModified). Lets a second device / browser auto-adopt a
- *  local file the user already picked once, without a re-prompt. */
+/** Scan the cache for any previously-picked file with the same fingerprint. */
 async function findByFingerprint(
   name: string,
   size: number,
@@ -122,9 +125,6 @@ async function del(id: string) {
   });
 }
 
-
-const urlCache = new Map<string, string>();
-
 function objectUrlFor(id: string, blob: Blob) {
   const existing = urlCache.get(id);
   if (existing) URL.revokeObjectURL(existing);
@@ -157,10 +157,10 @@ function makeStoragePath(userId: string, name: string) {
   return `${userId}/${crypto.randomUUID()}-${sanitizeFileName(name)}`;
 }
 
-async function uploadToStorage(file: Blob, name = "arquivo", bucket = BUCKET) {
+async function uploadAvatarToStorage(file: Blob, name = "avatar") {
   const userId = await currentUserId();
   const storagePath = makeStoragePath(userId, name);
-  const { error } = await supabase.storage.from(bucket).upload(storagePath, file, {
+  const { error } = await supabase.storage.from(AVATAR_BUCKET).upload(storagePath, file, {
     contentType: file.type || undefined,
     upsert: false,
   });
@@ -168,14 +168,24 @@ async function uploadToStorage(file: Blob, name = "arquivo", bucket = BUCKET) {
   return storagePath;
 }
 
-async function downloadFromStorage(storagePath: string, bucket = BUCKET): Promise<Blob | null> {
-  const { data, error } = await supabase.storage.from(bucket).download(storagePath);
+async function downloadAvatarFromStorage(storagePath: string): Promise<Blob | null> {
+  const { data, error } = await supabase.storage.from(AVATAR_BUCKET).download(storagePath);
   if (error || !data) return null;
   return data;
 }
 
-/** Pick an image constrained to <=3MB and upload it to the private
- *  `avatar-images` bucket. Returns an ImageRef tagged with that bucket. */
+function pickFileFallback(accept: string): Promise<File | null> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = accept;
+    input.onchange = () => resolve(input.files?.[0] ?? null);
+    input.addEventListener("cancel", () => resolve(null));
+    input.click();
+  });
+}
+
+/** Pick an image constrained to <=3MB and upload it to `avatar-images`. */
 export async function pickAvatarImageAndStore(): Promise<ImageRef | null> {
   if (typeof window === "undefined" || typeof document === "undefined") return null;
   let file: File | null = null;
@@ -199,9 +209,10 @@ export async function pickAvatarImageAndStore(): Promise<ImageRef | null> {
     );
   }
   const id = crypto.randomUUID();
-  const storagePath = await uploadToStorage(file, file.name, AVATAR_BUCKET);
+  const storagePath = await uploadAvatarToStorage(file, file.name);
   const ref: ImageRef = {
     id,
+    localPath: file.name,
     storagePath,
     bucket: AVATAR_BUCKET,
     name: file.name,
@@ -214,27 +225,8 @@ export async function pickAvatarImageAndStore(): Promise<ImageRef | null> {
   return ref;
 }
 
-function pickFileFallback(accept: string): Promise<File | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = accept;
-    input.onchange = () => resolve(input.files?.[0] ?? null);
-    input.addEventListener("cancel", () => resolve(null));
-    input.click();
-  });
-}
-
-const IMAGE_EXT = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif", ".svg"];
-const VIDEO_EXT = [".mp4", ".webm", ".mov", ".m4v", ".ogg", ".ogv", ".mkv"];
-
-/** Prompt the user for an image or a video and persist a reference to it.
- *  The original file is uploaded to the user's private Storage folder, and
- *  that path is saved in the map JSON. We also cache bytes locally so reloads
- *  are instant. */
-export async function pickMediaAndStore(
-  kind: "image" | "video",
-): Promise<ImageRef | null> {
+/** Pick a local node image/video. This never uploads to Supabase. */
+export async function pickMediaAndStore(kind: "image" | "video"): Promise<ImageRef | null> {
   if (typeof window === "undefined" || typeof document === "undefined") return null;
   const id = crypto.randomUUID();
   const description = kind === "image" ? "Imagens" : "Vídeos";
@@ -248,10 +240,9 @@ export async function pickMediaAndStore(
         excludeAcceptAllOption: false,
       });
       const file = await handle.getFile();
-      const storagePath = await uploadToStorage(file, file.name);
       const ref: ImageRef = {
         id,
-        storagePath,
+        localPath: file.name,
         name: file.name,
         size: file.size,
         lastModified: file.lastModified,
@@ -262,15 +253,13 @@ export async function pickMediaAndStore(
       return ref;
     } catch (e: any) {
       if (e?.name === "AbortError") return null;
-      // Fall through to fallback
     }
   }
   const file = await pickFileFallback(mime);
   if (!file) return null;
-  const storagePath = await uploadToStorage(file, file.name);
   const ref: ImageRef = {
     id,
-    storagePath,
+    localPath: (file as any).webkitRelativePath || file.name,
     name: file.name,
     size: file.size,
     lastModified: file.lastModified,
@@ -286,10 +275,7 @@ export function pickImageAndStore(): Promise<ImageRef | null> {
   return pickMediaAndStore("image");
 }
 
-async function tryReadHandle(
-  entry: Entry,
-  interactive: boolean,
-): Promise<File | null> {
+async function tryReadHandle(entry: Entry, interactive: boolean): Promise<File | null> {
   if (!entry.handle) return null;
   const h: any = entry.handle;
   try {
@@ -309,67 +295,62 @@ async function tryReadHandle(
   }
 }
 
-/** Resolve without a user gesture. Serves cached bytes first (survives
- *  reloads), then tries the handle silently. When invoked with the full
- *  ImageRef, also matches by fingerprint (name+size+lastModified) so a
- *  second device / browser picks up files the user already opened in
- *  another node. Returns null when nothing local matches. */
-export async function resolveImage(
-  ref: string | ImageRef,
-): Promise<string | null> {
+/** Resolve a local node file or an avatar image. Node refs do not fall back to Storage. */
+export async function resolveImage(ref: string | ImageRef): Promise<string | null> {
   const id = typeof ref === "string" ? ref : ref.id;
   const cached = urlCache.get(id);
   if (cached) return cached;
   const entry = await getEntry(id).catch(() => undefined);
-  if (entry?.blob) {
-    return objectUrlFor(id, entry.blob);
-  }
+  if (entry?.blob) return objectUrlFor(id, entry.blob);
+
   const storagePath =
     typeof ref === "object" ? ref.storagePath ?? entry?.storagePath : entry?.storagePath;
-  const bucket =
-    (typeof ref === "object" ? ref.bucket : undefined) ?? (entry as any)?.bucket ?? BUCKET;
-  if (storagePath) {
-    const blob = await downloadFromStorage(storagePath, bucket);
+  const bucket = (typeof ref === "object" ? ref.bucket : undefined) ?? entry?.bucket;
+  if (storagePath && bucket === AVATAR_BUCKET) {
+    const blob = await downloadAvatarFromStorage(storagePath);
     if (blob) {
       const nextEntry: Entry = {
         ...(typeof ref === "object"
           ? ref
           : entry ?? {
               id,
-              name: "Arquivo",
+              name: "Avatar",
               size: blob.size,
               lastModified: Date.now(),
+              kind: "image" as const,
             }),
         storagePath,
+        bucket: AVATAR_BUCKET,
         blob,
       };
       await safePut(nextEntry).catch(() => undefined);
       return objectUrlFor(id, blob);
     }
   }
+
   if (entry) {
     const file = await tryReadHandle(entry, false);
     if (file) {
-      await safePut({ ...entry, blob: file }).catch(() => {});
+      await safePut({ ...entry, blob: file }).catch(() => undefined);
       return objectUrlFor(id, file);
     }
   }
-  // Cross-device fingerprint fallback: reuse a blob the user already
-  // picked for this same file on this browser.
+
   if (typeof ref === "object") {
     const twin = await findByFingerprint(ref.name, ref.size, ref.lastModified);
     if (twin?.blob) {
-      // Adopt the blob under the new id so subsequent lookups are direct.
       await safePut({
         id,
-        storagePath: ref.storagePath,
+        localPath: ref.localPath ?? ref.name,
+        storagePath: ref.bucket === AVATAR_BUCKET ? ref.storagePath : undefined,
+        bucket: ref.bucket === AVATAR_BUCKET ? AVATAR_BUCKET : undefined,
         name: ref.name,
         size: ref.size,
         lastModified: ref.lastModified,
         contentType: ref.contentType,
         kind: ref.kind,
         blob: twin.blob,
-      }).catch(() => {});
+      }).catch(() => undefined);
       return objectUrlFor(id, twin.blob);
     }
   }
@@ -378,16 +359,12 @@ export async function resolveImage(
 
 export interface ReconnectResult {
   url: string;
-  /** Present when reconnection created a stronger durable reference. */
+  /** Present when reconnection refreshed the local reference. */
   ref?: ImageRef;
 }
 
-/** Called from a user gesture to reconnect a broken reference. Tries the
- *  stored Storage path first. Only if the app has no durable path does it ask
- *  for the file once, upload it to private Storage, and update the reference. */
-export async function requestImageAccess(
-  ref: string | ImageRef,
-): Promise<ReconnectResult | null> {
+/** Reconnect a broken local media reference by asking the user to re-select it. */
+export async function requestImageAccess(ref: string | ImageRef): Promise<ReconnectResult | null> {
   const id = typeof ref === "string" ? ref : ref.id;
   const cached = urlCache.get(id);
   if (cached) return { url: cached };
@@ -398,39 +375,41 @@ export async function requestImageAccess(
   if (entry) {
     const file = await tryReadHandle(entry, true);
     if (file) {
-      const storagePath = entry.storagePath ?? (await uploadToStorage(file, file.name));
       const nextRef: ImageRef = {
         id,
-        storagePath,
+        localPath: entry.localPath ?? file.name,
+        storagePath: entry.bucket === AVATAR_BUCKET ? entry.storagePath : undefined,
+        bucket: entry.bucket === AVATAR_BUCKET ? AVATAR_BUCKET : undefined,
         name: file.name,
         size: file.size,
         lastModified: file.lastModified,
         contentType: file.type || entry.contentType,
         kind: entry.kind,
       };
-      await safePut({ ...nextRef, handle: entry.handle, blob: file }).catch(() => {});
+      await safePut({ ...nextRef, handle: entry.handle, blob: file }).catch(() => undefined);
       return { url: objectUrlFor(id, file), ref: nextRef };
     }
   }
-  // Try the fingerprint fallback before nagging the user with a picker.
+
   if (typeof ref === "object") {
     const twin = await findByFingerprint(ref.name, ref.size, ref.lastModified);
     if (twin?.blob) {
-      const storagePath = ref.storagePath ?? (await uploadToStorage(twin.blob, ref.name));
       const nextRef: ImageRef = {
         id,
-        storagePath,
+        localPath: ref.localPath ?? ref.name,
+        storagePath: ref.bucket === AVATAR_BUCKET ? ref.storagePath : undefined,
+        bucket: ref.bucket === AVATAR_BUCKET ? AVATAR_BUCKET : undefined,
         name: ref.name,
         size: ref.size,
         lastModified: ref.lastModified,
         contentType: ref.contentType,
         kind: ref.kind,
       };
-      await safePut({ ...nextRef, blob: twin.blob }).catch(() => {});
+      await safePut({ ...nextRef, blob: twin.blob }).catch(() => undefined);
       return { url: objectUrlFor(id, twin.blob), ref: nextRef };
     }
   }
-  // Last resort: prompt the user to re-select the file.
+
   const kind = entry?.kind ?? (typeof ref === "object" ? ref.kind : undefined) ?? "image";
   const mime = kind === "image" ? "image/*" : "video/*";
   const exts = kind === "image" ? IMAGE_EXT : VIDEO_EXT;
@@ -456,35 +435,26 @@ export async function requestImageAccess(
   }
   if (!file) file = await pickFileFallback(mime);
   if (!file) return null;
-  const storagePath = await uploadToStorage(file, file.name);
   const nextRef: ImageRef = {
     id,
-    storagePath,
+    localPath: (file as any).webkitRelativePath || file.name,
     name: file.name,
     size: file.size,
     lastModified: file.lastModified,
     contentType: file.type || undefined,
     kind,
   };
-  const nextEntry: Entry = {
-    ...nextRef,
-    handle,
-    blob: file,
-  };
-  await safePut(nextEntry);
+  await safePut({ ...nextRef, handle, blob: file });
   return { url: objectUrlFor(id, file), ref: nextRef };
 }
-
-
 
 export async function deleteImage(id: string) {
   const entry = await getEntry(id).catch(() => undefined);
   const url = urlCache.get(id);
   if (url) URL.revokeObjectURL(url);
   urlCache.delete(id);
-  if (entry?.storagePath) {
-    const bucket = (entry as any).bucket ?? BUCKET;
-    await supabase.storage.from(bucket).remove([entry.storagePath]).catch(() => undefined);
+  if (entry?.storagePath && entry.bucket === AVATAR_BUCKET) {
+    await supabase.storage.from(AVATAR_BUCKET).remove([entry.storagePath]).catch(() => undefined);
   }
   await del(id).catch(() => undefined);
 }

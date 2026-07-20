@@ -98,12 +98,20 @@ export function Presentation({
     if (!recording || !frameRef.current) return;
     let cancelled = false;
     cropRecordingToElement(frameRef.current).then((ok) => {
-      if (!cancelled) setCropOk(ok);
+      if (cancelled) return;
+      setCropOk(ok);
+      if (!ok) {
+        cancelRecording().catch(() => undefined);
+        window.alert(
+          "A gravação foi cancelada porque o navegador não conseguiu recortar só o quadro. Use Chrome/Edge no desktop e selecione a guia atual do Canvas Narrativo.",
+        );
+        navigate({ to: "/projects/$id", params: { id: project.id } });
+      }
     });
     return () => {
       cancelled = true;
     };
-  }, [recording]);
+  }, [recording, navigate, project.id]);
 
   const visibleIds = useMemo(() => {
     const hidden = new Set<string>();

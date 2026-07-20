@@ -379,7 +379,7 @@ function NodeMedia({
     return () => {
       alive = false;
     };
-  }, [ref?.id, ref?.storagePath, legacy]);
+  }, [ref?.id, ref?.localPath, ref?.storagePath, ref?.bucket, legacy]);
 
   // Presentation: pause video when leaving the active node. Never autoplay —
   // the presenter clicks play when they're ready to show it.

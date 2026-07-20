@@ -41,7 +41,7 @@ export function SonicAvatarOverlay({
     return () => {
       cancelled = true;
     };
-  }, [avatar.imageRef?.id, avatar.imageRef?.storagePath]);
+  }, [avatar.imageRef?.id, avatar.imageRef?.localPath, avatar.imageRef?.storagePath, avatar.imageRef?.bucket]);
 
   // Diameter in px, based on shorter side of the frame.
   const minSide = Math.min(frameSize.w, frameSize.h);
