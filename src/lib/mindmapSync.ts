@@ -7,7 +7,11 @@ import type { MindNode, Project } from "@/lib/types";
 interface Row {
   id: string;
   title: string;
-  data: { nodes: Project["nodes"]; viewport?: Project["viewport"] };
+  data: {
+    nodes: Project["nodes"];
+    viewport?: Project["viewport"];
+    sonicAvatar?: Project["sonicAvatar"];
+  };
   created_at: string;
   updated_at: string;
 }
@@ -20,8 +24,10 @@ function toProject(r: Row): Project {
     updatedAt: r.updated_at,
     nodes: r.data?.nodes ?? [],
     viewport: r.data?.viewport ?? { x: 0, y: 0, zoom: 1 },
+    sonicAvatar: r.data?.sonicAvatar,
   };
 }
+
 
 function stripInlineImages(nodes: Project["nodes"]): MindNode[] {
   return nodes.map((node) => {
@@ -117,10 +123,15 @@ export function useMindmapSync(userId: string | undefined) {
                   id: p.id,
                   user_id: userId,
                   title: p.title,
-                  data: { nodes: stripInlineImages(p.nodes), viewport: p.viewport } as any,
+                  data: {
+                    nodes: stripInlineImages(p.nodes),
+                    viewport: p.viewport,
+                    sonicAvatar: p.sonicAvatar,
+                  } as any,
                 },
                 { onConflict: "id" },
               )
+
 
               .then(({ error }) => {
                 if (error) console.error("[mindmapSync] upsert", error);

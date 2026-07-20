@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import type { MindNode, Project } from "./types";
+import type { MindNode, Project, SonicAvatar } from "./types";
+
 
 function uid(_prefix = "id") {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -46,7 +47,9 @@ interface Actions {
   autoLayout: (projectId: string) => void;
 
   setViewport: (projectId: string, v: { x: number; y: number; zoom: number }) => void;
+  setSonicAvatar: (projectId: string, patch: Partial<SonicAvatar> | null) => void;
 }
+
 
 const H_GAP = 340;
 const SIBLING_GAP = 40;
@@ -399,7 +402,32 @@ export const useStore = create<State & Actions>()((set) => ({
     set((s) => ({
       projects: s.projects.map((p) => (p.id === projectId ? { ...p, viewport: v } : p)),
     })),
+
+  setSonicAvatar: (projectId, patch) =>
+    set((s) => ({
+      projects: s.projects.map((p) => {
+        if (p.id !== projectId) return p;
+        if (patch === null) {
+          const { sonicAvatar: _, ...rest } = p;
+          return { ...rest, updatedAt: new Date().toISOString() };
+        }
+        const base: SonicAvatar = p.sonicAvatar ?? {
+          enabled: false,
+          bgColor: "#0f172a",
+          waveColor: "#22d3ee",
+          sizePct: 18,
+          xPct: 12,
+          yPct: 82,
+        };
+        return {
+          ...p,
+          sonicAvatar: { ...base, ...patch },
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    })),
 }));
+
 
 
 export function useProject(id: string | undefined): Project | undefined {
