@@ -157,6 +157,24 @@ function ProjectsDashboard() {
             >
               <LogOut className="size-4" /> Sair
             </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".md,.markdown,.json,.txt,text/markdown,application/json,text/plain"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleImportFile(f);
+                e.target.value = "";
+              }}
+            />
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="size-4" /> Importar
+            </Button>
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2">
@@ -180,6 +198,7 @@ function ProjectsDashboard() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+
           </div>
 
         </div>
