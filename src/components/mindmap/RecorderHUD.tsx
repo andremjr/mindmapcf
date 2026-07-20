@@ -10,10 +10,12 @@ function formatDuration(ms: number) {
 }
 
 /**
- * Recording HUD. Opens in a Document Picture-in-Picture window when supported
- * (Chrome/Edge 116+) — that window is a separate OS-level surface and is NOT
- * captured by getDisplayMedia, so the HUD stays off the recording. Falls back
- * to a draggable overlay on the page (which WILL appear in the recording).
+ * Recording HUD. Rendered into a separate OS-level window so it is NEVER
+ * captured by the tab recording:
+ *   1. Document Picture-in-Picture (Chrome/Edge 116+) — preferred.
+ *   2. `window.open` popup — fallback for browsers without doc-PiP.
+ * If both fail (popup blocked), we render nothing rather than leak the HUD
+ * into the recording.
  */
 export function RecorderHUD({
   startedAt,
@@ -22,39 +24,67 @@ export function RecorderHUD({
   startedAt: number;
   onStop: () => void;
 }) {
-  const [pipWin, setPipWin] = useState<Window | null>(null);
-  const [pipAttempted, setPipAttempted] = useState(false);
+  const [hostWin, setHostWin] = useState<Window | null>(null);
+  const [attempted, setAttempted] = useState(false);
 
   useEffect(() => {
-    if (pipAttempted) return;
-    setPipAttempted(true);
-    const dpip = (window as any).documentPictureInPicture;
-    if (!dpip) return;
+    if (attempted) return;
+    setAttempted(true);
     let win: Window | null = null;
     let cancelled = false;
-    dpip
-      .requestWindow({ width: 280, height: 96 })
-      .then((w: Window) => {
-        if (cancelled) {
-          try {
-            w.close();
-          } catch {
-            /* ignore */
-          }
-          return;
-        }
-        win = w;
+
+    const setup = (w: Window) => {
+      try {
         w.document.title = "Gravação";
-        // Inline styles let us render without copying stylesheets.
         w.document.body.style.cssText =
           "margin:0;padding:0;background:transparent;font-family:ui-sans-serif,system-ui,sans-serif;color:#fff;overflow:hidden;";
-        w.addEventListener("pagehide", () => setPipWin(null));
-        setPipWin(w);
-      })
-      .catch((err: unknown) => {
-        // User dismissed or the browser refused — fall back silently.
-        console.warn("[RecorderHUD] documentPictureInPicture failed", err);
-      });
+        w.addEventListener("pagehide", () => setHostWin(null));
+      } catch {
+        /* cross-origin edge cases */
+      }
+      setHostWin(w);
+    };
+
+    const dpip = (window as any).documentPictureInPicture;
+    const tryPopup = () => {
+      try {
+        const w = window.open(
+          "about:blank",
+          "canvas-narrativo-rec-hud",
+          "popup,width=300,height=110,left=40,top=40",
+        );
+        if (w) {
+          win = w;
+          setup(w);
+        }
+      } catch {
+        /* popup blocked */
+      }
+    };
+
+    if (dpip && typeof dpip.requestWindow === "function") {
+      dpip
+        .requestWindow({ width: 300, height: 110 })
+        .then((w: Window) => {
+          if (cancelled) {
+            try {
+              w.close();
+            } catch {
+              /* ignore */
+            }
+            return;
+          }
+          win = w;
+          setup(w);
+        })
+        .catch((err: unknown) => {
+          console.warn("[RecorderHUD] documentPictureInPicture failed, trying popup", err);
+          tryPopup();
+        });
+    } else {
+      tryPopup();
+    }
+
     return () => {
       cancelled = true;
       if (win) {
@@ -65,56 +95,15 @@ export function RecorderHUD({
         }
       }
     };
-  }, [pipAttempted]);
+  }, [attempted]);
 
-  const panel = <HUDPanel startedAt={startedAt} onStop={onStop} inPip={!!pipWin} />;
-
-  if (pipWin) return createPortal(panel, pipWin.document.body);
-  return <DraggableWrapper>{panel}</DraggableWrapper>;
-}
-
-function DraggableWrapper({ children }: { children: ReactNode }) {
-  const [pos, setPos] = useState({ x: 24, y: 24 });
-  const dragRef = useRef<{ ox: number; oy: number } | null>(null);
-
-  function onPointerDown(e: React.PointerEvent) {
-    dragRef.current = { ox: e.clientX - pos.x, oy: e.clientY - pos.y };
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  }
-  function onPointerMove(e: React.PointerEvent) {
-    if (!dragRef.current) return;
-    setPos({
-      x: Math.max(0, Math.min(window.innerWidth - 260, e.clientX - dragRef.current.ox)),
-      y: Math.max(0, Math.min(window.innerHeight - 60, e.clientY - dragRef.current.oy)),
-    });
-  }
-  function onPointerUp(e: React.PointerEvent) {
-    dragRef.current = null;
-    try {
-      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    } catch {
-      /* ignore */
-    }
-  }
-
-  return (
-    <div
-      style={{
-        position: "fixed",
-        left: pos.x,
-        top: pos.y,
-        zIndex: 60,
-        touchAction: "none",
-        cursor: "grab",
-      }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-    >
-      {children}
-    </div>
+  if (!hostWin) return null;
+  return createPortal(
+    <HUDPanel startedAt={startedAt} onStop={onStop} inPip />,
+    hostWin.document.body,
   );
 }
+
 
 function HUDPanel({
   startedAt,
