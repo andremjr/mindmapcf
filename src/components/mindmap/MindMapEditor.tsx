@@ -492,6 +492,16 @@ export function MindMapEditor({ project }: { project: Project }) {
             <Upload className="size-4" /> Importar
           </Button>
           <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setAvatarOpen(true)}
+            className="gap-2"
+            title="Avatar sonoro para gravação"
+          >
+            <Mic className="size-4" />
+            {project.sonicAvatar?.enabled && project.sonicAvatar?.imageRef ? "Avatar ✓" : "Avatar"}
+          </Button>
+          <Button
             variant="outline"
             size="sm"
             onClick={handleRecordAndPresent}
@@ -504,6 +514,7 @@ export function MindMapEditor({ project }: { project: Project }) {
           <Button size="sm" onClick={handlePresent} className="gap-2" disabled={project.nodes.length === 0}>
             <Play className="size-4" /> Apresentar
           </Button>
+
         </div>
       </header>
 
