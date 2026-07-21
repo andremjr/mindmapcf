@@ -76,7 +76,7 @@ export function NodeCard({
     }
   }, [editing]);
 
-  const w = node.width ?? 260;
+  const w = node.width ?? 340;
   const accent = effectiveColor ?? node.color ?? DEFAULT_ACCENT;
   const isRoot = !node.parentId;
   const isThemed = accent !== DEFAULT_ACCENT;

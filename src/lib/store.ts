@@ -69,7 +69,7 @@ const LINE_H = 22;
 const MIN_SLOT_H = 120;
 
 /** Default card width used by NodeCard when node.width is not set. */
-const DEFAULT_NODE_W = 260;
+const DEFAULT_NODE_W = 340;
 /** Approximate character width for wrap estimation (text-base ~16px). */
 const CHAR_W = 8.2;
 /** Horizontal padding inside the card (px-4 on both sides). */
@@ -275,7 +275,7 @@ export const useStore = create<State & Actions>()((set) => ({
           text: title.trim() || "Ideia central",
           x: 0,
           y: 0,
-          width: 300,
+          width: 380,
           parentId: null,
         },
       ],
@@ -333,7 +333,7 @@ export const useStore = create<State & Actions>()((set) => ({
           text: patch?.text ?? "",
           x: patch?.x ?? auto.x,
           y: patch?.y ?? auto.y,
-          width: patch?.width ?? (parentId ? 260 : 300),
+          width: patch?.width ?? (parentId ? 340 : 380),
           parentId,
           image: patch?.image,
           imageRef: patch?.imageRef,
