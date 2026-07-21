@@ -57,7 +57,7 @@ interface Actions {
 }
 
 
-const H_GAP = 620;
+const H_GAP = 560;
 const SIBLING_GAP = 36;
 const BASE_NODE_H = 88;
 const IMAGE_NODE_H = 190;
