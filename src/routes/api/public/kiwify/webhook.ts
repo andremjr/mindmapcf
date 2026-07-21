@@ -87,7 +87,7 @@ async function updateStatus(
 export const Route = createFileRoute("/api/public/kiwify/webhook")({
   server: {
     handlers: {
-      POST: async ({ request }) => {
+      POST: async ({ request }: { request: Request }) => {
         const token = process.env.KIWIFY_WEBHOOK_TOKEN;
         if (!token) {
           console.error("[kiwify] missing KIWIFY_WEBHOOK_TOKEN");
