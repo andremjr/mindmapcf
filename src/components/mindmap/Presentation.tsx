@@ -387,7 +387,7 @@ export function Presentation({
     ? {
         width: frameCssSize.w,
         height: frameCssSize.h,
-        boxShadow: "0 0 0 2px rgba(239,68,68,0.6), 0 30px 80px rgba(0,0,0,0.7)",
+        boxShadow: "0 30px 80px rgba(0,0,0,0.7)",
         borderRadius: 8,
         overflow: "hidden",
         position: "relative",
