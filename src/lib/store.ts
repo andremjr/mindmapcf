@@ -333,7 +333,7 @@ export const useStore = create<State & Actions>()((set) => ({
           text: patch?.text ?? "",
           x: patch?.x ?? auto.x,
           y: patch?.y ?? auto.y,
-          width: patch?.width ?? (parentId ? 260 : 300),
+          width: patch?.width ?? (parentId ? 340 : 380),
           parentId,
           image: patch?.image,
           imageRef: patch?.imageRef,
