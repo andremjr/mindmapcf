@@ -13,6 +13,7 @@ import {
 import type { ImageRef, MindNode } from "@/lib/types";
 import { resolveImage, requestImageAccess } from "@/lib/imageStorage";
 import { NODE_COLOR_PALETTE, DEFAULT_ACCENT } from "@/lib/nodeColors";
+import { nodeEffectiveWidth } from "@/lib/store";
 
 
 /**
