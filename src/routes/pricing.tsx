@@ -83,7 +83,7 @@ function PricingPage() {
       return;
     }
     const url = buildKiwifyCheckoutUrl(plan.id, user.email);
-    window.location.href = url;
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   return (
