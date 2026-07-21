@@ -522,7 +522,10 @@ function VideoPlayer({
         onPause={() => setPlaying(false)}
         onTimeUpdate={(e) => setCurrent(e.currentTarget.currentTime)}
         onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
-        onVolumeChange={(e) => setMuted(e.currentTarget.muted)}
+        onVolumeChange={(e) => {
+          setMuted(e.currentTarget.muted);
+          setVolume(e.currentTarget.volume);
+        }}
         className="w-full max-h-[420px] object-contain block cursor-pointer"
       />
       <div
