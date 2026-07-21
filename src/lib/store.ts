@@ -296,6 +296,11 @@ function reflowTree(nodes: MindNode[]): MindNode[] {
   function place(parentId: string, px: number, py: number) {
     const kids = byParent.get(parentId) ?? [];
     if (!kids.length) return;
+    // Horizontal offset scales with the parent's and the widest child's width.
+    const parent = nodeById.get(parentId)!;
+    const pw = nodeEffectiveWidth(parent);
+    const cwMax = Math.max(...kids.map(nodeEffectiveWidth));
+    const dx = horizontalOffset(pw, cwMax);
     let total = 0;
     for (let i = 0; i < kids.length; i++) {
       total += subtreeH.get(kids[i].id) ?? MIN_SLOT_H;
@@ -304,7 +309,7 @@ function reflowTree(nodes: MindNode[]): MindNode[] {
     let cursor = py - total / 2;
     for (const k of kids) {
       const kh = subtreeH.get(k.id) ?? MIN_SLOT_H;
-      const kx = px + H_GAP;
+      const kx = px + dx;
       const ky = cursor + kh / 2;
       pos.set(k.id, { x: kx, y: ky });
       cursor += kh + SIBLING_GAP;
