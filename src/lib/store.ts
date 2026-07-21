@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { MindNode, Project, SonicAvatarEntry, SonicAvatarUsage } from "./types";
+import type { Folder, MindNode, Project, SonicAvatarEntry, SonicAvatarUsage } from "./types";
 
 
 function uid(_prefix = "id") {
@@ -12,18 +12,25 @@ function uid(_prefix = "id") {
 interface State {
   projects: Project[];
   avatars: SonicAvatarEntry[];
+  folders: Folder[];
 }
 
 interface Actions {
   hydrate: (projects: Project[]) => void;
   reset: () => void;
-  createProject: (title: string) => string;
+  createProject: (title: string, folderId?: string | null) => string;
   importProject: (project: Project) => string;
   replaceProjectNodes: (projectId: string, nodes: MindNode[], title?: string) => void;
   deleteProject: (id: string) => void;
   renameProject: (id: string, title: string) => void;
+  moveProjectToFolder: (projectId: string, folderId: string | null) => void;
 
-
+  // Folders
+  hydrateFolders: (folders: Folder[]) => void;
+  createFolder: (name: string, color?: string | null) => string;
+  renameFolder: (id: string, name: string) => void;
+  setFolderColor: (id: string, color: string | null) => void;
+  deleteFolder: (id: string) => void;
 
   addNode: (
     projectId: string,
@@ -277,11 +284,12 @@ function reflowTree(nodes: MindNode[]): MindNode[] {
 export const useStore = create<State & Actions>()((set) => ({
   projects: [],
   avatars: [],
+  folders: [],
 
   hydrate: (projects) => set({ projects }),
-  reset: () => set({ projects: [], avatars: [] }),
+  reset: () => set({ projects: [], avatars: [], folders: [] }),
 
-  createProject: (title) => {
+  createProject: (title, folderId) => {
     const id = uid("prj");
     const now = new Date().toISOString();
     const rootId = uid("n");
@@ -290,6 +298,7 @@ export const useStore = create<State & Actions>()((set) => ({
       title: title.trim() || "Novo mapa mental",
       createdAt: now,
       updatedAt: now,
+      folderId: folderId ?? null,
       nodes: [
         {
           id: rootId,
@@ -313,6 +322,61 @@ export const useStore = create<State & Actions>()((set) => ({
     set((s) => ({ projects: [withTimestamps, ...s.projects] }));
     return project.id;
   },
+
+  moveProjectToFolder: (projectId, folderId) =>
+    set((s) => ({
+      projects: s.projects.map((p) =>
+        p.id === projectId
+          ? { ...p, folderId, updatedAt: new Date().toISOString() }
+          : p,
+      ),
+    })),
+
+  hydrateFolders: (folders) => set({ folders }),
+
+  createFolder: (name, color) => {
+    const id = uid("fld");
+    const now = new Date().toISOString();
+    set((s) => ({
+      folders: [
+        ...s.folders,
+        {
+          id,
+          name: name.trim() || "Nova pasta",
+          color: color ?? null,
+          position: s.folders.length,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ],
+    }));
+    return id;
+  },
+
+  renameFolder: (id, name) =>
+    set((s) => ({
+      folders: s.folders.map((f) =>
+        f.id === id ? { ...f, name, updatedAt: new Date().toISOString() } : f,
+      ),
+    })),
+
+  setFolderColor: (id, color) =>
+    set((s) => ({
+      folders: s.folders.map((f) =>
+        f.id === id ? { ...f, color, updatedAt: new Date().toISOString() } : f,
+      ),
+    })),
+
+  deleteFolder: (id) =>
+    set((s) => ({
+      folders: s.folders.filter((f) => f.id !== id),
+      // Projects whose folder was deleted fall back to "sem pasta".
+      projects: s.projects.map((p) =>
+        p.folderId === id
+          ? { ...p, folderId: null, updatedAt: new Date().toISOString() }
+          : p,
+      ),
+    })),
 
   replaceProjectNodes: (projectId, nodes, title) => {
     const laidOut = reflowTree(nodes);
