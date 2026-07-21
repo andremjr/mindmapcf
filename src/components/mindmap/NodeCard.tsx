@@ -13,6 +13,7 @@ import {
 import type { ImageRef, MindNode } from "@/lib/types";
 import { resolveImage, requestImageAccess } from "@/lib/imageStorage";
 import { NODE_COLOR_PALETTE, DEFAULT_ACCENT } from "@/lib/nodeColors";
+import { nodeEffectiveWidth } from "@/lib/store";
 
 
 /**
@@ -96,7 +97,7 @@ export function NodeCard({
     }
   }, [editing]);
 
-  const w = node.width ?? 520;
+  const w = nodeEffectiveWidth(node);
   const accent = effectiveColor ?? node.color ?? DEFAULT_ACCENT;
   const isRoot = !node.parentId;
   const isThemed = accent !== DEFAULT_ACCENT;
