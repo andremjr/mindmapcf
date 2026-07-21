@@ -157,23 +157,82 @@ export function MindMapEditor({ project }: { project: Project }) {
   const colorMap = useMemo(() => buildColorMap(project.nodes), [project.nodes]);
 
 
-  // --- Pan background ---
+  // --- Pan background / Marquee select ---
   const panRef = useRef<{ sx: number; sy: number; vx: number; vy: number } | null>(null);
+  const marqueeRef = useRef<
+    | { startX: number; startY: number; additive: boolean }
+    | null
+  >(null);
   function onBgPointerDown(e: React.PointerEvent) {
     if ((e.target as HTMLElement).closest("[data-node]")) return;
-    setSelectedId(undefined);
     if (e.button !== 0 && e.button !== 1) return;
+    // Shift+drag on the background starts a marquee selection.
+    if (e.shiftKey && e.button === 0) {
+      const w = screenToWorld(e.clientX, e.clientY);
+      marqueeRef.current = { startX: w.x, startY: w.y, additive: e.ctrlKey || e.metaKey };
+      setMarquee({ x0: w.x, y0: w.y, x1: w.x, y1: w.y });
+      return;
+    }
+    setSelectedId(undefined);
+    setExtraSelectedIds([]);
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     panRef.current = { sx: e.clientX, sy: e.clientY, vx: viewport.x, vy: viewport.y };
   }
   useEffect(() => {
     function onMove(e: PointerEvent) {
+      if (marqueeRef.current) {
+        const w = screenToWorld(e.clientX, e.clientY);
+        setMarquee({
+          x0: marqueeRef.current.startX,
+          y0: marqueeRef.current.startY,
+          x1: w.x,
+          y1: w.y,
+        });
+        return;
+      }
       if (!panRef.current) return;
       const dx = (e.clientX - panRef.current.sx) / viewport.zoom;
       const dy = (e.clientY - panRef.current.sy) / viewport.zoom;
       setViewport((v) => ({ ...v, x: panRef.current!.vx - dx, y: panRef.current!.vy - dy }));
     }
     function onUp() {
+      if (marqueeRef.current) {
+        const m = marquee;
+        const additive = marqueeRef.current.additive;
+        marqueeRef.current = null;
+        if (m) {
+          const minX = Math.min(m.x0, m.x1);
+          const maxX = Math.max(m.x0, m.x1);
+          const minY = Math.min(m.y0, m.y1);
+          const maxY = Math.max(m.y0, m.y1);
+          const hit: string[] = [];
+          for (const n of project.nodes) {
+            if (!visibleIds.has(n.id)) continue;
+            const w = nodeEffectiveWidth(n);
+            if (
+              n.x + w / 2 >= minX &&
+              n.x - w / 2 <= maxX &&
+              n.y + 60 >= minY &&
+              n.y - 60 <= maxY
+            ) {
+              hit.push(n.id);
+            }
+          }
+          if (hit.length > 0) {
+            if (additive) {
+              setExtraSelectedIds((prev) => Array.from(new Set([...prev, ...hit])));
+            } else {
+              setSelectedId(hit[0]);
+              setExtraSelectedIds(hit.slice(1));
+            }
+          } else if (!additive) {
+            setSelectedId(undefined);
+            setExtraSelectedIds([]);
+          }
+        }
+        setMarquee(null);
+        return;
+      }
       panRef.current = null;
     }
     window.addEventListener("pointermove", onMove);
@@ -182,7 +241,7 @@ export function MindMapEditor({ project }: { project: Project }) {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [viewport.zoom]);
+  }, [viewport.zoom, marquee, project.nodes, visibleIds, screenToWorld]);
 
   // --- Zoom ---
   function onWheel(e: React.WheelEvent) {
