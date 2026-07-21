@@ -48,12 +48,13 @@ interface Props {
   effectiveColor?: string;
   /** Whether this node has any descendants (used to enable branch-cascade). */
   hasDescendants?: boolean;
-  onSelect: () => void;
+  onSelect: (e?: React.PointerEvent) => void;
   onStartEdit: () => void;
   onEndEdit: () => void;
   onChange: (patch: Partial<MindNode>) => void;
   onDelete: () => void;
   onDragStart: (e: React.PointerEvent) => void;
+  onResizeStart?: (e: React.PointerEvent) => void;
   onStartConnect?: (e: React.PointerEvent) => void;
   onAddChild?: () => void;
   onToggleCollapsed?: () => void;
