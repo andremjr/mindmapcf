@@ -79,6 +79,7 @@ export function NodeCard({
   onChange,
   onDelete,
   onDragStart,
+  onResizeStart,
   onStartConnect,
   onAddChild,
   onToggleCollapsed,
@@ -87,8 +88,11 @@ export function NodeCard({
   onSetColor,
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textBoxRef = useRef<HTMLDivElement>(null);
   const [colorMenuOpen, setColorMenuOpen] = useState(false);
   const [cascade, setCascade] = useState(true);
+  const [videoAspect, setVideoAspect] = useState<number | null>(null);
+  const [fittedFontPx, setFittedFontPx] = useState<number | null>(null);
 
 
   useEffect(() => {
