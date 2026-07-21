@@ -460,6 +460,23 @@ export const useStore = create<State & Actions>()((set) => ({
     return id;
   },
 
+  moveNodes: (projectId, deltas) =>
+    set((s) => ({
+      projects: s.projects.map((p) => {
+        if (p.id !== projectId) return p;
+        const dm = new Map(deltas.map((d) => [d.id, d]));
+        return {
+          ...p,
+          nodes: p.nodes.map((n) => {
+            const d = dm.get(n.id);
+            return d ? { ...n, x: n.x + d.dx, y: n.y + d.dy } : n;
+          }),
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    })),
+
+
   updateNode: (projectId, nodeId, patch) =>
     set((s) => ({
       projects: s.projects.map((p) => {
