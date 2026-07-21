@@ -69,20 +69,41 @@ const LINE_H = 22;
 const MIN_SLOT_H = 120;
 
 /** Default card width used by NodeCard when node.width is not set. */
-const DEFAULT_NODE_W = 420;
-/** Approximate character width for wrap estimation (text-base ~16px). */
-const CHAR_W = 8.2;
+const DEFAULT_NODE_W = 520;
 /** Horizontal padding inside the card (px-4 on both sides). */
 const CARD_PAD_X = 32;
 
+/**
+ * Mirror of NodeCard's autoFontSize() — must stay in sync so the layout
+ * engine estimates line-wrap using the SAME font size the card will render.
+ */
+function autoFontPx(text: string, isRoot: boolean): number {
+  const len = (text || "").length;
+  if (isRoot) {
+    if (len < 40) return 18;
+    if (len < 90) return 16;
+    if (len < 160) return 14.4;
+    return 13.1;
+  }
+  if (len < 60) return 16;
+  if (len < 140) return 14.4;
+  if (len < 240) return 13.1;
+  if (len < 360) return 12;
+  return 11.2;
+}
+
 function nodeIntrinsicHeight(n: MindNode): number {
+  const isRoot = !n.parentId;
+  const fontPx = autoFontPx(n.text, isRoot);
+  // Average glyph width ~0.52 of font-size for the app font.
+  const charW = fontPx * 0.52;
+  const lineH = Math.round(fontPx * 1.4);
   const w = (n.width ?? DEFAULT_NODE_W) - CARD_PAD_X;
-  const charsPerLine = Math.max(10, Math.floor(w / CHAR_W));
+  const charsPerLine = Math.max(10, Math.floor(w / charW));
   const raw = n.text || "";
   const segments = raw.split(/\r?\n/);
   let lines = 0;
   for (const seg of segments) {
-    // Wrap by words to mimic CSS whitespace-pre-wrap behavior.
     if (seg.length === 0) {
       lines += 1;
       continue;
@@ -100,7 +121,6 @@ function nodeIntrinsicHeight(n: MindNode): number {
         segLines += 1;
         col = wlen;
       }
-      // Very long single word: wrap-break.
       while (col > charsPerLine) {
         segLines += 1;
         col -= charsPerLine;
@@ -110,9 +130,13 @@ function nodeIntrinsicHeight(n: MindNode): number {
   }
   lines = Math.max(1, lines);
   const hasImage = !!(n.imageRef || n.image);
-  const h = BASE_NODE_H + (hasImage ? IMAGE_NODE_H : 0) + Math.max(0, lines - 1) * LINE_H;
-  return Math.max(MIN_SLOT_H, h);
+  // Base chrome (padding + first line) + image slot + extra lines.
+  const base = 32 + lineH; // py-3 top+bottom (~24) + first line
+  const imageH = hasImage ? 190 : 0;
+  const h = base + imageH + Math.max(0, lines - 1) * lineH;
+  return Math.max(96, h);
 }
+
 
 /** Descendants (excluding node itself). */
 export function descendantIds(nodes: MindNode[], id: string): string[] {
