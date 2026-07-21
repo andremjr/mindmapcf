@@ -712,7 +712,42 @@ function VideoPlayer({
             />
           )}
         </div>
+        <div className="relative">
+          <button
+            data-nodrag
+            onClick={() => setRateMenu((v) => !v)}
+            className="text-white/95 hover:text-white text-[10px] font-medium h-5 px-1.5 rounded tabular-nums"
+            aria-label="Velocidade"
+            title="Velocidade"
+          >
+            {rate}x
+          </button>
+          {rateMenu && (
+            <div
+              data-nodrag
+              className="absolute bottom-6 right-0 rounded-md bg-black/85 border border-white/10 py-1 shadow-lg z-10"
+            >
+              {RATES.map((r) => (
+                <button
+                  key={r}
+                  onClick={() => {
+                    const v = videoRef.current;
+                    if (v) v.playbackRate = r;
+                    setRate(r);
+                    setRateMenu(false);
+                  }}
+                  className={`block w-full text-left px-3 py-1 text-[10px] tabular-nums hover:bg-white/10 ${
+                    r === rate ? "text-white" : "text-white/70"
+                  }`}
+                >
+                  {r}x
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
+
