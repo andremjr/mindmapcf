@@ -1,5 +1,6 @@
 import { forwardRef } from "react";
 import type { MindNode } from "@/lib/types";
+import { nodeEffectiveWidth } from "@/lib/store";
 
 interface PendingEdge {
   fromId: string;
