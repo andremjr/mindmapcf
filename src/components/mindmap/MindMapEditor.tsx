@@ -396,7 +396,7 @@ export function MindMapEditor({ project }: { project: Project }) {
     setRecordFormatOpen(false);
     saveRecordFormat(project.id, fmt);
     try {
-      await startRecording({ filenameBase: project.title || "apresentacao" });
+      await startRecording({ filenameBase: project.title || "apresentacao", armed: true });
     } catch (e: any) {
       console.error("[mindmap] recording start", e);
       if (e?.name !== "NotAllowedError") {

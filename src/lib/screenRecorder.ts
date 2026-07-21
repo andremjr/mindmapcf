@@ -2,7 +2,7 @@
 // Uses getDisplayMedia (tab/screen + system audio) mixed with getUserMedia (mic).
 // Produces a Blob (webm on Chromium, mp4 on Safari when supported).
 
-export type RecorderState = "idle" | "recording" | "stopping" | "done";
+export type RecorderState = "idle" | "armed" | "recording" | "stopping" | "done";
 
 export interface RecordingResult {
   blob: Blob;
@@ -52,9 +52,12 @@ export function getRecorderState(): {
   mimeType: string | null;
 } {
   if (!active) return { state: "idle", startedAt: null, mimeType: null };
+  const rs = active.recorder.state;
+  const state: RecorderState =
+    rs === "inactive" ? "armed" : rs === "recording" ? "recording" : "stopping";
   return {
-    state: active.recorder.state === "recording" ? "recording" : "stopping",
-    startedAt: active.startedAt,
+    state,
+    startedAt: state === "armed" ? null : active.startedAt,
     mimeType: active.mimeType,
   };
 }
@@ -91,6 +94,9 @@ export interface StartOptions {
   videoBitsPerSecond?: number;
   audioBitsPerSecond?: number;
   frameRate?: number;
+  /** If true, sets up the pipeline but doesn't start the MediaRecorder yet.
+   * Caller must invoke `beginArmedRecording()` to actually start capture. */
+  armed?: boolean;
 }
 
 /**
@@ -269,7 +275,18 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
     rejectStop,
   };
 
-  recorder.start(1000); // 1s chunks → memory-friendly for long recordings
+  if (!opts.armed) {
+    recorder.start(1000); // 1s chunks → memory-friendly for long recordings
+  }
+  emit();
+}
+
+/** Start capture on a recorder previously created with `{ armed: true }`. */
+export function beginArmedRecording(): void {
+  if (!active) throw new Error("Nenhuma gravação armada.");
+  if (active.recorder.state !== "inactive") return;
+  active.startedAt = performance.now();
+  active.recorder.start(1000);
   emit();
 }
 
