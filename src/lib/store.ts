@@ -69,7 +69,7 @@ const LINE_H = 22;
 const MIN_SLOT_H = 120;
 
 /** Default card width used by NodeCard when node.width is not set. */
-const DEFAULT_NODE_W = 260;
+const DEFAULT_NODE_W = 340;
 /** Approximate character width for wrap estimation (text-base ~16px). */
 const CHAR_W = 8.2;
 /** Horizontal padding inside the card (px-4 on both sides). */
