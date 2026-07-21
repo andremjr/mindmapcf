@@ -15,6 +15,26 @@ import { resolveImage, requestImageAccess } from "@/lib/imageStorage";
 import { NODE_COLOR_PALETTE, DEFAULT_ACCENT } from "@/lib/nodeColors";
 
 
+/**
+ * Auto-shrink font size based on text length so nodes keep a consistent
+ * visual footprint regardless of how much text they carry. Media stays at
+ * the node's fixed width, so image/video proportions never change.
+ */
+function autoFontSize(text: string, isRoot: boolean): string {
+  const len = (text || "").length;
+  if (isRoot) {
+    if (len < 40) return "1.125rem"; // text-lg
+    if (len < 90) return "1rem";
+    if (len < 160) return "0.9rem";
+    return "0.82rem";
+  }
+  if (len < 60) return "1rem"; // text-base
+  if (len < 140) return "0.9rem";
+  if (len < 240) return "0.82rem";
+  if (len < 360) return "0.75rem";
+  return "0.7rem";
+}
+
 
 interface Props {
   node: MindNode;
@@ -170,14 +190,16 @@ export function NodeCard({
             rows={Math.max(1, node.text.split("\n").length)}
             placeholder="Digite…"
             className={`w-full bg-transparent outline-none resize-none leading-snug ${
-              isRoot ? "text-lg font-semibold" : "text-base"
+              isRoot ? "font-semibold" : ""
             }`}
+            style={{ fontSize: autoFontSize(node.text, isRoot) }}
           />
         ) : (
           <p
             className={`whitespace-pre-wrap leading-snug ${
-              isRoot ? "text-lg font-semibold" : "text-base"
+              isRoot ? "font-semibold" : ""
             } ${node.text ? "text-foreground" : "text-muted-foreground/70 italic"}`}
+            style={{ fontSize: autoFontSize(node.text, isRoot) }}
           >
             {node.text || (isRoot ? "Ideia central" : "Novo nó")}
           </p>
