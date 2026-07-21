@@ -66,8 +66,20 @@ interface Actions {
 }
 
 
+/** Base breathing room between a parent's right edge and its child's left edge. */
+const H_GAP_BASE = 140;
+/** Fallback horizontal offset (used only if widths cannot be measured). */
 const H_GAP = 560;
 const SIBLING_GAP = 36;
+
+/**
+ * Horizontal offset between the CENTER of a parent and the CENTER of a child,
+ * proportional to both node widths so wide/media nodes get more breathing room
+ * and short-text nodes sit closer together. Mimics common mind-map tools.
+ */
+function horizontalOffset(parentW: number, childW: number): number {
+  return parentW / 2 + childW / 2 + H_GAP_BASE;
+}
 const BASE_NODE_H = 88;
 const IMAGE_NODE_H = 190;
 const LINE_H = 22;
