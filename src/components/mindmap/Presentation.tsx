@@ -116,6 +116,22 @@ export function Presentation({
     };
   }, [recording, navigate, project.id]);
 
+  // Start a 3s countdown as soon as the recording frame is cropped and the
+  // root node is centered. Advancing is blocked while it runs.
+  useEffect(() => {
+    if (!recording || !cropOk) return;
+    setIdx(0);
+    setCountdown(3);
+    const timers: number[] = [];
+    timers.push(window.setTimeout(() => setCountdown(2), 1000));
+    timers.push(window.setTimeout(() => setCountdown(1), 2000));
+    timers.push(window.setTimeout(() => setCountdown(null), 3000));
+    return () => {
+      timers.forEach((t) => window.clearTimeout(t));
+    };
+  }, [recording, cropOk]);
+
+
   const visibleIds = useMemo(() => {
     const hidden = new Set<string>();
     for (const n of project.nodes) {
