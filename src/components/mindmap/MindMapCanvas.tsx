@@ -78,8 +78,8 @@ export const MindMapCanvas = forwardRef<HTMLDivElement, Props>(function MindMapC
   const svgH = maxY - minY;
 
   function edgePath(a: MindNode, b: MindNode) {
-    const aw = a.width ?? 260;
-    const bw = b.width ?? 260;
+    const aw = nodeEffectiveWidth(a);
+    const bw = nodeEffectiveWidth(b);
     const goingRight = b.x >= a.x;
     const ax = a.x + (goingRight ? aw / 2 : -aw / 2);
     const bx = b.x + (goingRight ? -bw / 2 : bw / 2);
