@@ -42,7 +42,7 @@ export function UpgradeDialog({
       navigate({ to: "/account" });
       return;
     }
-    window.location.href = buildKiwifyCheckoutUrl(planId, user.email);
+    window.open(buildKiwifyCheckoutUrl(planId, user.email), "_blank", "noopener,noreferrer");
   }
 
   return (

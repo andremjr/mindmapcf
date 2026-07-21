@@ -179,7 +179,7 @@ function ProjectsDashboard() {
                   {subscriptionLoading ? "Plano…" : `Grátis ${projects.length}/${FREE_MAP_LIMIT}`}
                 </span>
                 {!subscriptionLoading && (
-                  <Button variant="secondary" size="sm" onClick={() => setUpgradeOpen(true)}>
+                  <Button variant="secondary" size="sm" onClick={() => navigate({ to: "/pricing" })}>
                     Plano Pro
                   </Button>
                 )}
