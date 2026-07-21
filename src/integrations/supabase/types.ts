@@ -14,10 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      mindmap_folders: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          position: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       mindmaps: {
         Row: {
           created_at: string
           data: Json
+          folder_id: string | null
           id: string
           title: string
           updated_at: string
@@ -26,6 +57,7 @@ export type Database = {
         Insert: {
           created_at?: string
           data?: Json
+          folder_id?: string | null
           id?: string
           title?: string
           updated_at?: string
@@ -34,12 +66,21 @@ export type Database = {
         Update: {
           created_at?: string
           data?: Json
+          folder_id?: string | null
           id?: string
           title?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "mindmaps_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "mindmap_folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sonic_avatars: {
         Row: {
