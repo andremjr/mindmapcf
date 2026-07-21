@@ -140,9 +140,6 @@ function ProjectsDashboard() {
   const [editingFolder, setEditingFolder] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
 
-  // Auth gate + Supabase sync are owned by the /projects layout route.
-  if (!session) return null;
-
   const sortedFolders = useMemo(
     () => [...folders].sort((a, b) => a.position - b.position || a.name.localeCompare(b.name)),
     [folders],
@@ -163,6 +160,9 @@ function ProjectsDashboard() {
     }
     return { map, none };
   }, [projects]);
+
+  // Auth gate + Supabase sync are owned by the /projects layout route.
+  if (!session) return null;
 
   const activeFolderLabel =
     activeFolder === ALL_FOLDERS
