@@ -179,6 +179,15 @@ export function MindMapEditor({ project }: { project: Project }) {
   }
   useEffect(() => {
     function onMove(e: PointerEvent) {
+      // Safety: if no mouse button is being pressed, cancel any drag/marquee.
+      if (e.buttons === 0) {
+        if (panRef.current) panRef.current = null;
+        if (marqueeRef.current) {
+          marqueeRef.current = null;
+          setMarquee(null);
+        }
+        return;
+      }
       if (marqueeRef.current) {
         const w = screenToWorld(e.clientX, e.clientY);
         setMarquee({
@@ -194,7 +203,7 @@ export function MindMapEditor({ project }: { project: Project }) {
       const dy = (e.clientY - panRef.current.sy) / viewport.zoom;
       setViewport((v) => ({ ...v, x: panRef.current!.vx - dx, y: panRef.current!.vy - dy }));
     }
-    function onUp() {
+    function finish() {
       if (marqueeRef.current) {
         const m = marquee;
         const additive = marqueeRef.current.additive;
@@ -230,15 +239,18 @@ export function MindMapEditor({ project }: { project: Project }) {
           }
         }
         setMarquee(null);
-        return;
       }
       panRef.current = null;
     }
     window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", finish);
+    window.addEventListener("blur", finish);
     return () => {
       window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", finish);
+      window.removeEventListener("blur", finish);
     };
   }, [viewport.zoom, marquee, project.nodes, visibleIds, screenToWorld]);
 
