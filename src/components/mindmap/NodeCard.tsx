@@ -581,6 +581,10 @@ function VideoPlayer({
   const [duration, setDuration] = useState(0);
   const [hover, setHover] = useState(false);
   const [volHover, setVolHover] = useState(false);
+  const [rate, setRate] = useState(1);
+  const [rateMenu, setRateMenu] = useState(false);
+  const RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+
 
   const fmt = (s: number) => {
     if (!isFinite(s)) return "0:00";
