@@ -176,15 +176,12 @@ export function NodeCard({
         ) : (
           <p
             className={`whitespace-pre-wrap leading-snug ${
-              presentation
-                ? "text-2xl md:text-3xl"
-                : isRoot
-                  ? "text-lg font-semibold"
-                  : "text-base"
+              isRoot ? "text-lg font-semibold" : "text-base"
             } ${node.text ? "text-foreground" : "text-muted-foreground/70 italic"}`}
           >
             {node.text || (isRoot ? "Ideia central" : "Novo nó")}
           </p>
+
         )}
       </div>
 
