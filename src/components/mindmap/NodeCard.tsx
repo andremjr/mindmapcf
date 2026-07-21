@@ -536,9 +536,14 @@ function NodeMedia({
   return (
     <div className="relative" data-nodrag={kind === "video" ? "" : undefined}>
       {kind === "video" ? (
-        <VideoPlayer url={url} videoRef={videoElRef} />
+        <VideoPlayer url={url} videoRef={videoElRef} onAspect={onVideoAspect} />
       ) : (
         <img
+          onLoad={(e) => {
+            const t = e.currentTarget;
+            if (t.naturalWidth && t.naturalHeight)
+              onVideoAspect?.(t.naturalWidth / t.naturalHeight);
+          }}
           src={url}
           alt=""
           className="w-full max-h-[420px] object-contain rounded-t-xl bg-black/60"
