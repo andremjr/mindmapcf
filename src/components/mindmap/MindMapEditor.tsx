@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MindNode, Project } from "@/lib/types";
-import { useStore, descendantIds } from "@/lib/store";
+import { useStore, descendantIds, nodeEffectiveWidth } from "@/lib/store";
 import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
 import { ImportDialog } from "./ImportDialog";
