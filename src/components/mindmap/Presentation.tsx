@@ -441,6 +441,21 @@ export function Presentation({
 
           <AvatarLayer project={project} frameSize={size} />
 
+          {countdown !== null && (
+            <div className="absolute inset-0 grid place-items-center pointer-events-none z-30">
+              <div
+                key={countdown}
+                className="animate-scale-in text-white/90 font-semibold tabular-nums"
+                style={{
+                  fontSize: Math.round(Math.min(size.w, size.h) * 0.35),
+                  textShadow: "0 8px 40px rgba(0,0,0,0.6)",
+                  lineHeight: 1,
+                }}
+              >
+                {countdown}
+              </div>
+            </div>
+          )}
 
         </div>
       </div>
