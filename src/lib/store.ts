@@ -37,6 +37,8 @@ interface Actions {
     node?: Partial<MindNode> & { parentId?: string | null },
   ) => string;
   updateNode: (projectId: string, nodeId: string, patch: Partial<MindNode>) => void;
+  /** Move many nodes at once by (dx, dy) without triggering reflow. */
+  moveNodes: (projectId: string, deltas: Array<{ id: string; dx: number; dy: number }>) => void;
   /** Delete node and all descendants. */
   deleteNode: (projectId: string, nodeId: string) => void;
   setParent: (projectId: string, nodeId: string, parentId: string | null) => void;
