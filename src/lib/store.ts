@@ -57,16 +57,13 @@ interface Actions {
 }
 
 
-const H_GAP = 500;
-const SIBLING_GAP = 40;
-/** Baseline card height (no image, single-line text). */
+const H_GAP = 620;
+const SIBLING_GAP = 36;
 const BASE_NODE_H = 88;
-/** Extra vertical space added when a node shows an image. */
 const IMAGE_NODE_H = 190;
-/** Extra per additional line of text (rough). */
 const LINE_H = 22;
-/** Minimum vertical "slot" for a leaf without image (keeps a nice rhythm). */
-const MIN_SLOT_H = 120;
+const MIN_SLOT_H = 110;
+
 
 /** Default card width used by NodeCard when node.width is not set. */
 const DEFAULT_NODE_W = 520;
