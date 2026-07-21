@@ -119,7 +119,12 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
 
   const displayMediaOpts: any = {
     video: {
-      frameRate: opts.frameRate ?? 60,
+      // 30fps is plenty for a mind-map presentation and keeps the encoder
+      // well under the CPU ceiling on mid-range machines. At 60fps the
+      // encoder often can't keep up when a node video is decoding at the
+      // same time — dropped frames show up as visual corruption in the
+      // final file and cause the on-screen video to stutter.
+      frameRate: opts.frameRate ?? 30,
       width: { ideal: 1920 },
       height: { ideal: 1080 },
     },
