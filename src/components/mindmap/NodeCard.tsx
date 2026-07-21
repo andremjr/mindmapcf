@@ -424,12 +424,14 @@ function NodeMedia({
   active,
   onClear,
   onReconnect,
+  onVideoAspect,
 }: {
   node: MindNode;
   presentation?: boolean;
   active?: boolean;
   onClear: () => void;
   onReconnect: (ref: ImageRef) => void;
+  onVideoAspect?: (aspect: number | null) => void;
 }) {
   const ref = node.imageRef;
   const legacy = node.image;
