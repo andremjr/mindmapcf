@@ -351,9 +351,13 @@ export function MindMapEditor({ project }: { project: Project }) {
       }
     }
     function onUp(e: PointerEvent) {
+      if (resizeRef.current) {
+        resizeRef.current = null;
+        return;
+      }
       const d = dragRef.current;
       dragRef.current = null;
-      if (d && d.moved && e.altKey) {
+      if (d && d.moved && e.altKey && !(d.group && d.group.length > 1)) {
         const desc = new Set([d.id, ...descendantIds(project.nodes, d.id)]);
         const overId = findNodeAt(e.clientX, e.clientY, d.id);
         if (overId && !desc.has(overId)) {
@@ -368,7 +372,7 @@ export function MindMapEditor({ project }: { project: Project }) {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [viewport.zoom, project.id, project.nodes, updateNode, setParent]);
+  }, [viewport.zoom, project.id, project.nodes, updateNode, moveNodes, setParent, selectedIds]);
 
   // --- Connect gesture (drag from handle) ---
   useEffect(() => {
