@@ -68,8 +68,47 @@ const LINE_H = 22;
 /** Minimum vertical "slot" for a leaf without image (keeps a nice rhythm). */
 const MIN_SLOT_H = 120;
 
+/** Default card width used by NodeCard when node.width is not set. */
+const DEFAULT_NODE_W = 260;
+/** Approximate character width for wrap estimation (text-base ~16px). */
+const CHAR_W = 8.2;
+/** Horizontal padding inside the card (px-4 on both sides). */
+const CARD_PAD_X = 32;
+
 function nodeIntrinsicHeight(n: MindNode): number {
-  const lines = Math.max(1, (n.text || "").split(/\r?\n/).length);
+  const w = (n.width ?? DEFAULT_NODE_W) - CARD_PAD_X;
+  const charsPerLine = Math.max(10, Math.floor(w / CHAR_W));
+  const raw = n.text || "";
+  const segments = raw.split(/\r?\n/);
+  let lines = 0;
+  for (const seg of segments) {
+    // Wrap by words to mimic CSS whitespace-pre-wrap behavior.
+    if (seg.length === 0) {
+      lines += 1;
+      continue;
+    }
+    const words = seg.split(/\s+/);
+    let col = 0;
+    let segLines = 1;
+    for (const w0 of words) {
+      const wlen = w0.length;
+      if (col === 0) {
+        col = wlen;
+      } else if (col + 1 + wlen <= charsPerLine) {
+        col += 1 + wlen;
+      } else {
+        segLines += 1;
+        col = wlen;
+      }
+      // Very long single word: wrap-break.
+      while (col > charsPerLine) {
+        segLines += 1;
+        col -= charsPerLine;
+      }
+    }
+    lines += segLines;
+  }
+  lines = Math.max(1, lines);
   const hasImage = !!(n.imageRef || n.image);
   const h = BASE_NODE_H + (hasImage ? IMAGE_NODE_H : 0) + Math.max(0, lines - 1) * LINE_H;
   return Math.max(MIN_SLOT_H, h);
@@ -316,17 +355,25 @@ export const useStore = create<State & Actions>()((set) => ({
     set((s) => ({
       projects: s.projects.map((p) => {
         if (p.id !== projectId) return p;
+        const prev = p.nodes.find((n) => n.id === nodeId);
         const nextNodes = p.nodes.map((n) =>
           n.id === nodeId ? { ...n, ...patch } : n,
         );
-        // If the change affects intrinsic height, reflow to keep spacing right.
-        // Only reflow when image presence changes — text edits shouldn't
-        // shove the layout around on every keystroke.
-        const heightAffecting = "imageRef" in patch || "image" in patch;
+        // Reflow when image presence changes, or when a text/width change
+        // actually shifts this node's intrinsic height (avoids reflowing on
+        // every keystroke inside a single line).
+        const imageChanged = "imageRef" in patch || "image" in patch;
+        let textAffects = false;
+        if (!imageChanged && ("text" in patch || "width" in patch) && prev) {
+          const nextNode = nextNodes.find((n) => n.id === nodeId)!;
+          textAffects =
+            nodeIntrinsicHeight(prev) !== nodeIntrinsicHeight(nextNode);
+        }
+        const shouldReflow = imageChanged || textAffects;
 
         return {
           ...p,
-          nodes: heightAffecting ? reflowTree(nextNodes) : nextNodes,
+          nodes: shouldReflow ? reflowTree(nextNodes) : nextNodes,
           updatedAt: new Date().toISOString(),
         };
       }),
