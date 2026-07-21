@@ -122,12 +122,14 @@ export function nodeEffectiveWidth(n: MindNode): number {
   if (hasMedia) return isRoot ? 560 : 520;
   const len = (n.text || "").length;
   if (isRoot) {
-    if (len < 24) return 320;
+    if (len < 12) return 220;
+    if (len < 24) return 300;
     if (len < 70) return 420;
     if (len < 160) return 500;
     return 560;
   }
-  if (len < 24) return 260;
+  if (len < 12) return 180;
+  if (len < 24) return 240;
   if (len < 70) return 360;
   if (len < 160) return 460;
   return 520;
