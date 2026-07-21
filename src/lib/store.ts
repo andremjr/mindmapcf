@@ -250,7 +250,10 @@ function positionForNewChild(nodes: MindNode[], parentId: string | null) {
   const parent = nodes.find((n) => n.id === parentId);
   if (!parent) return { x: 0, y: 0 };
   const siblings = nodes.filter((n) => n.parentId === parentId);
-  const x = parent.x + H_GAP;
+  // Proportional offset — wider parents / children get more space.
+  const pw = nodeEffectiveWidth(parent);
+  const cw = siblings.length ? Math.max(...siblings.map(nodeEffectiveWidth)) : 320;
+  const x = parent.x + horizontalOffset(pw, cw);
   if (siblings.length === 0) return { x, y: parent.y };
   const maxY = Math.max(...siblings.map((n) => n.y));
   return { x, y: maxY + MIN_SLOT_H };
