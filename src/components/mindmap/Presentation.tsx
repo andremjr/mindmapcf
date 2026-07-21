@@ -118,7 +118,9 @@ export function Presentation({
   }, [recording, navigate, project.id]);
 
   // Start a 3s countdown as soon as the recording frame is cropped and the
-  // root node is centered. Advancing is blocked while it runs.
+  // root node is centered. The MediaRecorder is armed but not capturing yet —
+  // it only begins when the countdown reaches 0, so the final video starts
+  // clean with the root node already in focus.
   useEffect(() => {
     if (!recording || !cropOk) return;
     setIdx(0);
@@ -126,7 +128,16 @@ export function Presentation({
     const timers: number[] = [];
     timers.push(window.setTimeout(() => setCountdown(2), 1000));
     timers.push(window.setTimeout(() => setCountdown(1), 2000));
-    timers.push(window.setTimeout(() => setCountdown(null), 3000));
+    timers.push(
+      window.setTimeout(() => {
+        setCountdown(null);
+        try {
+          beginArmedRecording();
+        } catch (e) {
+          console.error("[presentation] begin recording", e);
+        }
+      }, 3000),
+    );
     return () => {
       timers.forEach((t) => window.clearTimeout(t));
     };
