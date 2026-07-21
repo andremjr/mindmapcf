@@ -155,7 +155,7 @@ export const MindMapCanvas = forwardRef<HTMLDivElement, Props>(function MindMapC
           {pendingEdge && (() => {
             const from = nodeById.get(pendingEdge.fromId);
             if (!from) return null;
-            const fw = from.width ?? 260;
+            const fw = nodeEffectiveWidth(from);
             const goingRight = pendingEdge.toX >= from.x;
             const ax = from.x + (goingRight ? fw / 2 : -fw / 2);
             const ay = from.y;
