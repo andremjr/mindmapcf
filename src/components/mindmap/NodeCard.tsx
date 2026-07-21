@@ -182,7 +182,7 @@ export function NodeCard({
       onPointerDown={(e) => {
         if (presentation) return;
         if ((e.target as HTMLElement).closest("[data-nodrag]")) return;
-        onSelect();
+        onSelect(e);
         onDragStart(e);
       }}
       onDoubleClick={(e) => {
@@ -196,13 +196,22 @@ export function NodeCard({
         node={node}
         presentation={presentation}
         active={active}
+        onVideoAspect={setVideoAspect}
         onReconnect={(ref) => onChange({ imageRef: ref, imageName: ref.name, image: undefined })}
         onClear={() =>
           onChange({ image: undefined, imageRef: undefined, imageName: undefined })
         }
       />
 
-      <div className="px-4 py-3">
+      <div
+        ref={textBoxRef}
+        className="px-4 py-3"
+        style={
+          focusVideoRule
+            ? { maxHeight: textMaxHeight, overflow: "hidden" }
+            : undefined
+        }
+      >
 
         {editing && !presentation ? (
           <textarea
@@ -233,13 +242,32 @@ export function NodeCard({
             className={`whitespace-pre-wrap leading-snug ${
               isRoot ? "font-semibold" : ""
             } ${node.text ? "text-foreground" : "text-muted-foreground/70 italic"}`}
-            style={{ fontSize: autoFontSize(node.text, isRoot) }}
+            style={{
+              fontSize:
+                focusVideoRule && fittedFontPx
+                  ? `${fittedFontPx}px`
+                  : autoFontSize(node.text, isRoot),
+            }}
           >
             {node.text || (isRoot ? "Ideia central" : "Novo nó")}
           </p>
 
         )}
       </div>
+
+      {/* Resize handle (right edge) */}
+      {selected && !presentation && !editing && onResizeStart && (
+        <div
+          data-nodrag
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            onResizeStart(e);
+          }}
+          className="absolute top-1/2 -translate-y-1/2 right-0 translate-x-1/2 w-2 h-10 rounded-full bg-primary/70 hover:bg-primary cursor-ew-resize border border-background shadow"
+          title="Arraste para redimensionar"
+          aria-label="Redimensionar"
+        />
+      )}
 
       {/* Collapse toggle */}
       {!presentation && childCount > 0 && (
