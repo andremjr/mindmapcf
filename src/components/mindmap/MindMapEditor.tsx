@@ -671,13 +671,16 @@ export function MindMapEditor({ project }: { project: Project }) {
               {project.nodes.map((n) => {
                 if (!visibleIds.has(n.id)) return null;
                 const isDropTarget = dropTargetId === n.id;
+                const isMultiSel = selectedIds.length > 1 && selectedIds.includes(n.id);
                 return (
                   <div
                     key={n.id}
                     style={{
                       outline: isDropTarget
                         ? "2px solid color-mix(in oklch, var(--primary) 80%, transparent)"
-                        : undefined,
+                        : isMultiSel
+                          ? "2px dashed color-mix(in oklch, var(--primary) 70%, transparent)"
+                          : undefined,
                       outlineOffset: 4,
                       borderRadius: 12,
                     }}
@@ -685,13 +688,14 @@ export function MindMapEditor({ project }: { project: Project }) {
                     <NodeCard
                       node={n}
                       childCount={childCounts.get(n.id) ?? 0}
-                      selected={selectedId === n.id}
+                      selected={selectedId === n.id || isMultiSel}
                       editing={editingId === n.id}
                       effectiveColor={colorMap.get(n.id)}
                       hasDescendants={(childCounts.get(n.id) ?? 0) > 0}
-                      onSelect={() => setSelectedId(n.id)}
+                      onSelect={(e) => handleNodeSelect(n.id, !!(e && (e.shiftKey || e.metaKey || e.ctrlKey)))}
                       onStartEdit={() => {
                         setSelectedId(n.id);
+                        setExtraSelectedIds([]);
                         setEditingId(n.id);
                       }}
                       onEndEdit={() => setEditingId(undefined)}
@@ -699,9 +703,11 @@ export function MindMapEditor({ project }: { project: Project }) {
                       onDelete={() => {
                         deleteNode(project.id, n.id);
                         setSelectedId(n.parentId ?? undefined);
+                        setExtraSelectedIds([]);
                         setEditingId(undefined);
                       }}
                       onDragStart={(e) => onNodeDragStart(n, e)}
+                      onResizeStart={(e) => onNodeResizeStart(n, e)}
                       onStartConnect={(e) => startConnect(n, e)}
                       onAddChild={() => {
                         const id = addNodeGuarded({ parentId: n.id });
