@@ -85,6 +85,8 @@ async function updateStatus(
 }
 
 export const Route = createFileRoute("/api/public/kiwify/webhook")({
+  // @ts-expect-error server routes typings not yet in generated route tree
+
   server: {
     handlers: {
       POST: async ({ request }: { request: Request }) => {
