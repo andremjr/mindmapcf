@@ -226,9 +226,11 @@ export function Presentation({
 
 
   function next() {
+    if (countdown !== null) return;
     setIdx((i) => Math.min(order.length - 1, i + 1));
   }
   function prev() {
+    if (countdown !== null) return;
     setIdx((i) => Math.max(0, i - 1));
   }
   async function stopAndDownload() {
