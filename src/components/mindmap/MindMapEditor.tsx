@@ -875,7 +875,11 @@ export function MindMapEditor({ project }: { project: Project }) {
                 deleteNode(project.id, selectedId);
                 setSelectedId(sel?.parentId ?? undefined);
               }}
+              onResetWidth={() =>
+                selectedId && updateNode(project.id, selectedId, { width: undefined })
+              }
             />
+
           </aside>
         )}
       </div>
