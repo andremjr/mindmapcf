@@ -96,13 +96,35 @@ function autoFontPx(text: string, isRoot: boolean): number {
   return 11.2;
 }
 
+/**
+ * Adaptive node width — narrower for short text, wider for long text or when
+ * the node carries media (media stays at consistent large size).
+ * Explicit `n.width` overrides (reserved for future resize UI).
+ */
+export function nodeEffectiveWidth(n: MindNode): number {
+  const isRoot = !n.parentId;
+  const hasMedia = !!(n.imageRef || n.image);
+  if (hasMedia) return typeof n.width === "number" ? n.width : isRoot ? 560 : 520;
+  const len = (n.text || "").length;
+  if (isRoot) {
+    if (len < 24) return 320;
+    if (len < 70) return 420;
+    if (len < 160) return 500;
+    return 560;
+  }
+  if (len < 24) return 260;
+  if (len < 70) return 360;
+  if (len < 160) return 460;
+  return 520;
+}
+
 function nodeIntrinsicHeight(n: MindNode): number {
   const isRoot = !n.parentId;
   const fontPx = autoFontPx(n.text, isRoot);
   // Average glyph width ~0.52 of font-size for the app font.
   const charW = fontPx * 0.52;
   const lineH = Math.round(fontPx * 1.4);
-  const w = (n.width ?? DEFAULT_NODE_W) - CARD_PAD_X;
+  const w = nodeEffectiveWidth(n) - CARD_PAD_X;
   const charsPerLine = Math.max(10, Math.floor(w / charW));
   const raw = n.text || "";
   const segments = raw.split(/\r?\n/);
