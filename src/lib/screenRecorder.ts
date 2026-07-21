@@ -52,9 +52,12 @@ export function getRecorderState(): {
   mimeType: string | null;
 } {
   if (!active) return { state: "idle", startedAt: null, mimeType: null };
+  const rs = active.recorder.state;
+  const state: RecorderState =
+    rs === "inactive" ? "armed" : rs === "recording" ? "recording" : "stopping";
   return {
-    state: active.recorder.state === "recording" ? "recording" : "stopping",
-    startedAt: active.startedAt,
+    state,
+    startedAt: state === "armed" ? null : active.startedAt,
     mimeType: active.mimeType,
   };
 }
