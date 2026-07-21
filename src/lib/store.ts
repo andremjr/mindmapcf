@@ -37,6 +37,8 @@ interface Actions {
     node?: Partial<MindNode> & { parentId?: string | null },
   ) => string;
   updateNode: (projectId: string, nodeId: string, patch: Partial<MindNode>) => void;
+  /** Move many nodes at once by (dx, dy) without triggering reflow. */
+  moveNodes: (projectId: string, deltas: Array<{ id: string; dx: number; dy: number }>) => void;
   /** Delete node and all descendants. */
   deleteNode: (projectId: string, nodeId: string) => void;
   setParent: (projectId: string, nodeId: string, parentId: string | null) => void;
@@ -102,9 +104,10 @@ function autoFontPx(text: string, isRoot: boolean): number {
  * Explicit `n.width` overrides (reserved for future resize UI).
  */
 export function nodeEffectiveWidth(n: MindNode): number {
+  if (typeof n.width === "number" && n.width > 0) return n.width;
   const isRoot = !n.parentId;
   const hasMedia = !!(n.imageRef || n.image);
-  if (hasMedia) return typeof n.width === "number" ? n.width : isRoot ? 560 : 520;
+  if (hasMedia) return isRoot ? 560 : 520;
   const len = (n.text || "").length;
   if (isRoot) {
     if (len < 24) return 320;
@@ -457,6 +460,23 @@ export const useStore = create<State & Actions>()((set) => ({
     }));
     return id;
   },
+
+  moveNodes: (projectId, deltas) =>
+    set((s) => ({
+      projects: s.projects.map((p) => {
+        if (p.id !== projectId) return p;
+        const dm = new Map(deltas.map((d) => [d.id, d]));
+        return {
+          ...p,
+          nodes: p.nodes.map((n) => {
+            const d = dm.get(n.id);
+            return d ? { ...n, x: n.x + d.dx, y: n.y + d.dy } : n;
+          }),
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    })),
+
 
   updateNode: (projectId, nodeId, patch) =>
     set((s) => ({

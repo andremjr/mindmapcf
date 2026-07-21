@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Image as ImageIcon,
   Trash2,
@@ -48,12 +48,13 @@ interface Props {
   effectiveColor?: string;
   /** Whether this node has any descendants (used to enable branch-cascade). */
   hasDescendants?: boolean;
-  onSelect: () => void;
+  onSelect: (e?: React.PointerEvent) => void;
   onStartEdit: () => void;
   onEndEdit: () => void;
   onChange: (patch: Partial<MindNode>) => void;
   onDelete: () => void;
   onDragStart: (e: React.PointerEvent) => void;
+  onResizeStart?: (e: React.PointerEvent) => void;
   onStartConnect?: (e: React.PointerEvent) => void;
   onAddChild?: () => void;
   onToggleCollapsed?: () => void;
@@ -78,6 +79,7 @@ export function NodeCard({
   onChange,
   onDelete,
   onDragStart,
+  onResizeStart,
   onStartConnect,
   onAddChild,
   onToggleCollapsed,
@@ -86,8 +88,11 @@ export function NodeCard({
   onSetColor,
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const textBoxRef = useRef<HTMLDivElement>(null);
   const [colorMenuOpen, setColorMenuOpen] = useState(false);
   const [cascade, setCascade] = useState(true);
+  const [videoAspect, setVideoAspect] = useState<number | null>(null);
+  const [fittedFontPx, setFittedFontPx] = useState<number | null>(null);
 
 
   useEffect(() => {
@@ -101,6 +106,34 @@ export function NodeCard({
   const accent = effectiveColor ?? node.color ?? DEFAULT_ACCENT;
   const isRoot = !node.parentId;
   const isThemed = accent !== DEFAULT_ACCENT;
+
+  const hasHorizontalVideo =
+    (node.imageRef?.kind === "video") && videoAspect !== null && videoAspect >= 1.2;
+  const focusVideoRule = !!(presentation && active && hasHorizontalVideo && videoAspect);
+  // Under focus with horizontal video: cap text container to 40% of video height.
+  const videoRenderedHeight = focusVideoRule ? w / (videoAspect as number) : 0;
+  const textMaxHeight = focusVideoRule ? Math.round(videoRenderedHeight * 0.4) : undefined;
+
+  // Fit-font loop for the 40% rule — shrink font until text fits in textMaxHeight.
+  useLayoutEffect(() => {
+    if (!focusVideoRule || !textBoxRef.current || !textMaxHeight) {
+      setFittedFontPx(null);
+      return;
+    }
+    const el = textBoxRef.current;
+    // Start from the natural autoFontSize (px), then shrink.
+    const startRem = parseFloat(autoFontSize(node.text, isRoot));
+    let px = Math.round(startRem * 16);
+    const min = 9;
+    el.style.fontSize = `${px}px`;
+    // Iteratively shrink until content height fits.
+    let guard = 30;
+    while (el.scrollHeight > textMaxHeight && px > min && guard-- > 0) {
+      px -= 1;
+      el.style.fontSize = `${px}px`;
+    }
+    setFittedFontPx(px);
+  }, [focusVideoRule, textMaxHeight, node.text, isRoot, w]);
 
   // When themed, tint the whole border with the accent. When on the default
   // accent, keep the muted chrome so the map doesn't look like every card is
@@ -149,7 +182,7 @@ export function NodeCard({
       onPointerDown={(e) => {
         if (presentation) return;
         if ((e.target as HTMLElement).closest("[data-nodrag]")) return;
-        onSelect();
+        onSelect(e);
         onDragStart(e);
       }}
       onDoubleClick={(e) => {
@@ -163,13 +196,22 @@ export function NodeCard({
         node={node}
         presentation={presentation}
         active={active}
+        onVideoAspect={setVideoAspect}
         onReconnect={(ref) => onChange({ imageRef: ref, imageName: ref.name, image: undefined })}
         onClear={() =>
           onChange({ image: undefined, imageRef: undefined, imageName: undefined })
         }
       />
 
-      <div className="px-4 py-3">
+      <div
+        ref={textBoxRef}
+        className="px-4 py-3"
+        style={
+          focusVideoRule
+            ? { maxHeight: textMaxHeight, overflow: "hidden" }
+            : undefined
+        }
+      >
 
         {editing && !presentation ? (
           <textarea
@@ -200,13 +242,32 @@ export function NodeCard({
             className={`whitespace-pre-wrap leading-snug ${
               isRoot ? "font-semibold" : ""
             } ${node.text ? "text-foreground" : "text-muted-foreground/70 italic"}`}
-            style={{ fontSize: autoFontSize(node.text, isRoot) }}
+            style={{
+              fontSize:
+                focusVideoRule && fittedFontPx
+                  ? `${fittedFontPx}px`
+                  : autoFontSize(node.text, isRoot),
+            }}
           >
             {node.text || (isRoot ? "Ideia central" : "Novo nó")}
           </p>
 
         )}
       </div>
+
+      {/* Resize handle (right edge) */}
+      {selected && !presentation && !editing && onResizeStart && (
+        <div
+          data-nodrag
+          onPointerDown={(e) => {
+            e.stopPropagation();
+            onResizeStart(e);
+          }}
+          className="absolute top-1/2 -translate-y-1/2 right-0 translate-x-1/2 w-2 h-10 rounded-full bg-primary/70 hover:bg-primary cursor-ew-resize border border-background shadow"
+          title="Arraste para redimensionar"
+          aria-label="Redimensionar"
+        />
+      )}
 
       {/* Collapse toggle */}
       {!presentation && childCount > 0 && (
@@ -363,12 +424,14 @@ function NodeMedia({
   active,
   onClear,
   onReconnect,
+  onVideoAspect,
 }: {
   node: MindNode;
   presentation?: boolean;
   active?: boolean;
   onClear: () => void;
   onReconnect: (ref: ImageRef) => void;
+  onVideoAspect?: (aspect: number | null) => void;
 }) {
   const ref = node.imageRef;
   const legacy = node.image;
@@ -473,9 +536,14 @@ function NodeMedia({
   return (
     <div className="relative" data-nodrag={kind === "video" ? "" : undefined}>
       {kind === "video" ? (
-        <VideoPlayer url={url} videoRef={videoElRef} />
+        <VideoPlayer url={url} videoRef={videoElRef} onAspect={onVideoAspect} />
       ) : (
         <img
+          onLoad={(e) => {
+            const t = e.currentTarget;
+            if (t.naturalWidth && t.naturalHeight)
+              onVideoAspect?.(t.naturalWidth / t.naturalHeight);
+          }}
           src={url}
           alt=""
           className="w-full max-h-[420px] object-contain rounded-t-xl bg-black/60"
@@ -500,9 +568,11 @@ function NodeMedia({
 function VideoPlayer({
   url,
   videoRef,
+  onAspect,
 }: {
   url: string;
   videoRef: React.RefObject<HTMLVideoElement | null>;
+  onAspect?: (aspect: number | null) => void;
 }) {
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -541,7 +611,11 @@ function VideoPlayer({
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onTimeUpdate={(e) => setCurrent(e.currentTarget.currentTime)}
-        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+        onLoadedMetadata={(e) => {
+          setDuration(e.currentTarget.duration);
+          const t = e.currentTarget;
+          if (t.videoWidth && t.videoHeight) onAspect?.(t.videoWidth / t.videoHeight);
+        }}
         onVolumeChange={(e) => {
           setMuted(e.currentTarget.muted);
           setVolume(e.currentTarget.volume);

@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MindNode, Project } from "@/lib/types";
-import { useStore, descendantIds } from "@/lib/store";
+import { useStore, descendantIds, nodeEffectiveWidth } from "@/lib/store";
 import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
 import { ImportDialog } from "./ImportDialog";
@@ -38,6 +38,7 @@ const FREE_NODE_LIMIT = 30;
 export function MindMapEditor({ project }: { project: Project }) {
   const addNode = useStore((s) => s.addNode);
   const updateNode = useStore((s) => s.updateNode);
+  const moveNodes = useStore((s) => s.moveNodes);
   const deleteNode = useStore((s) => s.deleteNode);
   const setParent = useStore((s) => s.setParent);
   const toggleCollapsed = useStore((s) => s.toggleCollapsed);
@@ -54,6 +55,14 @@ export function MindMapEditor({ project }: { project: Project }) {
   const [size, setSize] = useState({ w: 1200, h: 800 });
   const [viewport, setViewport] = useState(project.viewport ?? { x: 0, y: 0, zoom: 1 });
   const [selectedId, setSelectedId] = useState<string | undefined>(project.nodes[0]?.id);
+  // Extra IDs selected in addition to the primary `selectedId`.
+  const [extraSelectedIds, setExtraSelectedIds] = useState<string[]>([]);
+  const selectedIds = useMemo(() => {
+    const s = new Set<string>();
+    if (selectedId) s.add(selectedId);
+    for (const id of extraSelectedIds) s.add(id);
+    return Array.from(s);
+  }, [selectedId, extraSelectedIds]);
   const [editingId, setEditingId] = useState<string | undefined>();
   const [pendingEdge, setPendingEdge] = useState<
     | { fromId: string; toX: number; toY: number; overNodeId?: string }
@@ -61,6 +70,25 @@ export function MindMapEditor({ project }: { project: Project }) {
   >(null);
   const [dropTargetId, setDropTargetId] = useState<string | undefined>();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [marquee, setMarquee] = useState<
+    | { x0: number; y0: number; x1: number; y1: number }
+    | null
+  >(null);
+
+  const handleNodeSelect = useCallback(
+    (id: string, additive: boolean) => {
+      if (!additive) {
+        setSelectedId(id);
+        setExtraSelectedIds([]);
+        return;
+      }
+      setSelectedId((cur) => cur ?? id);
+      setExtraSelectedIds((prev) =>
+        prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+      );
+    },
+    [],
+  );
 
   function canAddMoreNodes() {
     return isPro || project.nodes.length < FREE_NODE_LIMIT;
@@ -129,23 +157,82 @@ export function MindMapEditor({ project }: { project: Project }) {
   const colorMap = useMemo(() => buildColorMap(project.nodes), [project.nodes]);
 
 
-  // --- Pan background ---
+  // --- Pan background / Marquee select ---
   const panRef = useRef<{ sx: number; sy: number; vx: number; vy: number } | null>(null);
+  const marqueeRef = useRef<
+    | { startX: number; startY: number; additive: boolean }
+    | null
+  >(null);
   function onBgPointerDown(e: React.PointerEvent) {
     if ((e.target as HTMLElement).closest("[data-node]")) return;
-    setSelectedId(undefined);
     if (e.button !== 0 && e.button !== 1) return;
+    // Shift+drag on the background starts a marquee selection.
+    if (e.shiftKey && e.button === 0) {
+      const w = screenToWorld(e.clientX, e.clientY);
+      marqueeRef.current = { startX: w.x, startY: w.y, additive: e.ctrlKey || e.metaKey };
+      setMarquee({ x0: w.x, y0: w.y, x1: w.x, y1: w.y });
+      return;
+    }
+    setSelectedId(undefined);
+    setExtraSelectedIds([]);
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     panRef.current = { sx: e.clientX, sy: e.clientY, vx: viewport.x, vy: viewport.y };
   }
   useEffect(() => {
     function onMove(e: PointerEvent) {
+      if (marqueeRef.current) {
+        const w = screenToWorld(e.clientX, e.clientY);
+        setMarquee({
+          x0: marqueeRef.current.startX,
+          y0: marqueeRef.current.startY,
+          x1: w.x,
+          y1: w.y,
+        });
+        return;
+      }
       if (!panRef.current) return;
       const dx = (e.clientX - panRef.current.sx) / viewport.zoom;
       const dy = (e.clientY - panRef.current.sy) / viewport.zoom;
       setViewport((v) => ({ ...v, x: panRef.current!.vx - dx, y: panRef.current!.vy - dy }));
     }
     function onUp() {
+      if (marqueeRef.current) {
+        const m = marquee;
+        const additive = marqueeRef.current.additive;
+        marqueeRef.current = null;
+        if (m) {
+          const minX = Math.min(m.x0, m.x1);
+          const maxX = Math.max(m.x0, m.x1);
+          const minY = Math.min(m.y0, m.y1);
+          const maxY = Math.max(m.y0, m.y1);
+          const hit: string[] = [];
+          for (const n of project.nodes) {
+            if (!visibleIds.has(n.id)) continue;
+            const w = nodeEffectiveWidth(n);
+            if (
+              n.x + w / 2 >= minX &&
+              n.x - w / 2 <= maxX &&
+              n.y + 60 >= minY &&
+              n.y - 60 <= maxY
+            ) {
+              hit.push(n.id);
+            }
+          }
+          if (hit.length > 0) {
+            if (additive) {
+              setExtraSelectedIds((prev) => Array.from(new Set([...prev, ...hit])));
+            } else {
+              setSelectedId(hit[0]);
+              setExtraSelectedIds(hit.slice(1));
+            }
+          } else if (!additive) {
+            setSelectedId(undefined);
+            setExtraSelectedIds([]);
+          }
+        }
+        setMarquee(null);
+        return;
+      }
       panRef.current = null;
     }
     window.addEventListener("pointermove", onMove);
@@ -154,7 +241,7 @@ export function MindMapEditor({ project }: { project: Project }) {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [viewport.zoom]);
+  }, [viewport.zoom, marquee, project.nodes, visibleIds, screenToWorld]);
 
   // --- Zoom ---
   function onWheel(e: React.WheelEvent) {
@@ -174,7 +261,7 @@ export function MindMapEditor({ project }: { project: Project }) {
     setViewport({ x: nx, y: ny, zoom: newZoom });
   }
 
-  // --- Node dragging (move + optional re-parent on drop) ---
+  // --- Node dragging (single or group) ---
   const dragRef = useRef<
     | {
         id: string;
@@ -183,7 +270,13 @@ export function MindMapEditor({ project }: { project: Project }) {
         nx: number;
         ny: number;
         moved: boolean;
+        group?: { id: string; sx: number; sy: number }[];
       }
+    | null
+  >(null);
+  // --- Resize (right-edge handle) ---
+  const resizeRef = useRef<
+    | { id: string; startX: number; startWidth: number }
     | null
   >(null);
 
@@ -198,6 +291,13 @@ export function MindMapEditor({ project }: { project: Project }) {
   function onNodeDragStart(node: MindNode, e: React.PointerEvent) {
     if (editingId === node.id) return;
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    // Group drag when node is part of a multi-selection.
+    const inMulti = selectedIds.length > 1 && selectedIds.includes(node.id);
+    const group = inMulti
+      ? project.nodes
+          .filter((n) => selectedIds.includes(n.id))
+          .map((n) => ({ id: n.id, sx: n.x, sy: n.y }))
+      : undefined;
     dragRef.current = {
       id: node.id,
       sx: e.clientX,
@@ -205,19 +305,44 @@ export function MindMapEditor({ project }: { project: Project }) {
       nx: node.x,
       ny: node.y,
       moved: false,
+      group,
+    };
+  }
+  function onNodeResizeStart(node: MindNode, e: React.PointerEvent) {
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    resizeRef.current = {
+      id: node.id,
+      startX: e.clientX,
+      startWidth: nodeEffectiveWidth(node),
     };
   }
   useEffect(() => {
     function onMove(e: PointerEvent) {
+      // Resize takes priority.
+      const r = resizeRef.current;
+      if (r) {
+        const dx = (e.clientX - r.startX) / viewport.zoom;
+        const next = Math.max(220, Math.min(900, Math.round(r.startWidth + dx)));
+        updateNode(project.id, r.id, { width: next });
+        return;
+      }
       const d = dragRef.current;
       if (!d) return;
       const dx = (e.clientX - d.sx) / viewport.zoom;
       const dy = (e.clientY - d.sy) / viewport.zoom;
       if (!d.moved && Math.hypot(dx, dy) < 3) return;
       d.moved = true;
-      updateNode(project.id, d.id, { x: d.nx + dx, y: d.ny + dy });
-      // Alt held → highlight target for re-parenting
-      if (e.altKey) {
+      if (d.group && d.group.length > 1) {
+        moveNodes(
+          project.id,
+          d.group.map((g) => ({ id: g.id, dx: g.sx + dx - (project.nodes.find((n) => n.id === g.id)?.x ?? g.sx), dy: g.sy + dy - (project.nodes.find((n) => n.id === g.id)?.y ?? g.sy) })),
+        );
+      } else {
+        updateNode(project.id, d.id, { x: d.nx + dx, y: d.ny + dy });
+      }
+      // Alt held → highlight target for re-parenting (single-node drag only)
+      if (e.altKey && !(d.group && d.group.length > 1)) {
         const desc = new Set([d.id, ...descendantIds(project.nodes, d.id)]);
         const overId = findNodeAt(e.clientX, e.clientY, d.id);
         setDropTargetId(overId && !desc.has(overId) ? overId : undefined);
@@ -226,9 +351,13 @@ export function MindMapEditor({ project }: { project: Project }) {
       }
     }
     function onUp(e: PointerEvent) {
+      if (resizeRef.current) {
+        resizeRef.current = null;
+        return;
+      }
       const d = dragRef.current;
       dragRef.current = null;
-      if (d && d.moved && e.altKey) {
+      if (d && d.moved && e.altKey && !(d.group && d.group.length > 1)) {
         const desc = new Set([d.id, ...descendantIds(project.nodes, d.id)]);
         const overId = findNodeAt(e.clientX, e.clientY, d.id);
         if (overId && !desc.has(overId)) {
@@ -243,7 +372,7 @@ export function MindMapEditor({ project }: { project: Project }) {
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
     };
-  }, [viewport.zoom, project.id, project.nodes, updateNode, setParent]);
+  }, [viewport.zoom, project.id, project.nodes, updateNode, moveNodes, setParent, selectedIds]);
 
   // --- Connect gesture (drag from handle) ---
   useEffect(() => {
@@ -542,13 +671,16 @@ export function MindMapEditor({ project }: { project: Project }) {
               {project.nodes.map((n) => {
                 if (!visibleIds.has(n.id)) return null;
                 const isDropTarget = dropTargetId === n.id;
+                const isMultiSel = selectedIds.length > 1 && selectedIds.includes(n.id);
                 return (
                   <div
                     key={n.id}
                     style={{
                       outline: isDropTarget
                         ? "2px solid color-mix(in oklch, var(--primary) 80%, transparent)"
-                        : undefined,
+                        : isMultiSel
+                          ? "2px dashed color-mix(in oklch, var(--primary) 70%, transparent)"
+                          : undefined,
                       outlineOffset: 4,
                       borderRadius: 12,
                     }}
@@ -556,13 +688,14 @@ export function MindMapEditor({ project }: { project: Project }) {
                     <NodeCard
                       node={n}
                       childCount={childCounts.get(n.id) ?? 0}
-                      selected={selectedId === n.id}
+                      selected={selectedId === n.id || isMultiSel}
                       editing={editingId === n.id}
                       effectiveColor={colorMap.get(n.id)}
                       hasDescendants={(childCounts.get(n.id) ?? 0) > 0}
-                      onSelect={() => setSelectedId(n.id)}
+                      onSelect={(e) => handleNodeSelect(n.id, !!(e && (e.shiftKey || e.metaKey || e.ctrlKey)))}
                       onStartEdit={() => {
                         setSelectedId(n.id);
+                        setExtraSelectedIds([]);
                         setEditingId(n.id);
                       }}
                       onEndEdit={() => setEditingId(undefined)}
@@ -570,9 +703,11 @@ export function MindMapEditor({ project }: { project: Project }) {
                       onDelete={() => {
                         deleteNode(project.id, n.id);
                         setSelectedId(n.parentId ?? undefined);
+                        setExtraSelectedIds([]);
                         setEditingId(undefined);
                       }}
                       onDragStart={(e) => onNodeDragStart(n, e)}
+                      onResizeStart={(e) => onNodeResizeStart(n, e)}
                       onStartConnect={(e) => startConnect(n, e)}
                       onAddChild={() => {
                         const id = addNodeGuarded({ parentId: n.id });
@@ -619,6 +754,27 @@ export function MindMapEditor({ project }: { project: Project }) {
             </MindMapCanvas>
           </div>
 
+          {marquee && (() => {
+            const minX = Math.min(marquee.x0, marquee.x1);
+            const maxX = Math.max(marquee.x0, marquee.x1);
+            const minY = Math.min(marquee.y0, marquee.y1);
+            const maxY = Math.max(marquee.y0, marquee.y1);
+            const sx = (minX - viewport.x) * viewport.zoom + size.w / 2;
+            const sy = (minY - viewport.y) * viewport.zoom + size.h / 2;
+            return (
+              <div
+                className="pointer-events-none absolute border border-primary/60 bg-primary/10 rounded"
+                style={{
+                  left: sx,
+                  top: sy,
+                  width: (maxX - minX) * viewport.zoom,
+                  height: (maxY - minY) * viewport.zoom,
+                }}
+              />
+            );
+          })()}
+
+
           {project.nodes.length === 0 && (
             <div className="pointer-events-none absolute inset-0 grid place-items-center">
               <div className="pointer-events-auto text-center rounded-xl border border-dashed border-border/60 bg-card/50 px-8 py-10">
@@ -652,6 +808,7 @@ export function MindMapEditor({ project }: { project: Project }) {
             <div><kbd className="font-mono">Tab</kbd> filho · <kbd className="font-mono">Enter</kbd> irmão</div>
             <div><kbd className="font-mono">F2</kbd> editar · <kbd className="font-mono">Del</kbd> excluir · <kbd className="font-mono">Espaço</kbd> recolher</div>
             <div>Alça azul: puxar p/ criar/reconectar</div>
+            <div><kbd className="font-mono">Shift</kbd>+arrastar fundo: seleção múltipla · arrastar grupo move junto</div>
             <div><kbd className="font-mono">Alt</kbd>+arrastar: mudar pai · Duplo-clique: novo nó</div>
           </div>
         </main>
@@ -719,7 +876,11 @@ export function MindMapEditor({ project }: { project: Project }) {
                 deleteNode(project.id, selectedId);
                 setSelectedId(sel?.parentId ?? undefined);
               }}
+              onResetWidth={() =>
+                selectedId && updateNode(project.id, selectedId, { width: undefined })
+              }
             />
+
           </aside>
         )}
       </div>
@@ -819,6 +980,7 @@ function SelectedPanel({
   onToggleCollapsed,
   onDetach,
   onDelete,
+  onResetWidth,
 }: {
   node: MindNode | undefined;
   effectiveColor: string | undefined;
@@ -831,6 +993,7 @@ function SelectedPanel({
   onToggleCollapsed: () => void;
   onDetach: () => void;
   onDelete: () => void;
+  onResetWidth: () => void;
 }) {
   const [cascade, setCascade] = useState(false);
   if (!node) return null;
@@ -949,6 +1112,26 @@ function SelectedPanel({
             <div className="text-foreground">{node.collapsed ? "sim" : "não"}</div>
           </div>
         </div>
+        <div className="rounded-md border border-border/50 px-3 py-2 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Largura</span>
+            <span className="tabular-nums text-foreground">
+              {node.width ? `${Math.round(node.width)} px` : "auto"}
+            </span>
+          </div>
+          {node.width && (
+            <button
+              onClick={onResetWidth}
+              className="mt-1 text-[11px] text-primary hover:underline underline-offset-2"
+            >
+              Voltar para largura automática
+            </button>
+          )}
+          <p className="mt-1 text-[10px] text-muted-foreground/80 leading-snug">
+            Arraste a alça azul na borda direita do nó para ajustar manualmente.
+          </p>
+        </div>
+
         {hasChildren && (
           <button
             onClick={onToggleCollapsed}
