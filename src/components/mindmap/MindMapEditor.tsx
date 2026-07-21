@@ -55,9 +55,14 @@ export function MindMapEditor({ project }: { project: Project }) {
   const [size, setSize] = useState({ w: 1200, h: 800 });
   const [viewport, setViewport] = useState(project.viewport ?? { x: 0, y: 0, zoom: 1 });
   const [selectedId, setSelectedId] = useState<string | undefined>(project.nodes[0]?.id);
-  const [selectedIds, setSelectedIds] = useState<string[]>(
-    project.nodes[0]?.id ? [project.nodes[0].id] : [],
-  );
+  // Extra IDs selected in addition to the primary `selectedId`.
+  const [extraSelectedIds, setExtraSelectedIds] = useState<string[]>([]);
+  const selectedIds = useMemo(() => {
+    const s = new Set<string>();
+    if (selectedId) s.add(selectedId);
+    for (const id of extraSelectedIds) s.add(id);
+    return Array.from(s);
+  }, [selectedId, extraSelectedIds]);
   const [editingId, setEditingId] = useState<string | undefined>();
   const [pendingEdge, setPendingEdge] = useState<
     | { fromId: string; toX: number; toY: number; overNodeId?: string }
@@ -70,19 +75,17 @@ export function MindMapEditor({ project }: { project: Project }) {
     | null
   >(null);
 
-  const selectSingle = useCallback((id: string | undefined) => {
-    setSelectedId(id);
-    setSelectedIds(id ? [id] : []);
-  }, []);
-
   const handleNodeSelect = useCallback(
     (id: string, additive: boolean) => {
-      setSelectedId(id);
-      setSelectedIds((prev) => {
-        if (!additive) return [id];
-        if (prev.includes(id)) return prev.filter((x) => x !== id).concat(id);
-        return [...prev, id];
-      });
+      if (!additive) {
+        setSelectedId(id);
+        setExtraSelectedIds([]);
+        return;
+      }
+      setSelectedId((cur) => cur ?? id);
+      setExtraSelectedIds((prev) =>
+        prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+      );
     },
     [],
   );
