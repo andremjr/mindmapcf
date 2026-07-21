@@ -176,8 +176,9 @@ export function NodeCard({
         ) : (
           <p
             className={`whitespace-pre-wrap leading-snug ${
-              isRoot ? "text-lg font-semibold" : "text-base"
+              isRoot ? "font-semibold" : ""
             } ${node.text ? "text-foreground" : "text-muted-foreground/70 italic"}`}
+            style={{ fontSize: autoFontSize(node.text, isRoot) }}
           >
             {node.text || (isRoot ? "Ideia central" : "Novo nó")}
           </p>
