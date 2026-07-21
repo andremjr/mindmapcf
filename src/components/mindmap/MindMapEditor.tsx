@@ -38,6 +38,7 @@ const FREE_NODE_LIMIT = 30;
 export function MindMapEditor({ project }: { project: Project }) {
   const addNode = useStore((s) => s.addNode);
   const updateNode = useStore((s) => s.updateNode);
+  const moveNodes = useStore((s) => s.moveNodes);
   const deleteNode = useStore((s) => s.deleteNode);
   const setParent = useStore((s) => s.setParent);
   const toggleCollapsed = useStore((s) => s.toggleCollapsed);
@@ -54,6 +55,9 @@ export function MindMapEditor({ project }: { project: Project }) {
   const [size, setSize] = useState({ w: 1200, h: 800 });
   const [viewport, setViewport] = useState(project.viewport ?? { x: 0, y: 0, zoom: 1 });
   const [selectedId, setSelectedId] = useState<string | undefined>(project.nodes[0]?.id);
+  const [selectedIds, setSelectedIds] = useState<string[]>(
+    project.nodes[0]?.id ? [project.nodes[0].id] : [],
+  );
   const [editingId, setEditingId] = useState<string | undefined>();
   const [pendingEdge, setPendingEdge] = useState<
     | { fromId: string; toX: number; toY: number; overNodeId?: string }
@@ -61,6 +65,27 @@ export function MindMapEditor({ project }: { project: Project }) {
   >(null);
   const [dropTargetId, setDropTargetId] = useState<string | undefined>();
   const [upgradeOpen, setUpgradeOpen] = useState(false);
+  const [marquee, setMarquee] = useState<
+    | { x0: number; y0: number; x1: number; y1: number }
+    | null
+  >(null);
+
+  const selectSingle = useCallback((id: string | undefined) => {
+    setSelectedId(id);
+    setSelectedIds(id ? [id] : []);
+  }, []);
+
+  const handleNodeSelect = useCallback(
+    (id: string, additive: boolean) => {
+      setSelectedId(id);
+      setSelectedIds((prev) => {
+        if (!additive) return [id];
+        if (prev.includes(id)) return prev.filter((x) => x !== id).concat(id);
+        return [...prev, id];
+      });
+    },
+    [],
+  );
 
   function canAddMoreNodes() {
     return isPro || project.nodes.length < FREE_NODE_LIMIT;
