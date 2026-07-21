@@ -261,7 +261,7 @@ export function MindMapEditor({ project }: { project: Project }) {
     setViewport({ x: nx, y: ny, zoom: newZoom });
   }
 
-  // --- Node dragging (move + optional re-parent on drop) ---
+  // --- Node dragging (single or group) ---
   const dragRef = useRef<
     | {
         id: string;
@@ -270,7 +270,13 @@ export function MindMapEditor({ project }: { project: Project }) {
         nx: number;
         ny: number;
         moved: boolean;
+        group?: { id: string; sx: number; sy: number }[];
       }
+    | null
+  >(null);
+  // --- Resize (right-edge handle) ---
+  const resizeRef = useRef<
+    | { id: string; startX: number; startWidth: number }
     | null
   >(null);
 
@@ -285,6 +291,13 @@ export function MindMapEditor({ project }: { project: Project }) {
   function onNodeDragStart(node: MindNode, e: React.PointerEvent) {
     if (editingId === node.id) return;
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    // Group drag when node is part of a multi-selection.
+    const inMulti = selectedIds.length > 1 && selectedIds.includes(node.id);
+    const group = inMulti
+      ? project.nodes
+          .filter((n) => selectedIds.includes(n.id))
+          .map((n) => ({ id: n.id, sx: n.x, sy: n.y }))
+      : undefined;
     dragRef.current = {
       id: node.id,
       sx: e.clientX,
@@ -292,19 +305,44 @@ export function MindMapEditor({ project }: { project: Project }) {
       nx: node.x,
       ny: node.y,
       moved: false,
+      group,
+    };
+  }
+  function onNodeResizeStart(node: MindNode, e: React.PointerEvent) {
+    e.stopPropagation();
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    resizeRef.current = {
+      id: node.id,
+      startX: e.clientX,
+      startWidth: nodeEffectiveWidth(node),
     };
   }
   useEffect(() => {
     function onMove(e: PointerEvent) {
+      // Resize takes priority.
+      const r = resizeRef.current;
+      if (r) {
+        const dx = (e.clientX - r.startX) / viewport.zoom;
+        const next = Math.max(220, Math.min(900, Math.round(r.startWidth + dx)));
+        updateNode(project.id, r.id, { width: next });
+        return;
+      }
       const d = dragRef.current;
       if (!d) return;
       const dx = (e.clientX - d.sx) / viewport.zoom;
       const dy = (e.clientY - d.sy) / viewport.zoom;
       if (!d.moved && Math.hypot(dx, dy) < 3) return;
       d.moved = true;
-      updateNode(project.id, d.id, { x: d.nx + dx, y: d.ny + dy });
-      // Alt held → highlight target for re-parenting
-      if (e.altKey) {
+      if (d.group && d.group.length > 1) {
+        moveNodes(
+          project.id,
+          d.group.map((g) => ({ id: g.id, dx: g.sx + dx - (project.nodes.find((n) => n.id === g.id)?.x ?? g.sx), dy: g.sy + dy - (project.nodes.find((n) => n.id === g.id)?.y ?? g.sy) })),
+        );
+      } else {
+        updateNode(project.id, d.id, { x: d.nx + dx, y: d.ny + dy });
+      }
+      // Alt held → highlight target for re-parenting (single-node drag only)
+      if (e.altKey && !(d.group && d.group.length > 1)) {
         const desc = new Set([d.id, ...descendantIds(project.nodes, d.id)]);
         const overId = findNodeAt(e.clientX, e.clientY, d.id);
         setDropTargetId(overId && !desc.has(overId) ? overId : undefined);
