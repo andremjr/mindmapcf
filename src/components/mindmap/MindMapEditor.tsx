@@ -979,6 +979,7 @@ function SelectedPanel({
   onToggleCollapsed,
   onDetach,
   onDelete,
+  onResetWidth,
 }: {
   node: MindNode | undefined;
   effectiveColor: string | undefined;
@@ -991,6 +992,7 @@ function SelectedPanel({
   onToggleCollapsed: () => void;
   onDetach: () => void;
   onDelete: () => void;
+  onResetWidth: () => void;
 }) {
   const [cascade, setCascade] = useState(false);
   if (!node) return null;
