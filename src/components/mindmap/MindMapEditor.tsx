@@ -808,6 +808,7 @@ export function MindMapEditor({ project }: { project: Project }) {
             <div><kbd className="font-mono">Tab</kbd> filho · <kbd className="font-mono">Enter</kbd> irmão</div>
             <div><kbd className="font-mono">F2</kbd> editar · <kbd className="font-mono">Del</kbd> excluir · <kbd className="font-mono">Espaço</kbd> recolher</div>
             <div>Alça azul: puxar p/ criar/reconectar</div>
+            <div><kbd className="font-mono">Shift</kbd>+arrastar fundo: seleção múltipla · arrastar grupo move junto</div>
             <div><kbd className="font-mono">Alt</kbd>+arrastar: mudar pai · Duplo-clique: novo nó</div>
           </div>
         </main>
