@@ -2,7 +2,7 @@
 // Uses getDisplayMedia (tab/screen + system audio) mixed with getUserMedia (mic).
 // Produces a Blob (webm on Chromium, mp4 on Safari when supported).
 
-export type RecorderState = "idle" | "recording" | "stopping" | "done";
+export type RecorderState = "idle" | "armed" | "recording" | "stopping" | "done";
 
 export interface RecordingResult {
   blob: Blob;
