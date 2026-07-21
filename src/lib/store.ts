@@ -66,8 +66,20 @@ interface Actions {
 }
 
 
+/** Base breathing room between a parent's right edge and its child's left edge. */
+const H_GAP_BASE = 140;
+/** Fallback horizontal offset (used only if widths cannot be measured). */
 const H_GAP = 560;
 const SIBLING_GAP = 36;
+
+/**
+ * Horizontal offset between the CENTER of a parent and the CENTER of a child,
+ * proportional to both node widths so wide/media nodes get more breathing room
+ * and short-text nodes sit closer together. Mimics common mind-map tools.
+ */
+function horizontalOffset(parentW: number, childW: number): number {
+  return parentW / 2 + childW / 2 + H_GAP_BASE;
+}
 const BASE_NODE_H = 88;
 const IMAGE_NODE_H = 190;
 const LINE_H = 22;
@@ -110,12 +122,14 @@ export function nodeEffectiveWidth(n: MindNode): number {
   if (hasMedia) return isRoot ? 560 : 520;
   const len = (n.text || "").length;
   if (isRoot) {
-    if (len < 24) return 320;
+    if (len < 12) return 220;
+    if (len < 24) return 300;
     if (len < 70) return 420;
     if (len < 160) return 500;
     return 560;
   }
-  if (len < 24) return 260;
+  if (len < 12) return 180;
+  if (len < 24) return 240;
   if (len < 70) return 360;
   if (len < 160) return 460;
   return 520;
@@ -236,7 +250,10 @@ function positionForNewChild(nodes: MindNode[], parentId: string | null) {
   const parent = nodes.find((n) => n.id === parentId);
   if (!parent) return { x: 0, y: 0 };
   const siblings = nodes.filter((n) => n.parentId === parentId);
-  const x = parent.x + H_GAP;
+  // Proportional offset — wider parents / children get more space.
+  const pw = nodeEffectiveWidth(parent);
+  const cw = siblings.length ? Math.max(...siblings.map(nodeEffectiveWidth)) : 320;
+  const x = parent.x + horizontalOffset(pw, cw);
   if (siblings.length === 0) return { x, y: parent.y };
   const maxY = Math.max(...siblings.map((n) => n.y));
   return { x, y: maxY + MIN_SLOT_H };
@@ -279,6 +296,11 @@ function reflowTree(nodes: MindNode[]): MindNode[] {
   function place(parentId: string, px: number, py: number) {
     const kids = byParent.get(parentId) ?? [];
     if (!kids.length) return;
+    // Horizontal offset scales with the parent's and the widest child's width.
+    const parent = nodeById.get(parentId)!;
+    const pw = nodeEffectiveWidth(parent);
+    const cwMax = Math.max(...kids.map(nodeEffectiveWidth));
+    const dx = horizontalOffset(pw, cwMax);
     let total = 0;
     for (let i = 0; i < kids.length; i++) {
       total += subtreeH.get(kids[i].id) ?? MIN_SLOT_H;
@@ -287,7 +309,7 @@ function reflowTree(nodes: MindNode[]): MindNode[] {
     let cursor = py - total / 2;
     for (const k of kids) {
       const kh = subtreeH.get(k.id) ?? MIN_SLOT_H;
-      const kx = px + H_GAP;
+      const kx = px + dx;
       const ky = cursor + kh / 2;
       pos.set(k.id, { x: kx, y: ky });
       cursor += kh + SIBLING_GAP;
