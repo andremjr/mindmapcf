@@ -51,6 +51,9 @@ export function Presentation({
   const [size, setSize] = useState({ w: 1280, h: 720 });
   const [result, setResult] = useState<RecordingResult | null>(null);
   const [cropOk, setCropOk] = useState(false);
+  // 3-2-1 countdown after recording starts, so the root node is already
+  // focused when the "real" content begins. null = no countdown running.
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   // When recording, render the canvas inside a fixed-aspect frame so Region
   // Capture crops the tab video track to exactly that rectangle. Off-frame UI
@@ -112,6 +115,22 @@ export function Presentation({
       cancelled = true;
     };
   }, [recording, navigate, project.id]);
+
+  // Start a 3s countdown as soon as the recording frame is cropped and the
+  // root node is centered. Advancing is blocked while it runs.
+  useEffect(() => {
+    if (!recording || !cropOk) return;
+    setIdx(0);
+    setCountdown(3);
+    const timers: number[] = [];
+    timers.push(window.setTimeout(() => setCountdown(2), 1000));
+    timers.push(window.setTimeout(() => setCountdown(1), 2000));
+    timers.push(window.setTimeout(() => setCountdown(null), 3000));
+    return () => {
+      timers.forEach((t) => window.clearTimeout(t));
+    };
+  }, [recording, cropOk]);
+
 
   const visibleIds = useMemo(() => {
     const hidden = new Set<string>();
@@ -223,9 +242,11 @@ export function Presentation({
 
 
   function next() {
+    if (countdown !== null) return;
     setIdx((i) => Math.min(order.length - 1, i + 1));
   }
   function prev() {
+    if (countdown !== null) return;
     setIdx((i) => Math.max(0, i - 1));
   }
   async function stopAndDownload() {
@@ -420,6 +441,21 @@ export function Presentation({
 
           <AvatarLayer project={project} frameSize={size} />
 
+          {countdown !== null && (
+            <div className="absolute inset-0 grid place-items-center pointer-events-none z-30">
+              <div
+                key={countdown}
+                className="animate-scale-in text-white/90 font-semibold tabular-nums"
+                style={{
+                  fontSize: Math.round(Math.min(size.w, size.h) * 0.35),
+                  textShadow: "0 8px 40px rgba(0,0,0,0.6)",
+                  lineHeight: 1,
+                }}
+              >
+                {countdown}
+              </div>
+            </div>
+          )}
 
         </div>
       </div>
