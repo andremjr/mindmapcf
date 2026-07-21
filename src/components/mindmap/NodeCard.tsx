@@ -611,7 +611,11 @@ function VideoPlayer({
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onTimeUpdate={(e) => setCurrent(e.currentTarget.currentTime)}
-        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
+        onLoadedMetadata={(e) => {
+          setDuration(e.currentTarget.duration);
+          const t = e.currentTarget;
+          if (t.videoWidth && t.videoHeight) onAspect?.(t.videoWidth / t.videoHeight);
+        }}
         onVolumeChange={(e) => {
           setMuted(e.currentTarget.muted);
           setVolume(e.currentTarget.volume);
