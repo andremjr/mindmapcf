@@ -486,9 +486,11 @@ function VideoPlayer({
 }) {
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
+  const [volume, setVolume] = useState(1);
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
   const [hover, setHover] = useState(false);
+  const [volHover, setVolHover] = useState(false);
 
   const fmt = (s: number) => {
     if (!isFinite(s)) return "0:00";
@@ -520,7 +522,10 @@ function VideoPlayer({
         onPause={() => setPlaying(false)}
         onTimeUpdate={(e) => setCurrent(e.currentTarget.currentTime)}
         onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
-        onVolumeChange={(e) => setMuted(e.currentTarget.muted)}
+        onVolumeChange={(e) => {
+          setMuted(e.currentTarget.muted);
+          setVolume(e.currentTarget.volume);
+        }}
         className="w-full max-h-[420px] object-contain block cursor-pointer"
       />
       <div
@@ -564,26 +569,51 @@ function VideoPlayer({
         <span className="text-[9px] tabular-nums text-white/80 leading-none">
           {fmt(duration)}
         </span>
-        <button
-          data-nodrag
-          onClick={() => {
-            const v = videoRef.current;
-            if (!v) return;
-            v.muted = !v.muted;
-          }}
-          className="text-white/95 hover:text-white w-5 h-5 grid place-items-center rounded"
-          aria-label={muted ? "Ativar som" : "Silenciar"}
+        <div
+          className="relative flex items-center"
+          onMouseEnter={() => setVolHover(true)}
+          onMouseLeave={() => setVolHover(false)}
         >
-          {muted ? (
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
-              <path d="M3 9v6h4l5 5V4L7 9H3zm13.6 3l2.7-2.7-1.4-1.4L15.2 10.6 12.5 7.9l-1.4 1.4L13.8 12l-2.7 2.7 1.4 1.4L15.2 13.4l2.7 2.7 1.4-1.4L16.6 12z" />
-            </svg>
-          ) : (
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
-              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 00-2.5-4v8a4.5 4.5 0 002.5-4z" />
-            </svg>
+          <button
+            data-nodrag
+            onClick={() => {
+              const v = videoRef.current;
+              if (!v) return;
+              v.muted = !v.muted;
+            }}
+            className="text-white/95 hover:text-white w-5 h-5 grid place-items-center rounded"
+            aria-label={muted ? "Ativar som" : "Silenciar"}
+          >
+            {muted || volume === 0 ? (
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.6 3l2.7-2.7-1.4-1.4L15.2 10.6 12.5 7.9l-1.4 1.4L13.8 12l-2.7 2.7 1.4 1.4L15.2 13.4l2.7 2.7 1.4-1.4L16.6 12z" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 00-2.5-4v8a4.5 4.5 0 002.5-4z" />
+              </svg>
+            )}
+          </button>
+          {volHover && (
+            <input
+              data-nodrag
+              type="range"
+              min={0}
+              max={1}
+              step={0.01}
+              value={muted ? 0 : volume}
+              onChange={(e) => {
+                const v = videoRef.current;
+                if (!v) return;
+                const val = Number(e.target.value);
+                v.volume = val;
+                v.muted = val === 0;
+              }}
+              className="w-16 h-1 accent-white cursor-pointer ml-1"
+              aria-label="Volume"
+            />
           )}
-        </button>
+        </div>
       </div>
     </div>
   );
