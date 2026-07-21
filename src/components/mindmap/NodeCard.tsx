@@ -15,6 +15,26 @@ import { resolveImage, requestImageAccess } from "@/lib/imageStorage";
 import { NODE_COLOR_PALETTE, DEFAULT_ACCENT } from "@/lib/nodeColors";
 
 
+/**
+ * Auto-shrink font size based on text length so nodes keep a consistent
+ * visual footprint regardless of how much text they carry. Media stays at
+ * the node's fixed width, so image/video proportions never change.
+ */
+function autoFontSize(text: string, isRoot: boolean): string {
+  const len = (text || "").length;
+  if (isRoot) {
+    if (len < 40) return "1.125rem"; // text-lg
+    if (len < 90) return "1rem";
+    if (len < 160) return "0.9rem";
+    return "0.82rem";
+  }
+  if (len < 60) return "1rem"; // text-base
+  if (len < 140) return "0.9rem";
+  if (len < 240) return "0.82rem";
+  if (len < 360) return "0.75rem";
+  return "0.7rem";
+}
+
 
 interface Props {
   node: MindNode;
