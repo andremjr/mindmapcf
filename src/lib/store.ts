@@ -355,17 +355,25 @@ export const useStore = create<State & Actions>()((set) => ({
     set((s) => ({
       projects: s.projects.map((p) => {
         if (p.id !== projectId) return p;
+        const prev = p.nodes.find((n) => n.id === nodeId);
         const nextNodes = p.nodes.map((n) =>
           n.id === nodeId ? { ...n, ...patch } : n,
         );
-        // If the change affects intrinsic height, reflow to keep spacing right.
-        // Only reflow when image presence changes — text edits shouldn't
-        // shove the layout around on every keystroke.
-        const heightAffecting = "imageRef" in patch || "image" in patch;
+        // Reflow when image presence changes, or when a text/width change
+        // actually shifts this node's intrinsic height (avoids reflowing on
+        // every keystroke inside a single line).
+        const imageChanged = "imageRef" in patch || "image" in patch;
+        let textAffects = false;
+        if (!imageChanged && ("text" in patch || "width" in patch) && prev) {
+          const nextNode = nextNodes.find((n) => n.id === nodeId)!;
+          textAffects =
+            nodeIntrinsicHeight(prev) !== nodeIntrinsicHeight(nextNode);
+        }
+        const shouldReflow = imageChanged || textAffects;
 
         return {
           ...p,
-          nodes: heightAffecting ? reflowTree(nextNodes) : nextNodes,
+          nodes: shouldReflow ? reflowTree(nextNodes) : nextNodes,
           updatedAt: new Date().toISOString(),
         };
       }),
