@@ -568,9 +568,11 @@ function NodeMedia({
 function VideoPlayer({
   url,
   videoRef,
+  onAspect,
 }: {
   url: string;
   videoRef: React.RefObject<HTMLVideoElement | null>;
+  onAspect?: (aspect: number | null) => void;
 }) {
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
