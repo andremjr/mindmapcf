@@ -1111,6 +1111,26 @@ function SelectedPanel({
             <div className="text-foreground">{node.collapsed ? "sim" : "não"}</div>
           </div>
         </div>
+        <div className="rounded-md border border-border/50 px-3 py-2 text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Largura</span>
+            <span className="tabular-nums text-foreground">
+              {node.width ? `${Math.round(node.width)} px` : "auto"}
+            </span>
+          </div>
+          {node.width && (
+            <button
+              onClick={onResetWidth}
+              className="mt-1 text-[11px] text-primary hover:underline underline-offset-2"
+            >
+              Voltar para largura automática
+            </button>
+          )}
+          <p className="mt-1 text-[10px] text-muted-foreground/80 leading-snug">
+            Arraste a alça azul na borda direita do nó para ajustar manualmente.
+          </p>
+        </div>
+
         {hasChildren && (
           <button
             onClick={onToggleCollapsed}
