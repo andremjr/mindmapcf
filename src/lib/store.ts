@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { MindNode, Project, SonicAvatarEntry, SonicAvatarUsage } from "./types";
+import type { Folder, MindNode, Project, SonicAvatarEntry, SonicAvatarUsage } from "./types";
 
 
 function uid(_prefix = "id") {
@@ -12,18 +12,25 @@ function uid(_prefix = "id") {
 interface State {
   projects: Project[];
   avatars: SonicAvatarEntry[];
+  folders: Folder[];
 }
 
 interface Actions {
   hydrate: (projects: Project[]) => void;
   reset: () => void;
-  createProject: (title: string) => string;
+  createProject: (title: string, folderId?: string | null) => string;
   importProject: (project: Project) => string;
   replaceProjectNodes: (projectId: string, nodes: MindNode[], title?: string) => void;
   deleteProject: (id: string) => void;
   renameProject: (id: string, title: string) => void;
+  moveProjectToFolder: (projectId: string, folderId: string | null) => void;
 
-
+  // Folders
+  hydrateFolders: (folders: Folder[]) => void;
+  createFolder: (name: string, color?: string | null) => string;
+  renameFolder: (id: string, name: string) => void;
+  setFolderColor: (id: string, color: string | null) => void;
+  deleteFolder: (id: string) => void;
 
   addNode: (
     projectId: string,
