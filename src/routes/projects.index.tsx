@@ -1,6 +1,22 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Plus, Network, Trash2, Clock, LogOut, Upload, Crown, Mic } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Plus,
+  Network,
+  Trash2,
+  Clock,
+  LogOut,
+  Upload,
+  Crown,
+  Mic,
+  Folder as FolderIcon,
+  FolderPlus,
+  Inbox,
+  Pencil,
+  Check,
+  X,
+  MoreVertical,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -11,6 +27,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useStore } from "@/lib/store";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,6 +48,8 @@ import { SonicAvatarDialog } from "@/components/mindmap/SonicAvatarDialog";
 
 const FREE_MAP_LIMIT = 3;
 const FREE_NODE_LIMIT = 30;
+const ALL_FOLDERS = "__all__";
+const NO_FOLDER = "__none__";
 
 function ProjectThumb({ project }: { project: Project }) {
   const root = project.nodes.find((n) => !n.parentId) ?? project.nodes[0];
