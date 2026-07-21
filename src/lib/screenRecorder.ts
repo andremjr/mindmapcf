@@ -94,6 +94,9 @@ export interface StartOptions {
   videoBitsPerSecond?: number;
   audioBitsPerSecond?: number;
   frameRate?: number;
+  /** If true, sets up the pipeline but doesn't start the MediaRecorder yet.
+   * Caller must invoke `beginArmedRecording()` to actually start capture. */
+  armed?: boolean;
 }
 
 /**
