@@ -190,8 +190,9 @@ export function NodeCard({
             rows={Math.max(1, node.text.split("\n").length)}
             placeholder="Digite…"
             className={`w-full bg-transparent outline-none resize-none leading-snug ${
-              isRoot ? "text-lg font-semibold" : "text-base"
+              isRoot ? "font-semibold" : ""
             }`}
+            style={{ fontSize: autoFontSize(node.text, isRoot) }}
           />
         ) : (
           <p
