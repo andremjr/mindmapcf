@@ -57,7 +57,7 @@ interface Actions {
 }
 
 
-const H_GAP = 340;
+const H_GAP = 500;
 const SIBLING_GAP = 40;
 /** Baseline card height (no image, single-line text). */
 const BASE_NODE_H = 88;
