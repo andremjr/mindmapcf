@@ -175,7 +175,6 @@ export function MindMapEditor({ project }: { project: Project }) {
     }
     setSelectedId(undefined);
     setExtraSelectedIds([]);
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
     panRef.current = { sx: e.clientX, sy: e.clientY, vx: viewport.x, vy: viewport.y };
   }
   useEffect(() => {
