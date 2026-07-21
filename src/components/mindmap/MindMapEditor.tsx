@@ -754,6 +754,27 @@ export function MindMapEditor({ project }: { project: Project }) {
             </MindMapCanvas>
           </div>
 
+          {marquee && (() => {
+            const minX = Math.min(marquee.x0, marquee.x1);
+            const maxX = Math.max(marquee.x0, marquee.x1);
+            const minY = Math.min(marquee.y0, marquee.y1);
+            const maxY = Math.max(marquee.y0, marquee.y1);
+            const sx = (minX - viewport.x) * viewport.zoom + size.w / 2;
+            const sy = (minY - viewport.y) * viewport.zoom + size.h / 2;
+            return (
+              <div
+                className="pointer-events-none absolute border border-primary/60 bg-primary/10 rounded"
+                style={{
+                  left: sx,
+                  top: sy,
+                  width: (maxX - minX) * viewport.zoom,
+                  height: (maxY - minY) * viewport.zoom,
+                }}
+              />
+            );
+          })()}
+
+
           {project.nodes.length === 0 && (
             <div className="pointer-events-none absolute inset-0 grid place-items-center">
               <div className="pointer-events-auto text-center rounded-xl border border-dashed border-border/60 bg-card/50 px-8 py-10">
