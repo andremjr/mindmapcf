@@ -17,6 +17,7 @@ import {
   getRecorderState,
   subscribeRecorder,
   cropRecordingToElement,
+  beginArmedRecording,
   type RecordingResult,
 } from "@/lib/screenRecorder";
 import { loadRecordFormat, defaultRecordFormat, type RecordFormat } from "@/lib/recordFormats";
