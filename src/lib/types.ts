@@ -81,6 +81,17 @@ export interface Project {
   viewport?: { x: number; y: number; zoom: number };
   /** Reference + placement for the sonic avatar shown during recording. */
   sonicAvatar?: SonicAvatarUsage;
+  /** Optional folder to group projects. null/undefined = "sem pasta". */
+  folderId?: string | null;
+}
+
+export interface Folder {
+  id: string;
+  name: string;
+  color?: string | null;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 
