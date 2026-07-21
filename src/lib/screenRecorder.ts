@@ -275,7 +275,18 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
     rejectStop,
   };
 
-  recorder.start(1000); // 1s chunks → memory-friendly for long recordings
+  if (!opts.armed) {
+    recorder.start(1000); // 1s chunks → memory-friendly for long recordings
+  }
+  emit();
+}
+
+/** Start capture on a recorder previously created with `{ armed: true }`. */
+export function beginArmedRecording(): void {
+  if (!active) throw new Error("Nenhuma gravação armada.");
+  if (active.recorder.state !== "inactive") return;
+  active.startedAt = performance.now();
+  active.recorder.start(1000);
   emit();
 }
 
