@@ -107,6 +107,34 @@ export function NodeCard({
   const isRoot = !node.parentId;
   const isThemed = accent !== DEFAULT_ACCENT;
 
+  const hasHorizontalVideo =
+    (node.imageRef?.kind === "video") && videoAspect !== null && videoAspect >= 1.2;
+  const focusVideoRule = !!(presentation && active && hasHorizontalVideo && videoAspect);
+  // Under focus with horizontal video: cap text container to 40% of video height.
+  const videoRenderedHeight = focusVideoRule ? w / (videoAspect as number) : 0;
+  const textMaxHeight = focusVideoRule ? Math.round(videoRenderedHeight * 0.4) : undefined;
+
+  // Fit-font loop for the 40% rule — shrink font until text fits in textMaxHeight.
+  useLayoutEffect(() => {
+    if (!focusVideoRule || !textBoxRef.current || !textMaxHeight) {
+      setFittedFontPx(null);
+      return;
+    }
+    const el = textBoxRef.current;
+    // Start from the natural autoFontSize (px), then shrink.
+    const startRem = parseFloat(autoFontSize(node.text, isRoot));
+    let px = Math.round(startRem * 16);
+    const min = 9;
+    el.style.fontSize = `${px}px`;
+    // Iteratively shrink until content height fits.
+    let guard = 30;
+    while (el.scrollHeight > textMaxHeight && px > min && guard-- > 0) {
+      px -= 1;
+      el.style.fontSize = `${px}px`;
+    }
+    setFittedFontPx(px);
+  }, [focusVideoRule, textMaxHeight, node.text, isRoot, w]);
+
   // When themed, tint the whole border with the accent. When on the default
   // accent, keep the muted chrome so the map doesn't look like every card is
   // "selected".
