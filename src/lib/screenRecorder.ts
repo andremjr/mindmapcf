@@ -73,21 +73,24 @@ export function getRecordingHasMic(): boolean {
 
 
 function pickMimeType(): string {
-  // Ordered by preference: highest-quality VP9 first (YouTube-friendly),
-  // then AV1 if available, then fallbacks. MP4 goes last — WebM VP9 gives
-  // better visual fidelity for screen content and YouTube accepts it natively.
+  // H.264 primeiro: no Chrome/Edge desktop o encoder é acelerado por hardware
+  // (GPU), então libera a CPU para a decodificação do <video> do nó tocar
+  // liso mesmo em velocidades aceleradas. VP9/AV1 ficam como fallback — são
+  // codificados em software (libvpx) e saturam a CPU em máquinas medianas.
   const candidates = [
+    "video/mp4;codecs=avc1,mp4a",
+    "video/webm;codecs=h264,opus",
     "video/webm;codecs=vp9,opus",
     "video/webm;codecs=av01,opus",
     "video/webm;codecs=vp8,opus",
     "video/webm",
-    "video/mp4;codecs=avc1,mp4a", // Safari fallback only
   ];
   for (const t of candidates) {
     if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t)) return t;
   }
   return "video/webm";
 }
+
 
 export interface StartOptions {
   filenameBase?: string;
