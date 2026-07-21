@@ -275,7 +275,7 @@ export const useStore = create<State & Actions>()((set) => ({
           text: title.trim() || "Ideia central",
           x: 0,
           y: 0,
-          width: 300,
+          width: 380,
           parentId: null,
         },
       ],
