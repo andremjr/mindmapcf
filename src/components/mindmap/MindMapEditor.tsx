@@ -16,6 +16,7 @@ import type { MindNode, Project } from "@/lib/types";
 import { useStore, descendantIds, nodeEffectiveWidth } from "@/lib/store";
 import { MindMapCanvas } from "./MindMapCanvas";
 import { NodeCard } from "./NodeCard";
+import { LinkFrame } from "./Presentation";
 import { ImportDialog } from "./ImportDialog";
 import { SonicAvatarDialog } from "./SonicAvatarDialog";
 import { importFromText } from "@/lib/mindmapImport";
