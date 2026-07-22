@@ -78,7 +78,7 @@ export function SonicAvatarOverlay({
     const smooth = new Float32Array(BARS);
 
     function frame() {
-      const analyser = getRecordingAnalyser();
+      const analyser = getRecordingAnalyser() ?? getMicAnalyser();
       c.clearRect(0, 0, cssSize, cssSize);
       let data: Uint8Array | null = null;
       if (analyser) {
