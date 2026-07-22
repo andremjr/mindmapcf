@@ -146,6 +146,20 @@ function ProjectsDashboard() {
   const [newFolderName, setNewFolderName] = useState("");
   const [editingFolder, setEditingFolder] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("cn.folders.open") !== "0";
+  });
+  const { theme, toggle: toggleTheme } = useTheme();
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("cn.folders.open", sidebarOpen ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  }, [sidebarOpen]);
+
 
   const sortedFolders = useMemo(
     () => [...folders].sort((a, b) => a.position - b.position || a.name.localeCompare(b.name)),
