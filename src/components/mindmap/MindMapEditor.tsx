@@ -57,6 +57,9 @@ export function MindMapEditor({ project }: { project: Project }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { isPro } = useSubscription(user?.id);
+  const { theme, toggle: toggleTheme } = useTheme();
+
+
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 1200, h: 800 });
