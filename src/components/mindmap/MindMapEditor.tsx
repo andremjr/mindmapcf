@@ -1338,9 +1338,9 @@ function LinkStatus({ url }: { url?: string }) {
   if (!info) {
     return (
       <p className="text-[10px] text-muted-foreground/80 leading-snug">
-        Na apresentação, um botão abre o link dentro do quadro.
+        <strong>Apresentar:</strong> o link sempre abre em nova aba (ideal para gravar por fora com OBS).
         <br />
-        Toca embutido: YouTube, X, TikTok, Vimeo. Instagram mostra só a capa. Blogs/notícias funcionam se o site permitir embed.
+        <strong>Gravar:</strong> abre embutido dentro do quadro. YouTube, X, TikTok e Vimeo tocam embutidos. Instagram mostra só a capa. Blogs/notícias dependem do site permitir embed.
       </p>
     );
   }
