@@ -1187,3 +1187,130 @@ function SelectedPanel({
     </div>
   );
 }
+
+/**
+ * Feedback contextual sobre o link do nó: mostra quais plataformas tocam
+ * embutidas na apresentação, alerta quando o Instagram é detectado
+ * (que só mostra a capa) e permite testar o embed direto no inspetor
+ * antes de gravar.
+ */
+function LinkStatus({ url }: { url?: string }) {
+  const [testing, setTesting] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  const info = useMemo(() => {
+    if (!url || !url.trim()) return null;
+    try {
+      const withProto = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+      const u = new URL(withProto);
+      const host = u.hostname.replace(/^www\./, "").toLowerCase();
+      const embed = resolveEmbed(url);
+      let kind: "youtube" | "x" | "tiktok" | "vimeo" | "instagram" | "generic" = "generic";
+      if (embed?.platform === "youtube") kind = "youtube";
+      else if (embed?.platform === "twitter") kind = "x";
+      else if (embed?.platform === "tiktok") kind = "tiktok";
+      else if (embed?.platform === "vimeo") kind = "vimeo";
+      else if (embed?.platform === "instagram" || host.endsWith("instagram.com")) kind = "instagram";
+      return { kind, host, src: embed?.embedUrl ?? withProto };
+    } catch {
+      return null;
+    }
+  }, [url]);
+
+  // Reset test state when URL changes.
+  useEffect(() => {
+    setTesting(false);
+    setBlocked(false);
+    setLoaded(false);
+  }, [url]);
+
+  // Blocked fallback timer when testing a generic site.
+  useEffect(() => {
+    if (!testing || loaded) return;
+    const t = window.setTimeout(() => setBlocked(true), 3500);
+    return () => window.clearTimeout(t);
+  }, [testing, loaded]);
+
+  if (!info) {
+    return (
+      <p className="text-[10px] text-muted-foreground/80 leading-snug">
+        Na apresentação, um botão abre o link dentro do quadro.
+        <br />
+        Toca embutido: YouTube, X, TikTok, Vimeo. Instagram mostra só a capa. Blogs/notícias funcionam se o site permitir embed.
+      </p>
+    );
+  }
+
+  const palette: Record<typeof info.kind, { label: string; tone: "ok" | "warn" | "info"; note: string }> = {
+    youtube: { label: "YouTube", tone: "ok", note: "Toca embutido no quadro (versão sem cookies). Anúncios do próprio vídeo podem aparecer." },
+    x: { label: "X (Twitter)", tone: "ok", note: "Post e vídeo tocam embutidos no quadro." },
+    tiktok: { label: "TikTok", tone: "ok", note: "Vídeo toca embutido no quadro." },
+    vimeo: { label: "Vimeo", tone: "ok", note: "Vídeo toca embutido no quadro." },
+    instagram: {
+      label: "Instagram",
+      tone: "warn",
+      note: "O Instagram só permite embutir a capa do post/reel — o vídeo não toca dentro do quadro. Para reagir, baixe o Reel e suba como vídeo no nó.",
+    },
+    generic: {
+      label: info.host,
+      tone: "info",
+      note: "Deve funcionar se o site permitir embed. Se abrir em branco na apresentação, ele abre em nova aba automaticamente. Use \"Testar\" abaixo para conferir antes de gravar.",
+    },
+  };
+  const p = palette[info.kind];
+  const toneClass =
+    p.tone === "ok"
+      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
+      : p.tone === "warn"
+      ? "border-amber-500/40 bg-amber-500/10 text-amber-200"
+      : "border-border/60 bg-muted/30 text-muted-foreground";
+
+  return (
+    <div className="space-y-2">
+      <div className={`rounded-md border px-2.5 py-2 text-[11px] leading-snug ${toneClass}`}>
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-medium">{p.label}</span>
+          <span className="text-[10px] opacity-80">
+            {p.tone === "ok" ? "toca embutido" : p.tone === "warn" ? "só capa" : "depende do site"}
+          </span>
+        </div>
+        <p className="mt-1 opacity-90">{p.note}</p>
+      </div>
+
+      {info.kind === "generic" && (
+        <div className="space-y-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              setBlocked(false);
+              setLoaded(false);
+              setTesting((v) => !v);
+            }}
+            className="text-[11px] rounded-md border border-border/60 px-2.5 py-1 hover:bg-muted/40"
+          >
+            {testing ? "Fechar teste" : "Testar embed aqui"}
+          </button>
+          {testing && (
+            <div className="rounded-md border border-border/60 overflow-hidden bg-black relative" style={{ height: 180 }}>
+              {!blocked ? (
+                <iframe
+                  src={info.src}
+                  title="Teste de embed"
+                  className="w-full h-full"
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  onLoad={() => setLoaded(true)}
+                />
+              ) : (
+                <div className="absolute inset-0 grid place-items-center text-center p-3 text-[11px] text-muted-foreground">
+                  Este site bloqueia embed. Na apresentação ele abrirá em nova aba.
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
