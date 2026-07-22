@@ -10,7 +10,10 @@ import {
   Circle,
   Upload,
   Mic,
+  Sun,
+  Moon,
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import type { MindNode, Project } from "@/lib/types";
 import { useStore, descendantIds, nodeEffectiveWidth } from "@/lib/store";
@@ -30,6 +33,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
 import { resolveEmbed } from "@/lib/embedUrl";
+import { useTheme } from "@/hooks/useTheme";
+
 
 
 const FREE_NODE_LIMIT = 30;
@@ -52,6 +57,9 @@ export function MindMapEditor({ project }: { project: Project }) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { isPro } = useSubscription(user?.id);
+  const { theme, toggle: toggleTheme } = useTheme();
+
+
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 1200, h: 800 });
@@ -697,6 +705,17 @@ export function MindMapEditor({ project }: { project: Project }) {
           <Button variant="ghost" size="sm" onClick={fitAll} className="gap-2">
             <Maximize className="size-4" /> Ver tudo
           </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleTheme}
+            className="gap-2"
+            title={theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
+            aria-label="Alternar tema"
+          >
+            {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+          </Button>
+
           <Button variant="secondary" size="sm" onClick={handleAdd} className="gap-2" disabled={!canAddMoreNodes()}>
             <Plus className="size-4" /> Nó
           </Button>

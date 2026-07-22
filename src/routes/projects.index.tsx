@@ -16,7 +16,12 @@ import {
   Check,
   X,
   MoreVertical,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Sun,
+  Moon,
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -45,6 +50,8 @@ import { toast } from "sonner";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
 import { SonicAvatarDialog } from "@/components/mindmap/SonicAvatarDialog";
+import { useTheme } from "@/hooks/useTheme";
+
 
 const FREE_MAP_LIMIT = 3;
 const FREE_NODE_LIMIT = 30;
@@ -139,6 +146,20 @@ function ProjectsDashboard() {
   const [newFolderName, setNewFolderName] = useState("");
   const [editingFolder, setEditingFolder] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("cn.folders.open") !== "0";
+  });
+  const { theme, toggle: toggleTheme } = useTheme();
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("cn.folders.open", sidebarOpen ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  }, [sidebarOpen]);
+
 
   const sortedFolders = useMemo(
     () => [...folders].sort((a, b) => a.position - b.position || a.name.localeCompare(b.name)),
@@ -290,6 +311,17 @@ function ProjectsDashboard() {
             <Button
               variant="ghost"
               size="sm"
+              onClick={toggleTheme}
+              className="gap-2"
+              title={theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
+              aria-label="Alternar tema"
+            >
+              {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={async () => {
                 await supabase.auth.signOut();
                 navigate({ to: "/auth", replace: true });
@@ -355,8 +387,22 @@ function ProjectsDashboard() {
         </div>
       )}
 
-      <main className="mx-auto max-w-7xl px-6 py-10 grid grid-cols-1 md:grid-cols-[240px_1fr] gap-8">
-        <aside className="space-y-1">
+      <main
+        className={`mx-auto max-w-7xl px-6 py-10 grid grid-cols-1 gap-8 ${
+          sidebarOpen ? "md:grid-cols-[240px_1fr]" : "md:grid-cols-[1fr]"
+        }`}
+      >
+        {sidebarOpen ? (
+          <aside className="space-y-1 relative">
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="absolute -right-2 top-0 size-6 grid place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition"
+              aria-label="Recolher barra de pastas"
+              title="Recolher pastas"
+            >
+              <PanelLeftClose className="size-4" />
+            </button>
+
           <div className="flex items-center justify-between mb-2 px-1">
             <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
               Pastas
@@ -477,6 +523,18 @@ function ProjectsDashboard() {
             );
           })}
         </aside>
+        ) : (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="hidden md:flex fixed left-3 top-24 z-20 items-center gap-2 rounded-md border border-border/60 bg-card px-2 py-1.5 text-xs text-muted-foreground shadow-sm hover:text-foreground hover:bg-muted transition"
+            aria-label="Mostrar barra de pastas"
+            title="Mostrar pastas"
+          >
+            <PanelLeftOpen className="size-4" />
+            <span>Pastas</span>
+          </button>
+        )}
+
 
         <section>
           <div className="mb-6 flex items-end justify-between gap-4">
