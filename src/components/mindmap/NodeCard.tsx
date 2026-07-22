@@ -9,6 +9,7 @@ import {
   Film,
   Palette,
   Check,
+  Link as LinkIcon,
 } from "lucide-react";
 import type { ImageRef, MindNode } from "@/lib/types";
 import { resolveImage, requestImageAccess } from "@/lib/imageStorage";
