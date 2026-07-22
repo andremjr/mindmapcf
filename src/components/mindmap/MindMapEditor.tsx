@@ -836,6 +836,9 @@ export function MindMapEditor({ project }: { project: Project }) {
               onChangeText={(text) =>
                 selectedId && updateNode(project.id, selectedId, { text })
               }
+              onChangeUrl={(url) =>
+                selectedId && updateNode(project.id, selectedId, { url: url.trim() || undefined })
+              }
               onPickImage={async () => {
                 if (!selectedId) return;
                 try {
