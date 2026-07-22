@@ -453,6 +453,11 @@ export function Presentation({
                   onChange={() => {}}
                   onDelete={() => {}}
                   onDragStart={() => {}}
+                  onOpenLink={() => {
+                    linkLoadedRef.current = false;
+                    setLinkBlocked(false);
+                    setLinkOpen(true);
+                  }}
                 />
               );
             })}
