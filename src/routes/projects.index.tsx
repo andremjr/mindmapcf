@@ -387,8 +387,22 @@ function ProjectsDashboard() {
         </div>
       )}
 
-      <main className="mx-auto max-w-7xl px-6 py-10 grid grid-cols-1 md:grid-cols-[240px_1fr] gap-8">
-        <aside className="space-y-1">
+      <main
+        className={`mx-auto max-w-7xl px-6 py-10 grid grid-cols-1 gap-8 ${
+          sidebarOpen ? "md:grid-cols-[240px_1fr]" : "md:grid-cols-[1fr]"
+        }`}
+      >
+        {sidebarOpen ? (
+          <aside className="space-y-1 relative">
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="absolute -right-2 top-0 size-6 grid place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition"
+              aria-label="Recolher barra de pastas"
+              title="Recolher pastas"
+            >
+              <PanelLeftClose className="size-4" />
+            </button>
+
           <div className="flex items-center justify-between mb-2 px-1">
             <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
               Pastas
