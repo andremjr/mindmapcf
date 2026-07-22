@@ -425,6 +425,76 @@ export function MindMapEditor({ project }: { project: Project }) {
     setPendingEdge({ fromId: node.id, toX: w.x, toY: w.y });
   }
 
+  // --- Paste image from clipboard: download to Downloads + prompt selection ---
+  useEffect(() => {
+    async function onPaste(e: ClipboardEvent) {
+      const target = e.target as HTMLElement | null;
+      const isTyping =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable);
+      if (isTyping) return;
+
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      let file: File | null = null;
+      for (const it of Array.from(items)) {
+        if (it.kind === "file" && it.type.startsWith("image/")) {
+          file = it.getAsFile();
+          break;
+        }
+      }
+      if (!file) return;
+      e.preventDefault();
+
+      if (!selectedId) {
+        toast.error("Selecione um nó antes de colar a imagem.");
+        return;
+      }
+
+      const ext = (file.type.split("/")[1] || "png").replace("jpeg", "jpg");
+      const stamp = new Date()
+        .toISOString()
+        .replace(/[:.]/g, "-")
+        .slice(0, 19);
+      const filename = `print-${stamp}.${ext}`;
+      const url = URL.createObjectURL(file);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+
+      const nodeId = selectedId;
+      toast.success(`Print salvo como ${filename}`, {
+        description: "Clique em “Selecionar arquivo” e escolha esse arquivo na pasta Downloads para vincular ao nó.",
+        duration: 15000,
+        action: {
+          label: "Selecionar arquivo",
+          onClick: async () => {
+            try {
+              const ref = await pickMediaAndStore("image");
+              if (!ref) return;
+              updateNode(project.id, nodeId, {
+                imageRef: ref,
+                imageName: ref.name,
+                image: undefined,
+              });
+            } catch (error) {
+              console.error("[mindmap] paste pick", error);
+              toast.error("Não foi possível vincular a imagem.");
+            }
+          },
+        },
+      });
+    }
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [selectedId, project.id, updateNode]);
+
   // --- Keyboard shortcuts ---
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
