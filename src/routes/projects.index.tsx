@@ -393,29 +393,31 @@ function ProjectsDashboard() {
         }`}
       >
         {sidebarOpen ? (
-          <aside className="space-y-1 relative">
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="absolute -right-2 top-0 size-6 grid place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition"
-              aria-label="Recolher barra de pastas"
-              title="Recolher pastas"
-            >
-              <PanelLeftClose className="size-4" />
-            </button>
-
-          <div className="flex items-center justify-between mb-2 px-1">
-            <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-              Pastas
-            </span>
+          <aside className="space-y-1">
+          <div className="flex items-center justify-between mb-2 px-1 gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="size-6 grid place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition shrink-0"
+                aria-label="Recolher barra de pastas"
+                title="Recolher pastas"
+              >
+                <PanelLeftClose className="size-4" />
+              </button>
+              <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold truncate">
+                Pastas
+              </span>
+            </div>
             <button
               onClick={() => setNewFolderOpen(true)}
-              className="size-6 grid place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition"
+              className="size-6 grid place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground transition shrink-0"
               aria-label="Nova pasta"
               title="Nova pasta"
             >
               <FolderPlus className="size-4" />
             </button>
           </div>
+
 
           <button
             onClick={() => setActiveFolder(ALL_FOLDERS)}
