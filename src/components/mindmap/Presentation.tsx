@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, X, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, Download, ExternalLink, Link as LinkIcon } from "lucide-react";
 import type { Project } from "@/lib/types";
 import { presentationOrder, descendantIds } from "@/lib/store";
 import { buildColorMap } from "@/lib/nodeColors";
@@ -55,6 +55,9 @@ export function Presentation({
   // 3-2-1 countdown after recording starts, so the root node is already
   // focused when the "real" content begins. null = no countdown running.
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkBlocked, setLinkBlocked] = useState(false);
+  const linkLoadedRef = useRef(false);
 
   // When recording, render the canvas inside a fixed-aspect frame so Region
   // Capture crops the tab video track to exactly that rectangle. Off-frame UI
@@ -255,10 +258,12 @@ export function Presentation({
 
   function next() {
     if (countdown !== null) return;
+    setLinkOpen(false);
     setIdx((i) => Math.min(order.length - 1, i + 1));
   }
   function prev() {
     if (countdown !== null) return;
+    setLinkOpen(false);
     setIdx((i) => Math.max(0, i - 1));
   }
   async function stopAndDownload() {
@@ -469,6 +474,25 @@ export function Presentation({
             </div>
           )}
 
+          {linkOpen && activeNode?.url && (
+            <LinkFrame
+              url={activeNode.url}
+              onClose={() => setLinkOpen(false)}
+              blocked={linkBlocked}
+              onLoaded={() => {
+                linkLoadedRef.current = true;
+                setLinkBlocked(false);
+              }}
+              onBlocked={() => {
+                if (!linkLoadedRef.current) setLinkBlocked(true);
+              }}
+              resetLoaded={() => {
+                linkLoadedRef.current = false;
+                setLinkBlocked(false);
+              }}
+            />
+          )}
+
         </div>
       </div>
 
@@ -512,6 +536,25 @@ export function Presentation({
         >
           <ChevronRight className="size-5" />
         </button>
+        {activeNode?.url && (
+          <>
+            <div className="w-px h-6 bg-border mx-1" />
+            <button
+              onClick={() => {
+                linkLoadedRef.current = false;
+                setLinkBlocked(false);
+                setLinkOpen((v) => !v);
+              }}
+              className={`h-9 px-3 rounded-full text-xs flex items-center gap-1.5 ${
+                linkOpen ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+              }`}
+              title={activeNode.url}
+            >
+              <LinkIcon className="size-3.5" />
+              {linkOpen ? "Fechar link" : "Abrir link"}
+            </button>
+          </>
+        )}
       </div>
 
       {order.length === 0 && (
@@ -582,3 +625,88 @@ function AvatarLayer({ project, frameSize }: { project: Project; frameSize: { w:
   );
 }
 
+
+function LinkFrame({
+  url,
+  onClose,
+  blocked,
+  onLoaded,
+  onBlocked,
+  resetLoaded,
+}: {
+  url: string;
+  onClose: () => void;
+  blocked: boolean;
+  onLoaded: () => void;
+  onBlocked: () => void;
+  resetLoaded: () => void;
+}) {
+  const [displayUrl, setDisplayUrl] = useState(url);
+  useEffect(() => {
+    resetLoaded();
+    setDisplayUrl(url);
+    // Some sites (X-Frame-Options: DENY, CSP frame-ancestors) never fire load.
+    // If nothing loads in 3.5s, show the fallback.
+    const t = window.setTimeout(() => onBlocked(), 3500);
+    return () => window.clearTimeout(t);
+  }, [url]);
+
+  const safeUrl = /^https?:\/\//i.test(displayUrl) ? displayUrl : `https://${displayUrl}`;
+
+  return (
+    <div className="absolute inset-0 z-40 bg-background flex flex-col">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border/60 bg-card/80 backdrop-blur">
+        <LinkIcon className="size-4 text-muted-foreground shrink-0" />
+        <span className="text-xs font-mono truncate flex-1 text-muted-foreground" title={safeUrl}>
+          {safeUrl}
+        </span>
+        <a
+          href={safeUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="text-xs flex items-center gap-1 px-2 py-1 rounded hover:bg-muted"
+        >
+          <ExternalLink className="size-3.5" /> Nova aba
+        </a>
+        <button
+          onClick={onClose}
+          className="size-7 grid place-items-center rounded-full hover:bg-muted"
+          aria-label="Fechar link"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
+      <div className="flex-1 relative bg-black">
+        {!blocked ? (
+          <iframe
+            key={safeUrl}
+            src={safeUrl}
+            className="absolute inset-0 w-full h-full border-0"
+            sandbox="allow-scripts allow-forms allow-popups allow-same-origin allow-presentation"
+            referrerPolicy="no-referrer-when-downgrade"
+            onLoad={onLoaded}
+            title="Link do nó"
+          />
+        ) : (
+          <div className="absolute inset-0 grid place-items-center p-8">
+            <div className="max-w-md text-center space-y-3">
+              <div className="text-lg font-semibold">Este site não permite ser embutido</div>
+              <p className="text-sm text-muted-foreground">
+                O servidor bloqueia a exibição dentro de outro quadro (X-Frame-Options / CSP).
+                Abra o link em uma nova aba para visualizá-lo.
+              </p>
+              <a
+                href={safeUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:opacity-90"
+              >
+                <ExternalLink className="size-4" /> Abrir em nova aba
+              </a>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -836,6 +836,9 @@ export function MindMapEditor({ project }: { project: Project }) {
               onChangeText={(text) =>
                 selectedId && updateNode(project.id, selectedId, { text })
               }
+              onChangeUrl={(url) =>
+                selectedId && updateNode(project.id, selectedId, { url: url.trim() || undefined })
+              }
               onPickImage={async () => {
                 if (!selectedId) return;
                 try {
@@ -984,6 +987,7 @@ function SelectedPanel({
   effectiveColor,
   hasChildren,
   onChangeText,
+  onChangeUrl,
   onPickImage,
   onPickVideo,
   onClearMedia,
@@ -997,6 +1001,7 @@ function SelectedPanel({
   effectiveColor: string | undefined;
   hasChildren: boolean;
   onChangeText: (text: string) => void;
+  onChangeUrl: (url: string) => void;
   onPickImage: () => void;
   onPickVideo: () => void;
   onClearMedia: () => void;
@@ -1058,6 +1063,21 @@ function SelectedPanel({
             </button>
           </div>
         )}
+      </section>
+
+      {/* Link */}
+      <section className="space-y-1.5">
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Link (opcional)</div>
+        <input
+          type="url"
+          value={node.url ?? ""}
+          onChange={(e) => onChangeUrl(e.target.value)}
+          placeholder="https://exemplo.com"
+          className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+        />
+        <p className="text-[10px] text-muted-foreground/80 leading-snug">
+          Na apresentação, um botão abre o link dentro do quadro. Sites que bloqueiam embed abrem em nova aba.
+        </p>
       </section>
 
       {/* Color */}

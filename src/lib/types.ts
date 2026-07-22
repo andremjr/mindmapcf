@@ -37,6 +37,8 @@ export interface MindNode {
   imageName?: string;
   /** Accent color hex (optional). */
   color?: string;
+  /** Optional URL — shown as a button in presentation that opens the site in an in-frame iframe. */
+  url?: string;
 }
 
 /**
