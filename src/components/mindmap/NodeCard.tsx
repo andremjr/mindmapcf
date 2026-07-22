@@ -62,6 +62,7 @@ interface Props {
   onPickImage?: () => void;
   onPickVideo?: () => void;
   onSetColor?: (color: string | undefined, cascade: boolean) => void;
+  onOpenLink?: (url: string) => void;
 }
 
 
