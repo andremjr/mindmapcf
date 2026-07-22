@@ -628,7 +628,7 @@ function AvatarLayer({ project, frameSize }: { project: Project; frameSize: { w:
 }
 
 
-function LinkFrame({
+export function LinkFrame({
   url,
   onClose,
   blocked,
