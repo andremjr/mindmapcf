@@ -536,6 +536,25 @@ export function Presentation({
         >
           <ChevronRight className="size-5" />
         </button>
+        {activeNode?.url && (
+          <>
+            <div className="w-px h-6 bg-border mx-1" />
+            <button
+              onClick={() => {
+                linkLoadedRef.current = false;
+                setLinkBlocked(false);
+                setLinkOpen((v) => !v);
+              }}
+              className={`h-9 px-3 rounded-full text-xs flex items-center gap-1.5 ${
+                linkOpen ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+              }`}
+              title={activeNode.url}
+            >
+              <LinkIcon className="size-3.5" />
+              {linkOpen ? "Fechar link" : "Abrir link"}
+            </button>
+          </>
+        )}
       </div>
 
       {order.length === 0 && (
