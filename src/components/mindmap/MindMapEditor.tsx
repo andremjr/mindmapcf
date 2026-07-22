@@ -33,6 +33,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
 import { resolveEmbed } from "@/lib/embedUrl";
+import { useTheme } from "@/hooks/useTheme";
+
 
 
 const FREE_NODE_LIMIT = 30;
