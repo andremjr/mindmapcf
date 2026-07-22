@@ -22,7 +22,7 @@ import { importFromText } from "@/lib/mindmapImport";
 import { buildColorMap, NODE_COLOR_PALETTE } from "@/lib/nodeColors";
 import { toast } from "sonner";
 
-import { pickMediaAndStore } from "@/lib/imageStorage";
+import { pickMediaAndStore, storeMediaBlob } from "@/lib/imageStorage";
 import { startRecording } from "@/lib/screenRecorder";
 import { RECORD_FORMATS, saveRecordFormat, type RecordFormat } from "@/lib/recordFormats";
 import { useAuth } from "@/hooks/useAuth";
