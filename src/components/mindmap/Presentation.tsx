@@ -258,6 +258,7 @@ export function Presentation({
 
   function next() {
     if (countdown !== null) return;
+    setLinkOpen(false);
     setIdx((i) => Math.min(order.length - 1, i + 1));
   }
   function prev() {
