@@ -88,6 +88,7 @@ export function NodeCard({
   onPickImage,
   onPickVideo,
   onSetColor,
+  onOpenLink,
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const textBoxRef = useRef<HTMLDivElement>(null);
