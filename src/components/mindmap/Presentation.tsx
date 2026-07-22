@@ -454,6 +454,14 @@ export function Presentation({
                   onDelete={() => {}}
                   onDragStart={() => {}}
                   onOpenLink={() => {
+                    if (!recording) {
+                      const raw = n.url;
+                      if (raw) {
+                        const safe = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+                        window.open(safe, "_blank", "noopener,noreferrer");
+                      }
+                      return;
+                    }
                     linkLoadedRef.current = false;
                     setLinkBlocked(false);
                     setLinkOpen(true);
@@ -548,6 +556,12 @@ export function Presentation({
             <div className="w-px h-6 bg-border mx-1" />
             <button
               onClick={() => {
+                if (!recording) {
+                  const raw = activeNode.url!;
+                  const safe = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+                  window.open(safe, "_blank", "noopener,noreferrer");
+                  return;
+                }
                 linkLoadedRef.current = false;
                 setLinkBlocked(false);
                 setLinkOpen((v) => !v);
@@ -558,7 +572,7 @@ export function Presentation({
               title={activeNode.url}
             >
               <LinkIcon className="size-3.5" />
-              {linkOpen ? "Fechar link" : "Abrir link"}
+              {!recording ? "Abrir link" : linkOpen ? "Fechar link" : "Abrir link"}
             </button>
           </>
         )}
