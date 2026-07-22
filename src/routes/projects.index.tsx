@@ -16,7 +16,12 @@ import {
   Check,
   X,
   MoreVertical,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Sun,
+  Moon,
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
