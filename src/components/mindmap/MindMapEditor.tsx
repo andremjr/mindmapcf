@@ -28,6 +28,7 @@ import { RECORD_FORMATS, saveRecordFormat, type RecordFormat } from "@/lib/recor
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
+import { resolveEmbed } from "@/lib/embedUrl";
 
 
 const FREE_NODE_LIMIT = 30;
