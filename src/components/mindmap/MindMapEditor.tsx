@@ -22,7 +22,7 @@ import { importFromText } from "@/lib/mindmapImport";
 import { buildColorMap, NODE_COLOR_PALETTE } from "@/lib/nodeColors";
 import { toast } from "sonner";
 
-import { pickMediaAndStore } from "@/lib/imageStorage";
+import { pickMediaAndStore, storeMediaBlob } from "@/lib/imageStorage";
 import { startRecording } from "@/lib/screenRecorder";
 import { RECORD_FORMATS, saveRecordFormat, type RecordFormat } from "@/lib/recordFormats";
 import { useAuth } from "@/hooks/useAuth";
@@ -476,6 +476,57 @@ export function MindMapEditor({ project }: { project: Project }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [selectedId, project.id, project.nodes, addNode, deleteNode, toggleCollapsed, isPro]);
+
+  // Paste image from clipboard onto the selected node.
+  useEffect(() => {
+    async function onPaste(e: ClipboardEvent) {
+      const target = e.target as HTMLElement | null;
+      const isTyping =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable);
+      if (isTyping) return;
+      if (!selectedId) return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      let file: File | null = null;
+      for (const it of items) {
+        if (it.kind === "file" && it.type.startsWith("image/")) {
+          file = it.getAsFile();
+          if (file) break;
+        }
+      }
+      if (!file) return;
+      e.preventDefault();
+      try {
+        const ref = await storeMediaBlob(file, { name: file.name, kind: "image" });
+        updateNode(project.id, selectedId, {
+          imageRef: ref,
+          imageName: ref.name,
+          image: undefined,
+        });
+        // Also offer the raw file as a download so the user has a local copy.
+        try {
+          const url = URL.createObjectURL(file);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = ref.name;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 2000);
+        } catch {
+          /* download is best-effort */
+        }
+        toast.success("Imagem colada no nó");
+      } catch (err: any) {
+        toast.error(err?.message ?? "Não consegui colar a imagem");
+      }
+    }
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [selectedId, project.id, updateNode]);
 
   function handleAdd() {
     // Add a child of selected, or a new root if none selected.

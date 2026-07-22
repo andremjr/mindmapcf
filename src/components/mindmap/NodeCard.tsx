@@ -256,20 +256,26 @@ export function NodeCard({
         )}
         {node.url && (
           <div className="mt-2 flex">
-            <span
-              className="inline-flex items-center gap-1.5 max-w-full text-[11px] font-medium px-2 py-1 rounded-full border"
+            <a
+              data-nodrag
+              href={node.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+              className="inline-flex items-center gap-1.5 max-w-full text-[11px] font-medium px-2 py-1 rounded-full border transition-opacity hover:opacity-80 cursor-pointer"
               style={{
                 borderColor: `${accent}55`,
                 backgroundColor: `${accent}18`,
                 color: accent,
               }}
-              title={node.url}
+              title={`Abrir ${node.url}`}
             >
               <LinkIcon className="size-3 shrink-0" />
               <span className="truncate">
                 {node.url.replace(/^https?:\/\//i, "").replace(/\/$/, "")}
               </span>
-            </span>
+            </a>
           </div>
         )}
       </div>

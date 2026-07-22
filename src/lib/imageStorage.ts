@@ -275,6 +275,36 @@ export function pickImageAndStore(): Promise<ImageRef | null> {
   return pickMediaAndStore("image");
 }
 
+/**
+ * Persist a Blob/File directly into the local media cache (IndexedDB) and
+ * return an ImageRef. Used for clipboard paste — the blob never leaves the
+ * browser, exactly like a file picked from disk.
+ */
+export async function storeMediaBlob(
+  blob: Blob,
+  opts: { name?: string; kind?: "image" | "video" } = {},
+): Promise<ImageRef> {
+  const kind = opts.kind ?? (blob.type.startsWith("video/") ? "video" : "image");
+  const ext =
+    (blob.type.split("/")[1] || (kind === "video" ? "webm" : "png")).split(";")[0];
+  const name = opts.name || `colado-${new Date().toISOString().replace(/[:.]/g, "-")}.${ext}`;
+  const file =
+    blob instanceof File
+      ? blob
+      : new File([blob], name, { type: blob.type || undefined, lastModified: Date.now() });
+  const ref: ImageRef = {
+    id: crypto.randomUUID(),
+    localPath: file.name,
+    name: file.name,
+    size: file.size,
+    lastModified: file.lastModified,
+    contentType: file.type || undefined,
+    kind,
+  };
+  await safePut({ ...ref, blob: file });
+  return ref;
+}
+
 async function tryReadHandle(entry: Entry, interactive: boolean): Promise<File | null> {
   if (!entry.handle) return null;
   const h: any = entry.handle;
