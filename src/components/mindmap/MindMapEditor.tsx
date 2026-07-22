@@ -984,6 +984,7 @@ function SelectedPanel({
   effectiveColor,
   hasChildren,
   onChangeText,
+  onChangeUrl,
   onPickImage,
   onPickVideo,
   onClearMedia,
@@ -997,6 +998,7 @@ function SelectedPanel({
   effectiveColor: string | undefined;
   hasChildren: boolean;
   onChangeText: (text: string) => void;
+  onChangeUrl: (url: string) => void;
   onPickImage: () => void;
   onPickVideo: () => void;
   onClearMedia: () => void;
