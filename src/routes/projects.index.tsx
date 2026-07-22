@@ -311,6 +311,17 @@ function ProjectsDashboard() {
             <Button
               variant="ghost"
               size="sm"
+              onClick={toggleTheme}
+              className="gap-2"
+              title={theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
+              aria-label="Alternar tema"
+            >
+              {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={async () => {
                 await supabase.auth.signOut();
                 navigate({ to: "/auth", replace: true });
