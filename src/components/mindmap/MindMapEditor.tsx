@@ -10,7 +10,10 @@ import {
   Circle,
   Upload,
   Mic,
+  Sun,
+  Moon,
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import type { MindNode, Project } from "@/lib/types";
 import { useStore, descendantIds, nodeEffectiveWidth } from "@/lib/store";
