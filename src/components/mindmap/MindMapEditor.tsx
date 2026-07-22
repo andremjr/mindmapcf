@@ -766,6 +766,11 @@ export function MindMapEditor({ project }: { project: Project }) {
                       onSetColor={(color, cascade) =>
                         setNodeColor(project.id, n.id, color, cascade)
                       }
+                      onOpenLink={(url) => {
+                        linkLoadedRef.current = false;
+                        setLinkBlocked(false);
+                        setOpenLinkUrl(url);
+                      }}
                     />
                   </div>
                 );
