@@ -50,6 +50,8 @@ import { toast } from "sonner";
 import { useSubscription } from "@/hooks/useSubscription";
 import { UpgradeDialog } from "@/components/UpgradeDialog";
 import { SonicAvatarDialog } from "@/components/mindmap/SonicAvatarDialog";
+import { useTheme } from "@/hooks/useTheme";
+
 
 const FREE_MAP_LIMIT = 3;
 const FREE_NODE_LIMIT = 30;
