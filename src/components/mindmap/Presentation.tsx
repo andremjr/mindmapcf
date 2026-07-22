@@ -641,17 +641,21 @@ function LinkFrame({
   onBlocked: () => void;
   resetLoaded: () => void;
 }) {
-  const [displayUrl, setDisplayUrl] = useState(url);
+  const safeUrl = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+  const embed = resolveEmbed(safeUrl);
+  const iframeSrc = embed?.embedUrl ?? safeUrl;
+  const trusted = embed?.trusted ?? false;
+
+  const [displayUrl, setDisplayUrl] = useState(iframeSrc);
   useEffect(() => {
     resetLoaded();
-    setDisplayUrl(url);
-    // Some sites (X-Frame-Options: DENY, CSP frame-ancestors) never fire load.
-    // If nothing loads in 3.5s, show the fallback.
+    setDisplayUrl(iframeSrc);
+    // Trusted embeds (YouTube nocookie, Instagram, X, TikTok, Vimeo) always render —
+    // skip the blocked-fallback timer. Raw URLs may hit X-Frame-Options / CSP.
+    if (trusted) return;
     const t = window.setTimeout(() => onBlocked(), 3500);
     return () => window.clearTimeout(t);
-  }, [url]);
-
-  const safeUrl = /^https?:\/\//i.test(displayUrl) ? displayUrl : `https://${displayUrl}`;
+  }, [iframeSrc, trusted]);
 
   return (
     <div className="absolute inset-0 z-40 bg-background flex flex-col">
@@ -679,14 +683,17 @@ function LinkFrame({
       <div className="flex-1 relative bg-black">
         {!blocked ? (
           <iframe
-            key={safeUrl}
-            src={safeUrl}
+            key={displayUrl}
+            src={displayUrl}
             className="absolute inset-0 w-full h-full border-0"
             sandbox="allow-scripts allow-forms allow-popups allow-same-origin allow-presentation"
             referrerPolicy="no-referrer-when-downgrade"
+            allow="autoplay; encrypted-media; picture-in-picture; clipboard-write; fullscreen"
+            allowFullScreen
             onLoad={onLoaded}
             title="Link do nó"
           />
+
         ) : (
           <div className="absolute inset-0 grid place-items-center p-8">
             <div className="max-w-md text-center space-y-3">
