@@ -262,6 +262,7 @@ export function Presentation({
   }
   function prev() {
     if (countdown !== null) return;
+    setLinkOpen(false);
     setIdx((i) => Math.max(0, i - 1));
   }
   async function stopAndDownload() {
