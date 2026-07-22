@@ -570,9 +570,7 @@ export function Presentation({
             <button
               onClick={() => {
                 if (!recording) {
-                  const raw = activeNode.url!;
-                  const safe = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-                  window.open(safe, "_blank", "noopener,noreferrer");
+                  openLinkInNewTab(activeNode.url!);
                   return;
                 }
                 linkLoadedRef.current = false;
