@@ -454,6 +454,14 @@ export function Presentation({
                   onDelete={() => {}}
                   onDragStart={() => {}}
                   onOpenLink={() => {
+                    if (!recording) {
+                      const raw = n.url;
+                      if (raw) {
+                        const safe = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+                        window.open(safe, "_blank", "noopener,noreferrer");
+                      }
+                      return;
+                    }
                     linkLoadedRef.current = false;
                     setLinkBlocked(false);
                     setLinkOpen(true);
