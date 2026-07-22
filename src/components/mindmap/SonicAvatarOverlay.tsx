@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { SonicAvatarEntry } from "@/lib/types";
 import { getRecordingAnalyser } from "@/lib/screenRecorder";
+import { getMicAnalyser } from "@/lib/micAnalyser";
 import { resolveImage } from "@/lib/imageStorage";
 
 /**
