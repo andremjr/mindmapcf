@@ -472,11 +472,7 @@ export function Presentation({
                   onDragStart={() => {}}
                   onOpenLink={() => {
                     if (!recording) {
-                      const raw = n.url;
-                      if (raw) {
-                        const safe = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-                        window.open(safe, "_blank", "noopener,noreferrer");
-                      }
+                      if (n.url) openLinkInNewTab(n.url);
                       return;
                     }
                     linkLoadedRef.current = false;
