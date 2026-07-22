@@ -258,13 +258,14 @@ export function NodeCard({
         )}
         {node.url && (
           <div className="mt-2 flex">
-            <a
+            <button
+              type="button"
               data-nodrag
-              href={node.url}
-              target="_blank"
-              rel="noopener noreferrer"
               onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenLink && node.url) onOpenLink(node.url);
+              }}
               className="inline-flex items-center gap-1.5 max-w-full text-[11px] font-medium px-2 py-1 rounded-full border transition-opacity hover:opacity-80 cursor-pointer"
               style={{
                 borderColor: `${accent}55`,
@@ -277,7 +278,7 @@ export function NodeCard({
               <span className="truncate">
                 {node.url.replace(/^https?:\/\//i, "").replace(/\/$/, "")}
               </span>
-            </a>
+            </button>
           </div>
         )}
       </div>
