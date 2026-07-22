@@ -474,6 +474,25 @@ export function Presentation({
             </div>
           )}
 
+          {linkOpen && activeNode?.url && (
+            <LinkFrame
+              url={activeNode.url}
+              onClose={() => setLinkOpen(false)}
+              blocked={linkBlocked}
+              onLoaded={() => {
+                linkLoadedRef.current = true;
+                setLinkBlocked(false);
+              }}
+              onBlocked={() => {
+                if (!linkLoadedRef.current) setLinkBlocked(true);
+              }}
+              resetLoaded={() => {
+                linkLoadedRef.current = false;
+                setLinkBlocked(false);
+              }}
+            />
+          )}
+
         </div>
       </div>
 
