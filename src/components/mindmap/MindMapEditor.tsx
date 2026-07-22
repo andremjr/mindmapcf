@@ -1346,19 +1346,19 @@ function LinkStatus({ url }: { url?: string }) {
   }
 
   const palette: Record<typeof info.kind, { label: string; tone: "ok" | "warn" | "info"; note: string }> = {
-    youtube: { label: "YouTube", tone: "ok", note: "Toca embutido no quadro (versão sem cookies). Anúncios do próprio vídeo podem aparecer." },
-    x: { label: "X (Twitter)", tone: "ok", note: "Post e vídeo tocam embutidos no quadro." },
-    tiktok: { label: "TikTok", tone: "ok", note: "Vídeo toca embutido no quadro." },
-    vimeo: { label: "Vimeo", tone: "ok", note: "Vídeo toca embutido no quadro." },
+    youtube: { label: "YouTube", tone: "ok", note: "No modo Gravar toca embutido no quadro (sem cookies). No modo Apresentar abre em nova aba." },
+    x: { label: "X (Twitter)", tone: "ok", note: "No modo Gravar toca embutido. No modo Apresentar abre em nova aba." },
+    tiktok: { label: "TikTok", tone: "ok", note: "No modo Gravar toca embutido. No modo Apresentar abre em nova aba." },
+    vimeo: { label: "Vimeo", tone: "ok", note: "No modo Gravar toca embutido. No modo Apresentar abre em nova aba." },
     instagram: {
       label: "Instagram",
       tone: "warn",
-      note: "O Instagram só permite embutir a capa do post/reel — o vídeo não toca dentro do quadro. Para reagir, baixe o Reel e suba como vídeo no nó.",
+      note: "No modo Gravar mostra só a capa (o Instagram não permite tocar o vídeo embutido). Use o modo Apresentar + OBS, ou baixe o Reel e suba como vídeo no nó.",
     },
     generic: {
       label: info.host,
       tone: "info",
-      note: "Deve funcionar se o site permitir embed. Se abrir em branco na apresentação, ele abre em nova aba automaticamente. Use \"Testar\" abaixo para conferir antes de gravar.",
+      note: "No modo Apresentar abre em nova aba (sempre funciona). No modo Gravar tenta embutir — use \"Testar\" abaixo para confirmar antes de gravar. Se o site bloquear, use o modo Apresentar com OBS.",
     },
   };
   const p = palette[info.kind];
