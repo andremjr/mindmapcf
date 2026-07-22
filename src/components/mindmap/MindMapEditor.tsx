@@ -991,6 +991,26 @@ export function MindMapEditor({ project }: { project: Project }) {
         </div>
       )}
       <UpgradeDialog open={upgradeOpen} onOpenChange={setUpgradeOpen} user={user} />
+      {openLinkUrl && (
+        <div className="fixed inset-0 z-50">
+          <LinkFrame
+            url={openLinkUrl}
+            onClose={() => setOpenLinkUrl(null)}
+            blocked={linkBlocked}
+            onLoaded={() => {
+              linkLoadedRef.current = true;
+              setLinkBlocked(false);
+            }}
+            onBlocked={() => {
+              if (!linkLoadedRef.current) setLinkBlocked(true);
+            }}
+            resetLoaded={() => {
+              linkLoadedRef.current = false;
+              setLinkBlocked(false);
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }
