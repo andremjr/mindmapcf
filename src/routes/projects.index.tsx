@@ -523,6 +523,18 @@ function ProjectsDashboard() {
             );
           })}
         </aside>
+        ) : (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="hidden md:flex fixed left-3 top-24 z-20 items-center gap-2 rounded-md border border-border/60 bg-card px-2 py-1.5 text-xs text-muted-foreground shadow-sm hover:text-foreground hover:bg-muted transition"
+            aria-label="Mostrar barra de pastas"
+            title="Mostrar pastas"
+          >
+            <PanelLeftOpen className="size-4" />
+            <span>Pastas</span>
+          </button>
+        )}
+
 
         <section>
           <div className="mb-6 flex items-end justify-between gap-4">
