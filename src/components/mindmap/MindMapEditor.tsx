@@ -1075,9 +1075,7 @@ function SelectedPanel({
           placeholder="https://exemplo.com"
           className="w-full rounded-md border border-border/60 bg-background px-3 py-2 text-sm outline-none focus:border-primary"
         />
-        <p className="text-[10px] text-muted-foreground/80 leading-snug">
-          Na apresentação, um botão abre o link dentro do quadro. Sites que bloqueiam embed abrem em nova aba.
-        </p>
+        <LinkStatus url={node.url} />
       </section>
 
       {/* Color */}
