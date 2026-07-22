@@ -333,6 +333,19 @@ export function Presentation({
     };
   }, []);
 
+  // When presenting WITHOUT internal recording, capture the mic (analyser
+  // only — never routed to speakers or saved) so the sonic-avatar bars still
+  // react to the presenter's voice while OBS (or similar) records outside.
+  useEffect(() => {
+    if (recording) return;
+    if (!project.sonicAvatar?.enabled) return;
+    startMicAnalyser();
+    return () => {
+      stopMicAnalyser();
+    };
+  }, [recording, project.sonicAvatar?.enabled]);
+
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const isNav =
