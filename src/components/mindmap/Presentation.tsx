@@ -22,6 +22,23 @@ import {
 } from "@/lib/screenRecorder";
 import { loadRecordFormat, defaultRecordFormat, type RecordFormat } from "@/lib/recordFormats";
 import { resolveEmbed } from "@/lib/embedUrl";
+import { startMicAnalyser, stopMicAnalyser } from "@/lib/micAnalyser";
+
+/**
+ * Open a URL in a new tab as if the user clicked a normal link. Using an
+ * anchor element (instead of window.open) avoids popup-blocker heuristics
+ * and preserves the browser profile / login cookies for the destination.
+ */
+function openLinkInNewTab(raw: string) {
+  const safe = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  const a = document.createElement("a");
+  a.href = safe;
+  a.target = "_blank";
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
 
 
 type Viewport = { x: number; y: number; zoom: number };
