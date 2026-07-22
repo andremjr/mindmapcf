@@ -625,3 +625,88 @@ function AvatarLayer({ project, frameSize }: { project: Project; frameSize: { w:
   );
 }
 
+
+function LinkFrame({
+  url,
+  onClose,
+  blocked,
+  onLoaded,
+  onBlocked,
+  resetLoaded,
+}: {
+  url: string;
+  onClose: () => void;
+  blocked: boolean;
+  onLoaded: () => void;
+  onBlocked: () => void;
+  resetLoaded: () => void;
+}) {
+  const [displayUrl, setDisplayUrl] = useState(url);
+  useEffect(() => {
+    resetLoaded();
+    setDisplayUrl(url);
+    // Some sites (X-Frame-Options: DENY, CSP frame-ancestors) never fire load.
+    // If nothing loads in 3.5s, show the fallback.
+    const t = window.setTimeout(() => onBlocked(), 3500);
+    return () => window.clearTimeout(t);
+  }, [url]);
+
+  const safeUrl = /^https?:\/\//i.test(displayUrl) ? displayUrl : `https://${displayUrl}`;
+
+  return (
+    <div className="absolute inset-0 z-40 bg-background flex flex-col">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border/60 bg-card/80 backdrop-blur">
+        <LinkIcon className="size-4 text-muted-foreground shrink-0" />
+        <span className="text-xs font-mono truncate flex-1 text-muted-foreground" title={safeUrl}>
+          {safeUrl}
+        </span>
+        <a
+          href={safeUrl}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="text-xs flex items-center gap-1 px-2 py-1 rounded hover:bg-muted"
+        >
+          <ExternalLink className="size-3.5" /> Nova aba
+        </a>
+        <button
+          onClick={onClose}
+          className="size-7 grid place-items-center rounded-full hover:bg-muted"
+          aria-label="Fechar link"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
+      <div className="flex-1 relative bg-black">
+        {!blocked ? (
+          <iframe
+            key={safeUrl}
+            src={safeUrl}
+            className="absolute inset-0 w-full h-full border-0"
+            sandbox="allow-scripts allow-forms allow-popups allow-same-origin allow-presentation"
+            referrerPolicy="no-referrer-when-downgrade"
+            onLoad={onLoaded}
+            title="Link do nó"
+          />
+        ) : (
+          <div className="absolute inset-0 grid place-items-center p-8">
+            <div className="max-w-md text-center space-y-3">
+              <div className="text-lg font-semibold">Este site não permite ser embutido</div>
+              <p className="text-sm text-muted-foreground">
+                O servidor bloqueia a exibição dentro de outro quadro (X-Frame-Options / CSP).
+                Abra o link em uma nova aba para visualizá-lo.
+              </p>
+              <a
+                href={safeUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:opacity-90"
+              >
+                <ExternalLink className="size-4" /> Abrir em nova aba
+              </a>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
