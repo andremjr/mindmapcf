@@ -31,8 +31,14 @@ import { startMicAnalyser, stopMicAnalyser } from "@/lib/micAnalyser";
  */
 function openLinkInNewTab(raw: string) {
   const safe = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  // For YouTube, open the nocookie embed URL in a new tab. This shows just the
+  // player (fullscreen-friendly) with no related-videos sidebar tied to the
+  // user's watch history — avoids leaking personal recommendations on screen.
+  let target = safe;
+  const info = resolveEmbed(safe);
+  if (info?.platform === "youtube") target = info.embedUrl;
   const a = document.createElement("a");
-  a.href = safe;
+  a.href = target;
   a.target = "_blank";
   a.rel = "noopener";
   document.body.appendChild(a);
