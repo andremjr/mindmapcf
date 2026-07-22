@@ -254,6 +254,24 @@ export function NodeCard({
           </p>
 
         )}
+        {node.url && (
+          <div className="mt-2 flex">
+            <span
+              className="inline-flex items-center gap-1.5 max-w-full text-[11px] font-medium px-2 py-1 rounded-full border"
+              style={{
+                borderColor: `${accent}55`,
+                backgroundColor: `${accent}18`,
+                color: accent,
+              }}
+              title={node.url}
+            >
+              <LinkIcon className="size-3 shrink-0" />
+              <span className="truncate">
+                {node.url.replace(/^https?:\/\//i, "").replace(/\/$/, "")}
+              </span>
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Resize handle (right edge) */}
