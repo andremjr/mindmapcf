@@ -21,6 +21,8 @@ import {
   type RecordingResult,
 } from "@/lib/screenRecorder";
 import { loadRecordFormat, defaultRecordFormat, type RecordFormat } from "@/lib/recordFormats";
+import { resolveEmbed } from "@/lib/embedUrl";
+
 
 type Viewport = { x: number; y: number; zoom: number };
 
