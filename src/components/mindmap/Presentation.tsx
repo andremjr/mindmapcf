@@ -453,6 +453,11 @@ export function Presentation({
                   onChange={() => {}}
                   onDelete={() => {}}
                   onDragStart={() => {}}
+                  onOpenLink={() => {
+                    linkLoadedRef.current = false;
+                    setLinkBlocked(false);
+                    setLinkOpen(true);
+                  }}
                 />
               );
             })}
@@ -628,7 +633,7 @@ function AvatarLayer({ project, frameSize }: { project: Project; frameSize: { w:
 }
 
 
-function LinkFrame({
+export function LinkFrame({
   url,
   onClose,
   blocked,
