@@ -55,6 +55,9 @@ export function Presentation({
   // 3-2-1 countdown after recording starts, so the root node is already
   // focused when the "real" content begins. null = no countdown running.
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkBlocked, setLinkBlocked] = useState(false);
+  const linkLoadedRef = useRef(false);
 
   // When recording, render the canvas inside a fixed-aspect frame so Region
   // Capture crops the tab video track to exactly that rectangle. Off-frame UI
