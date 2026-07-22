@@ -22,6 +22,23 @@ import {
 } from "@/lib/screenRecorder";
 import { loadRecordFormat, defaultRecordFormat, type RecordFormat } from "@/lib/recordFormats";
 import { resolveEmbed } from "@/lib/embedUrl";
+import { startMicAnalyser, stopMicAnalyser } from "@/lib/micAnalyser";
+
+/**
+ * Open a URL in a new tab as if the user clicked a normal link. Using an
+ * anchor element (instead of window.open) avoids popup-blocker heuristics
+ * and preserves the browser profile / login cookies for the destination.
+ */
+function openLinkInNewTab(raw: string) {
+  const safe = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+  const a = document.createElement("a");
+  a.href = safe;
+  a.target = "_blank";
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
 
 
 type Viewport = { x: number; y: number; zoom: number };
@@ -316,6 +333,19 @@ export function Presentation({
     };
   }, []);
 
+  // When presenting WITHOUT internal recording, capture the mic (analyser
+  // only — never routed to speakers or saved) so the sonic-avatar bars still
+  // react to the presenter's voice while OBS (or similar) records outside.
+  useEffect(() => {
+    if (recording) return;
+    if (!project.sonicAvatar?.enabled) return;
+    startMicAnalyser();
+    return () => {
+      stopMicAnalyser();
+    };
+  }, [recording, project.sonicAvatar?.enabled]);
+
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const isNav =
@@ -455,11 +485,7 @@ export function Presentation({
                   onDragStart={() => {}}
                   onOpenLink={() => {
                     if (!recording) {
-                      const raw = n.url;
-                      if (raw) {
-                        const safe = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-                        window.open(safe, "_blank", "noopener,noreferrer");
-                      }
+                      if (n.url) openLinkInNewTab(n.url);
                       return;
                     }
                     linkLoadedRef.current = false;
@@ -557,9 +583,7 @@ export function Presentation({
             <button
               onClick={() => {
                 if (!recording) {
-                  const raw = activeNode.url!;
-                  const safe = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
-                  window.open(safe, "_blank", "noopener,noreferrer");
+                  openLinkInNewTab(activeNode.url!);
                   return;
                 }
                 linkLoadedRef.current = false;
