@@ -58,7 +58,7 @@ export function UpgradeDialog({
           <DialogDescription>
             {isPro
               ? "Sua assinatura está ativa. Para trocar de plano, atualizar cartão ou cancelar, use a página da sua conta."
-              : "No plano grátis você pode criar 3 mapas com até 30 nós em cada. O Pro libera mapas e nós ilimitados."}
+              : "No plano grátis você cria 3 canvas de mapa mental com até 30 nós. O Pro libera canvas e nós ilimitados, todos os 6 formatos (tier list, iceberg, chaveamento, matriz, ranking), gravação em 4K, narração e avatar sonoro."}
           </DialogDescription>
         </DialogHeader>
 

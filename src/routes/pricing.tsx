@@ -48,19 +48,21 @@ const PLANS: Record<PlanKey, {
 };
 
 const FEATURES = [
-  "Mapas mentais ilimitados",
-  "Nós ilimitados por mapa",
-  "Imagens e vídeos nos nós",
-  "Modo apresentação cinematográfico",
-  "Gravação MP4 (1080p, 4K, vertical)",
+  "Canvas e nós ilimitados",
+  "Todos os 6 formatos (mapa, tier list, iceberg, chaveamento, matriz, ranking)",
+  "Imagens, vídeos e links embutidos nos nós",
+  "Modo apresentação cinematográfico em todos os formatos",
+  "Gravação MP4 (1080p, 4K, vertical) integrada",
+  "Narração em áudio + avatar sonoro reativo",
   "Importação via IA (Markdown/JSON)",
+  "Organização por pastas ilimitadas",
 ];
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
     meta: [
       { title: "Planos — Canvas Narrativo" },
-      { name: "description", content: "Assine o Canvas Narrativo Pro para criar mapas e nós ilimitados." },
+      { name: "description", content: "Assine o Canvas Narrativo Pro e desbloqueie os 6 formatos, gravação em 4K, narração e avatar sonoro." },
     ],
   }),
   component: PricingPage,
@@ -186,7 +188,7 @@ function PricingPage() {
             período já pago.
           </p>
           <p>
-            Plano grátis permanente com 3 mapas e 30 nós por mapa — sem cartão de crédito.
+            Plano grátis permanente com 3 canvas (formato mapa mental) e 30 nós por canvas — sem cartão de crédito.
           </p>
           <p>
             Consulte nossa{" "}
