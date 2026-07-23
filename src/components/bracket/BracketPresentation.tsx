@@ -92,11 +92,15 @@ export function BracketPresentation({
     return "";
   })();
 
-  // Camera: always fit-to-view. The focused match is shown as an overlay on top,
-  // so we never zoom into (and distort) the underlying bracket.
+  // Camera: fit-to-view by default; during a "focus:<matchKey>" step, zoom into
+  // that match's position on the board. On "reveal:<matchKey>" (and every other
+  // step) we return to the overview so the user sees the bracket progress.
   const wrapperRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const [transform, setTransform] = useState("translate(0px, 0px) scale(1)");
+
+  const isFocusStep = currentStep.startsWith("focus:");
+  const zoomKey = isFocusStep ? focusKey : null;
 
   useLayoutEffect(() => {
     function recalc() {
@@ -109,6 +113,20 @@ export function BracketPresentation({
       const boardH = board.scrollHeight;
       if (!wrapW || !wrapH || !boardW || !boardH) return;
       const fit = Math.min(wrapW / boardW, wrapH / boardH, 1);
+
+      if (zoomKey) {
+        const el = board.querySelector<HTMLElement>(`[data-match-key="${zoomKey}"]`);
+        if (el) {
+          const scale = Math.min(fit * 2.2, 1.6);
+          const cx = el.offsetLeft + el.offsetWidth / 2;
+          const cy = el.offsetTop + el.offsetHeight / 2;
+          const tx = wrapW / 2 - cx * scale;
+          const ty = wrapH / 2 - cy * scale;
+          setTransform(`translate(${tx}px, ${ty}px) scale(${scale})`);
+          return;
+        }
+      }
+
       const tx = (wrapW - boardW * fit) / 2;
       const ty = (wrapH - boardH * fit) / 2;
       setTransform(`translate(${tx}px, ${ty}px) scale(${fit})`);
@@ -119,7 +137,7 @@ export function BracketPresentation({
     if (boardRef.current) ro.observe(boardRef.current);
     window.addEventListener("resize", recalc);
     return () => { ro.disconnect(); window.removeEventListener("resize", recalc); };
-  }, [effectiveWinners, currentStep]);
+  }, [effectiveWinners, currentStep, zoomKey]);
 
   // Reset when project changes.
   useEffect(() => { setIdx(0); }, [project.id]);
