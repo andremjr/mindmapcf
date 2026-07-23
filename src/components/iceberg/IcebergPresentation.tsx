@@ -562,7 +562,7 @@ function Creature({
   stroke: string;
   opacity: number;
 }) {
-  const baseSize = variant === "angler" ? 44 : variant === "octopus" ? 38 : variant === "crab" ? 34 : 30;
+  const baseSize = variant === "angler" ? 78 : variant === "octopus" ? 68 : variant === "crab" ? 60 : 52;
   const size = Math.round(baseSize * scale);
   const sw = 1.2;
   return (
