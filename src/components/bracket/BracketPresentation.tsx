@@ -133,6 +133,8 @@ export function BracketPresentation({
 
   const focusWinnerId = focusKey ? effectiveWinners[focusKey] ?? null : null;
   const showOverlay = !!focusedMatch && !!focusedMatch.a && !!focusedMatch.b;
+  const isChampionStep = currentStep === "CHAMPION";
+  const showChampionOverlay = isChampionStep && !!fullData.champion;
 
   function stateFor(nodeId: string | undefined | null): "idle" | "current" | "winner" | "loser" {
     if (!nodeId) return "idle";
@@ -167,7 +169,7 @@ export function BracketPresentation({
                 transform,
                 transition: "transform 700ms cubic-bezier(0.22, 1, 0.36, 1), opacity 400ms ease",
                 width: "max-content",
-                opacity: showOverlay ? 0.28 : 1,
+                opacity: showOverlay || showChampionOverlay ? 0.28 : 1,
               }}
             >
               <BracketBoard
@@ -196,6 +198,24 @@ export function BracketPresentation({
                     <div className="self-center text-2xl font-bold uppercase tracking-widest text-amber-300/90">vs</div>
                     <div className="w-[280px]">
                       <CompetitorCard node={focusedMatch.b} state={stateFor(focusedMatch.b.id)} expanded />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {showChampionOverlay && fullData.champion && (
+                <motion.div
+                  key="champion-overlay"
+                  initial={{ opacity: 0, scale: 0.7 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ type: "spring", stiffness: 180, damping: 20 }}
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                >
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="text-[11px] uppercase tracking-[0.35em] text-amber-200/90">Campeão</div>
+                    <div className="w-[340px] rounded-2xl p-4 bg-gradient-to-br from-amber-400/25 to-amber-600/15 border border-amber-300/60 shadow-[0_0_80px_rgba(252,211,77,0.55)]">
+                      <CompetitorCard node={fullData.champion} state="winner" expanded />
                     </div>
                   </div>
                 </motion.div>
