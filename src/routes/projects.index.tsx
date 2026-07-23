@@ -138,6 +138,7 @@ function ProjectsDashboard() {
   const { isPro, loading: subscriptionLoading, subscription } = useSubscription(session?.user.id);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
+  const [template, setTemplate] = useState<"mindmap" | "tierlist" | "iceberg">("mindmap");
   const [importOpen, setImportOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [avatarsOpen, setAvatarsOpen] = useState(false);
@@ -196,14 +197,21 @@ function ProjectsDashboard() {
     if (!isPro && projects.length >= FREE_MAP_LIMIT) {
       setOpen(false);
       setUpgradeOpen(true);
-      toast.error("O plano grátis permite até 3 mapas mentais.");
+      toast.error("O plano grátis permite até 3 mapas.");
+      return;
+    }
+    if (!isPro && template !== "mindmap") {
+      setOpen(false);
+      setUpgradeOpen(true);
+      toast.error("Tier list e iceberg são recursos Pro.");
       return;
     }
     const folderId =
       activeFolder === ALL_FOLDERS || activeFolder === NO_FOLDER ? null : activeFolder;
-    const id = createProject(title, folderId);
+    const id = createProject(title, folderId, template);
     setOpen(false);
     setTitle("");
+    setTemplate("mindmap");
     navigate({ to: "/projects/$id", params: { id } });
   }
 
