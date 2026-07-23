@@ -220,8 +220,9 @@ export function MatrixPresentation({
       canPrev={step > 0}
       frameBg="bg-background"
     >
-      {() => (
+      {({ size }) => (
         <div className="absolute inset-0 flex flex-col p-6 text-foreground">
+          <AvatarLayer project={project} frameSize={size} />
           <div className="text-2xl font-bold text-center mb-2 opacity-90">{project.title}</div>
           {cards.length === 0 ? (
             <div className="flex-1 grid place-items-center text-muted-foreground">Adicione cards antes de apresentar.</div>
