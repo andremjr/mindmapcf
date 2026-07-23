@@ -228,8 +228,13 @@ export function TierListPresentation({
         if (q.parentId && m.has(q.parentId)) m.get(q.parentId)!.push(q);
       }
     }
+    // Preserve the creator's manual position within each tier.
+    const byPlacement = (a: MindNode, b: MindNode) =>
+      (a.placementOrder ?? a.order ?? 0) - (b.placementOrder ?? b.order ?? 0);
+    for (const arr of m.values()) arr.sort(byPlacement);
     return m;
   }, [tiers, manualMode, allItems, idx, preplacedQueue]);
+
 
   const remaining = manualMode
     ? allItems.filter((n) => !n.parentId || !tierIds.has(n.parentId))
