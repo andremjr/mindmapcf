@@ -948,15 +948,56 @@ export function MindMapEditor({ project }: { project: Project }) {
             </button>
           </div>
 
-          <div className="absolute bottom-4 right-4 rounded-lg border border-border/60 bg-popover/85 backdrop-blur px-3 py-2 text-[11px] leading-relaxed text-muted-foreground max-w-[240px]">
-            <div className="text-foreground/80 font-semibold mb-1">Atalhos</div>
-            <div><kbd className="font-mono">Tab</kbd> filho · <kbd className="font-mono">Enter</kbd> irmão</div>
-            <div><kbd className="font-mono">F2</kbd> editar · <kbd className="font-mono">Del</kbd> excluir · <kbd className="font-mono">Espaço</kbd> recolher</div>
-            <div>Alça azul: puxar p/ criar/reconectar</div>
-            <div><kbd className="font-mono">Shift</kbd>+arrastar fundo: seleção múltipla · arrastar grupo move junto</div>
-            <div><kbd className="font-mono">Alt</kbd>+arrastar: mudar pai · Duplo-clique: novo nó</div>
+          <div className="absolute bottom-4 right-4 flex flex-col items-end gap-2">
+            <NarrationPlayer
+              isPro={isPro}
+              narrationRef={project.narrationRef}
+              onAttach={async () => {
+                if (!isPro) {
+                  toast.error("Narração pré-gravada é um recurso Pro.");
+                  return;
+                }
+                const ref = await pickMediaAndStore("audio");
+                if (ref) {
+                  setNarration(project.id, ref);
+                  toast.success(`Narração anexada: ${ref.name}`);
+                }
+              }}
+              onRemove={() => setNarration(project.id, null)}
+            />
+
+            {hintsOpen ? (
+              <div className="rounded-lg border border-border/60 bg-popover/85 backdrop-blur px-3 py-2 text-[11px] leading-relaxed text-muted-foreground max-w-[240px] relative">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-foreground/80 font-semibold">Atalhos</div>
+                  <button
+                    onClick={() => setHintsOpen(false)}
+                    className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+                    aria-label="Recolher atalhos"
+                    title="Recolher"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+                <div><kbd className="font-mono">Tab</kbd> filho · <kbd className="font-mono">Enter</kbd> irmão</div>
+                <div><kbd className="font-mono">F2</kbd> editar · <kbd className="font-mono">Del</kbd> excluir · <kbd className="font-mono">Espaço</kbd> recolher</div>
+                <div>Alça azul: puxar p/ criar/reconectar</div>
+                <div><kbd className="font-mono">Shift</kbd>+arrastar fundo: seleção múltipla · arrastar grupo move junto</div>
+                <div><kbd className="font-mono">Alt</kbd>+arrastar: mudar pai · Duplo-clique: novo nó</div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setHintsOpen(true)}
+                className="rounded-full border border-border/60 bg-popover/85 backdrop-blur px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground hover:border-primary flex items-center gap-1.5"
+                title="Mostrar atalhos"
+              >
+                <Keyboard className="size-3.5" />
+                Atalhos
+              </button>
+            )}
           </div>
         </main>
+
 
         {selectedId && (
           <aside className="w-72 shrink-0 border-l border-border/60 bg-card/40 flex flex-col">
