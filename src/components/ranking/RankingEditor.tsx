@@ -17,6 +17,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { launchRecording } from "@/lib/launchRecording";
 import type { RecordFormat } from "@/lib/recordFormats";
 import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
+import { DropIndicator, visualInsertIndexVertical } from "@/components/shared/DropIndicator";
 
 /* ---------- image resolution ---------- */
 function useResolvedImage(node: MindNode | undefined) {
