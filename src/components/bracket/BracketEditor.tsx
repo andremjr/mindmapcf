@@ -15,6 +15,8 @@ import { RecordFormatMenu } from "@/components/RecordFormatMenu";
 import { launchRecording } from "@/lib/launchRecording";
 import type { RecordFormat } from "@/lib/recordFormats";
 import { BracketBoard, clearDownstreamWinners, type WinnersMap } from "./BracketBoard";
+import { PanZoom } from "@/components/ui/PanZoom";
+
 
 
 function Thumb({ node }: { node: MindNode }) {
