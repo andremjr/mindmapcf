@@ -20,6 +20,7 @@ import { loadRecordFormat, defaultRecordFormat, type RecordFormat } from "@/lib/
 import { RecorderHUD } from "@/components/mindmap/RecorderHUD";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AvatarLayer } from "@/components/shared/AvatarLayer";
+import { DropIndicator, visualInsertIndex } from "@/components/shared/DropIndicator";
 
 function fmtDur(ms: number) {
   const s = Math.floor(ms / 1000);
