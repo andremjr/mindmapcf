@@ -242,6 +242,13 @@ export function MatrixPresentation({
               )}
             </div>
           )}
+
+          {spotlightCard && (
+            <Spotlight
+              node={spotlightCard}
+              onClose={() => setStep((s) => Math.min(steps.length - 1, s + 1))}
+            />
+          )}
         </div>
       )}
     </PresentationShell>
