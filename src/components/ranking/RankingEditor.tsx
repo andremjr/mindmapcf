@@ -485,10 +485,10 @@ function RankSlot({
       onDragOver={(e) => { if (dropActive) e.preventDefault(); }}
       onDrop={(e) => { e.preventDefault(); onDrop(); }}
       className={[
-        "relative shrink-0 h-20 rounded-lg overflow-hidden flex flex-col transition",
+        "relative min-h-0 rounded-lg overflow-hidden flex flex-col transition",
         node
           ? "bg-background border-2 border-emerald-500/70"
-          : `border-2 border-dashed ${dropActive ? "border-primary bg-primary/10" : "border-rose-400/70 dark:border-rose-500/50 bg-rose-500/5"}`,
+          : `border-2 border-dashed ${dropActive ? "border-primary bg-primary/10" : "border-border/60 bg-muted/20"}`,
         selected ? "ring-2 ring-primary/50" : "",
         dragging ? "opacity-30" : "",
       ].join(" ")}
@@ -497,11 +497,6 @@ function RankSlot({
       <span className={`absolute top-1 left-1 z-10 size-7 rounded-full grid place-items-center text-[12px] font-black tabular-nums shadow-sm ${medal}`}>
         {rank}
       </span>
-      {!node && (
-        <span className="absolute top-1 right-1 z-10 h-6 px-1.5 rounded-md bg-rose-500 text-white text-[10px] font-bold uppercase tracking-wider grid place-items-center shadow-sm">
-          Vazio
-        </span>
-      )}
 
       {node ? (
         <>
@@ -536,8 +531,8 @@ function RankSlot({
         </>
       ) : (
         <div className="flex-1 grid place-items-center px-2">
-          <div className="text-[10px] font-medium text-rose-500/80 dark:text-rose-400/80 uppercase tracking-wider">
-            aguardando
+          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+            vazio
           </div>
         </div>
       )}
