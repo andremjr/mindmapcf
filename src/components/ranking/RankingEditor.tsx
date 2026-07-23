@@ -288,54 +288,70 @@ export function RankingEditor({ project }: { project: Project }) {
             ) : (
               <div
                 ref={callRows.ref}
-                className="flex-1 min-h-0 p-2 grid gap-2"
+                className="flex-1 min-h-0 p-2 grid gap-2 relative"
                 style={rowStyle(callRows)}
                 onDragOver={(e) => {
                   if (!drag || drag.from !== "call") return;
                   e.preventDefault();
-                  const idx = visualInsertIndexVertical(e.currentTarget, e.clientY);
-                  if (callHoverIdx !== idx) setCallHoverIdx(idx);
+                  const container = e.currentTarget as HTMLElement;
+                  const idx = visualInsertIndexVertical(container, e.clientY);
+                  const cards = Array.from(container.querySelectorAll<HTMLElement>("[data-item-id]"));
+                  const containerRect = container.getBoundingClientRect();
+                  let y = 4;
+                  if (idx === 0 && cards[0]) {
+                    y = cards[0].getBoundingClientRect().top - containerRect.top - 2;
+                  } else if (cards[idx - 1]) {
+                    const r = cards[idx - 1].getBoundingClientRect();
+                    y = r.bottom - containerRect.top + 1;
+                  } else if (cards.length) {
+                    const r = cards[cards.length - 1].getBoundingClientRect();
+                    y = r.bottom - containerRect.top + 1;
+                  }
+                  if (callHover?.idx !== idx) setCallHover({ idx, y });
                 }}
                 onDragLeave={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setCallHoverIdx(null);
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setCallHover(null);
                 }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  if (drag && drag.from === "call" && callHoverIdx !== null) {
+                  if (drag && drag.from === "call" && callHover) {
                     const srcIdx = items.findIndex((n) => n.id === drag.id);
-                    let target = callHoverIdx;
+                    let target = callHover.idx;
                     if (srcIdx !== -1 && srcIdx < target) target -= 1;
                     moveCall(drag.id, target);
                   }
                   setDrag(null);
-                  setCallHoverIdx(null);
+                  setCallHover(null);
                 }}
               >
                 {items.map((it, i) => {
                   const placed = typeof it.rank === "number";
                   return (
-                    <div key={it.id} className="contents">
-                      {drag?.from === "call" && callHoverIdx === i && <DropIndicator orientation="horizontal" />}
-                      <CallCard
-                        node={it}
-                        callIdx={i}
-                        placed={placed}
-                        selected={selectedId === it.id}
-                        dragging={drag?.id === it.id}
-                        isDropTarget={!!drag && drag.from === "call" && drag.id !== it.id}
-                        onClick={() => setSelectedId(it.id)}
-                        onDragStart={() => setDrag({ id: it.id, from: "call" })}
-                        onDragEnd={() => { setDrag(null); setCallHoverIdx(null); }}
-                        onDropOnCard={() => {
-                          if (drag && drag.from === "call") moveCall(drag.id, i);
-                          setDrag(null);
-                          setCallHoverIdx(null);
-                        }}
-                      />
-                    </div>
+                    <CallCard
+                      key={it.id}
+                      node={it}
+                      callIdx={i}
+                      placed={placed}
+                      selected={selectedId === it.id}
+                      dragging={drag?.id === it.id}
+                      isDropTarget={!!drag && drag.from === "call" && drag.id !== it.id}
+                      onClick={() => setSelectedId(it.id)}
+                      onDragStart={() => setDrag({ id: it.id, from: "call" })}
+                      onDragEnd={() => { setDrag(null); setCallHover(null); }}
+                      onDropOnCard={() => {
+                        if (drag && drag.from === "call") moveCall(drag.id, i);
+                        setDrag(null);
+                        setCallHover(null);
+                      }}
+                    />
                   );
                 })}
-                {drag?.from === "call" && callHoverIdx === items.length && <DropIndicator orientation="horizontal" />}
+                {drag?.from === "call" && callHover && (
+                  <div
+                    className="absolute left-2 right-2 h-[3px] rounded-full bg-primary shadow-[0_0_10px_2px_hsl(var(--primary)/0.75)] animate-pulse pointer-events-none z-10"
+                    style={{ top: callHover.y }}
+                  />
+                )}
               </div>
             )}
           </section>
