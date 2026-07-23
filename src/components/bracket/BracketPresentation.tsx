@@ -213,7 +213,7 @@ export function BracketPresentation({
       onPrev={() => setIdx((i) => Math.max(0, i - 1))}
       canNext={idx < steps.length - 1}
       canPrev={idx > 0}
-      frameBg="bg-gradient-to-br from-neutral-950 via-slate-900 to-neutral-950"
+      frameBg="bg-background"
     >
       {() => (
         <div className="absolute inset-0 flex flex-col p-5">

@@ -74,7 +74,7 @@ export function MatrixPresentation({
       onPrev={() => setIdx((i) => Math.max(0, i - 1))}
       canNext={idx < cards.length - 1}
       canPrev={idx > 0}
-      frameBg="bg-gradient-to-br from-slate-950 via-neutral-950 to-slate-950"
+      frameBg="bg-background"
     >
       {() => (
         <div className="absolute inset-0 flex flex-col p-6">
