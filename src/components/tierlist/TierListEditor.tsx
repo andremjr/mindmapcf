@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
+import { DropIndicator, visualInsertIndex } from "@/components/shared/DropIndicator";
 
 const TIER_COLORS = [
   "#f43f5e", "#f97316", "#eab308", "#22c55e",
