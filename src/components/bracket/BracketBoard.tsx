@@ -133,12 +133,14 @@ function useResolvedImage(node: MindNode | null | undefined) {
 }
 
 function CompetitorCard({
-  node, state, onClick, small = false,
+  node, state, onClick, small = false, expanded = false,
 }: {
   node: MindNode;
   state: "idle" | "current" | "winner" | "loser";
   onClick?: () => void;
   small?: boolean;
+  /** Big vertical layout used when a match is focused in present mode. */
+  expanded?: boolean;
 }) {
   const url = useResolvedImage(node);
   const cls =
@@ -149,34 +151,59 @@ function CompetitorCard({
         : state === "loser"
           ? "border-white/10 bg-black/50 opacity-40"
           : "border-white/20 bg-black/60";
-  const textCls =
-    state === "loser"
-      ? "line-through text-white/60"
-      : "text-white/95";
+  const textCls = state === "loser" ? "line-through text-white/60" : "text-white/95";
+
+  if (expanded) {
+    return (
+      <div
+        className={`relative w-full rounded-lg overflow-hidden border transition-all flex flex-col ${cls}`}
+      >
+        <div className="w-full aspect-square bg-black/70 grid place-items-center overflow-hidden">
+          {url ? (
+            <img src={url} alt="" className="size-full object-contain" />
+          ) : (
+            <span className="text-[11px] text-white/40">sem imagem</span>
+          )}
+        </div>
+        <div className={`px-2 py-2 font-semibold leading-tight line-clamp-3 text-center text-sm ${textCls}`}>
+          {node.text || "—"}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <button
       disabled={!onClick}
       onClick={onClick}
-      className={`relative w-full rounded-md overflow-hidden border transition-all text-left flex flex-col ${cls} ${onClick ? "hover:border-white/70 cursor-pointer" : "cursor-default"}`}
+      className={`relative w-full rounded-md overflow-hidden border transition-all text-left ${cls} ${onClick ? "hover:border-white/70 cursor-pointer" : "cursor-default"}`}
+      style={{ minHeight: small ? 42 : 52 }}
     >
-      <div className="w-full aspect-square bg-black/70 grid place-items-center overflow-hidden">
-        {url ? (
-          <img src={url} alt="" className="size-full object-contain" />
-        ) : (
-          <span className="text-[10px] text-white/40">sem imagem</span>
-        )}
-      </div>
-      <div className={`px-1.5 py-1.5 font-medium leading-tight line-clamp-3 text-center ${textCls} ${small ? "text-[11px]" : "text-xs"}`}>
-        {node.text || "—"}
+      <div className="flex items-center gap-2 p-1.5">
+        <div className={`rounded bg-black/60 overflow-hidden shrink-0 grid place-items-center ${small ? "size-8" : "size-10"}`}>
+          {url ? <img src={url} alt="" className="size-full object-cover" /> : (
+            <span className="text-[10px] text-white/50">?</span>
+          )}
+        </div>
+        <div className={`font-medium leading-tight line-clamp-2 ${textCls} ${small ? "text-[11px]" : "text-xs"}`}>
+          {node.text || "—"}
+        </div>
       </div>
     </button>
   );
 }
 
-function EmptySlot({ label = "?" }: { label?: string }) {
+function EmptySlot({ label = "?", expanded = false }: { label?: string; expanded?: boolean }) {
+  if (expanded) {
+    return (
+      <div className="w-full rounded-lg border border-dashed border-white/15 bg-black/30 grid place-items-center text-xs text-white/40 aspect-[3/4]">
+        {label}
+      </div>
+    );
+  }
   return (
-    <div className="w-full rounded-md border border-dashed border-white/15 bg-black/30 grid place-items-center text-[11px] text-white/40 flex-col aspect-[3/4]">
-      <div className="flex-1 grid place-items-center w-full">{label}</div>
+    <div className="w-full rounded-md border border-dashed border-white/15 bg-black/30 grid place-items-center text-[11px] text-white/40" style={{ minHeight: 52 }}>
+      {label}
     </div>
   );
 }
@@ -204,6 +231,39 @@ function MatchBox({
     return "idle";
   }
   const canPick = mode === "edit" && match.a && match.b && onPickWinner;
+
+  // When a match is focused during presentation, blow the cards up side-by-side.
+  const focusedPresent = mode === "present" && isCurrent;
+
+  if (focusedPresent) {
+    return (
+      <div
+        data-match-key={match.key}
+        className="rounded-xl p-3 bg-white/5 ring-1 ring-amber-300/40 flex items-stretch gap-3"
+        style={{ width: 440 }}
+      >
+        <div className="flex-1">
+          {showContents && match.a ? (
+            <motion.div layoutId={`comp-${match.a.id}-at-${match.key}-a`} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}>
+              <CompetitorCard node={match.a} state={stateFor(match.a.id)} expanded />
+            </motion.div>
+          ) : (
+            <EmptySlot label={match.a ? "?" : match.isBye ? "BYE" : "?"} expanded />
+          )}
+        </div>
+        <div className="self-center text-[11px] uppercase tracking-widest text-amber-200/80 font-semibold px-1">vs</div>
+        <div className="flex-1">
+          {showContents && match.b ? (
+            <motion.div layoutId={`comp-${match.b.id}-at-${match.key}-b`} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }}>
+              <CompetitorCard node={match.b} state={stateFor(match.b.id)} expanded />
+            </motion.div>
+          ) : (
+            <EmptySlot label={match.b ? "?" : match.isBye ? "BYE" : "?"} expanded />
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -255,7 +315,7 @@ function RoundColumn({
   const r = parseInt(round[0]?.key.match(/r(\d+)/)?.[1] ?? "0", 10);
   const spacing = 8 * Math.pow(2, r);
   return (
-    <div className="flex flex-col gap-2 w-[180px] sm:w-[210px] shrink-0" style={{ paddingTop: spacing, paddingBottom: spacing }}>
+    <div className="flex flex-col gap-2 w-[140px] sm:w-[170px] shrink-0" style={{ paddingTop: spacing, paddingBottom: spacing }}>
 
 
       <div className="text-[10px] uppercase tracking-widest text-white/40 text-center">{label}</div>
@@ -360,7 +420,7 @@ export function BracketBoard({
           ))}
 
           {/* Center: FINAL + Champion */}
-          <div className="flex flex-col items-center justify-center gap-4 w-[210px] sm:w-[240px] shrink-0 py-6">
+          <div className="flex flex-col items-center justify-center gap-4 w-[180px] sm:w-[220px] shrink-0 py-6">
             <div className="text-[10px] uppercase tracking-widest text-amber-300/80">Final</div>
             <div className="w-full">
 
