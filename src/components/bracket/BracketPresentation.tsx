@@ -1,6 +1,6 @@
 import { useMemo, useState, useRef, useEffect, useLayoutEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import type { MindNode, Project } from "@/lib/types";
+import type { Project } from "@/lib/types";
 import { PresentationShell } from "@/components/shared/PresentationShell";
 import { BracketBoard, buildBracket, CompetitorCard, type WinnersMap } from "./BracketBoard";
 
@@ -8,12 +8,9 @@ import { BracketBoard, buildBracket, CompetitorCard, type WinnersMap } from "./B
  * Present-mode step model:
  *   pool → seat → focus:<matchKey> → reveal:<matchKey> → ... → focus:FINAL → reveal:FINAL → CHAMPION
  *
- * The camera zooms to the currently focused match. On "reveal", the winner is
- * disclosed (loser strike-through, winner green) while the camera stays; the
- * next step moves the camera to the following match.
- *
- * Match order alternates sides: L r0 i0 → R r0 i0 → L r0 i1 → R r0 i1 → ...
- * so viewers watch left/right in tandem before advancing to the next round.
+ * The underlying bracket stays at fit-view. When a match is focused, it dims
+ * and an overlay pops the two competitors side-by-side over the center. On
+ * "reveal", the winner turns green (loser is struck-through) inside the overlay.
  */
 function buildPresentSteps(data: ReturnType<typeof buildBracket>): string[] {
   const steps: string[] = ["pool", "seat"];
@@ -37,16 +34,6 @@ function buildPresentSteps(data: ReturnType<typeof buildBracket>): string[] {
   return steps;
 }
 
-function offsetInside(el: HTMLElement, root: HTMLElement) {
-  let x = 0, y = 0;
-  let cur: HTMLElement | null = el;
-  while (cur && cur !== root && root.contains(cur)) {
-    x += cur.offsetLeft;
-    y += cur.offsetTop;
-    cur = cur.offsetParent as HTMLElement | null;
-  }
-  return { x, y, w: el.offsetWidth, h: el.offsetHeight };
-}
 
 export function BracketPresentation({
   project, recording = false,
