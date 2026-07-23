@@ -4,6 +4,9 @@ import { useProject } from "@/lib/store";
 import { Presentation } from "@/components/mindmap/Presentation";
 import { TierListPresentation } from "@/components/tierlist/TierListPresentation";
 import { IcebergPresentation } from "@/components/iceberg/IcebergPresentation";
+import { BracketPresentation } from "@/components/bracket/BracketPresentation";
+import { MatrixPresentation } from "@/components/matrix/MatrixPresentation";
+import { RankingPresentation } from "@/components/ranking/RankingPresentation";
 import { Button } from "@/components/ui/button";
 
 const searchSchema = z.object({
@@ -41,5 +44,9 @@ function PresentRoute() {
   const template = project.template ?? "mindmap";
   if (template === "tierlist") return <TierListPresentation project={project} recording={recording} />;
   if (template === "iceberg") return <IcebergPresentation project={project} recording={recording} />;
+  if (template === "bracket") return <BracketPresentation project={project} recording={recording} />;
+  if (template === "matrix") return <MatrixPresentation project={project} recording={recording} />;
+  if (template === "ranking") return <RankingPresentation project={project} recording={recording} />;
   return <Presentation project={project} recording={recording} />;
 }
+

@@ -332,6 +332,9 @@ function reflowTree(nodes: MindNode[]): MindNode[] {
 function defaultTitleForTemplate(t: ProjectTemplate): string {
   if (t === "tierlist") return "Nova tier list";
   if (t === "iceberg") return "Novo iceberg";
+  if (t === "bracket") return "Novo chaveamento";
+  if (t === "matrix") return "Nova matriz";
+  if (t === "ranking") return "Novo ranking";
   return "Novo mapa mental";
 }
 
@@ -380,12 +383,38 @@ export function seedNodesForTemplate(template: ProjectTemplate, title: string): 
     ];
   }
 
+  if (template === "bracket") {
+    const rootId = uid2();
+    return [
+      { id: rootId, text: title.trim() || "Chaveamento", x: 0, y: 0, width: 400, parentId: null, role: "bracket", body: "{}" },
+    ];
+  }
+
+  if (template === "matrix") {
+    const rootId = uid2();
+    const config = JSON.stringify({
+      xLow: "Baixo custo", xHigh: "Alto custo",
+      yLow: "Baixo potencial", yHigh: "Alto potencial",
+    });
+    return [
+      { id: rootId, text: title.trim() || "Matriz de posicionamento", x: 0, y: 0, width: 400, parentId: null, role: "matrix", body: config },
+    ];
+  }
+
+  if (template === "ranking") {
+    const rootId = uid2();
+    return [
+      { id: rootId, text: title.trim() || "Ranking", x: 0, y: 0, width: 400, parentId: null, role: "ranking" },
+    ];
+  }
+
   // mindmap (default)
   const rootId = uid2();
   return [
     { id: rootId, text: title.trim() || "Ideia central", x: 0, y: 0, width: 560, parentId: null },
   ];
 }
+
 
 export const useStore = create<State & Actions>()((set) => ({
   projects: [],

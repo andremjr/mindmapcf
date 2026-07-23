@@ -39,16 +39,23 @@ export interface MindNode {
   color?: string;
   /** Optional URL — shown as a button in presentation that opens the site in an in-frame iframe. */
   url?: string;
-  /** Semantic role used by template renderers (tierlist / iceberg). */
-  role?: "tier" | "item" | "level" | "board" | "iceberg";
-  /** Long-form body shown in iceberg's expanded card. */
+  /** Semantic role used by template renderers. */
+  role?:
+    | "tier" | "item" | "level" | "board" | "iceberg"
+    | "bracket" | "matrix" | "ranking";
+  /** Long-form body shown in iceberg's expanded card (or JSON blob for template root config). */
   body?: string;
-  /** Sort index within siblings (used by tiers/levels). */
+  /** Sort index within siblings (used by tiers/levels/ranking). */
   order?: number;
+  /** Percent X position (0-100) for matrix cards. */
+  pctX?: number;
+  /** Percent Y position (0-100) for matrix cards. */
+  pctY?: number;
 }
 
 /** Which canvas renderer this project uses. Default = mindmap. */
-export type ProjectTemplate = "mindmap" | "tierlist" | "iceberg";
+export type ProjectTemplate =
+  | "mindmap" | "tierlist" | "iceberg" | "bracket" | "matrix" | "ranking";
 
 /**
  * A user-owned "sonic avatar" from the global library (persisted in

@@ -3,6 +3,9 @@ import { useProject } from "@/lib/store";
 import { MindMapEditor } from "@/components/mindmap/MindMapEditor";
 import { TierListEditor } from "@/components/tierlist/TierListEditor";
 import { IcebergEditor } from "@/components/iceberg/IcebergEditor";
+import { BracketEditor } from "@/components/bracket/BracketEditor";
+import { MatrixEditor } from "@/components/matrix/MatrixEditor";
+import { RankingEditor } from "@/components/ranking/RankingEditor";
 import { Button } from "@/components/ui/button";
 
 
@@ -38,5 +41,9 @@ function EditorRoute() {
   const template = project.template ?? "mindmap";
   if (template === "tierlist") return <TierListEditor project={project} />;
   if (template === "iceberg") return <IcebergEditor project={project} />;
+  if (template === "bracket") return <BracketEditor project={project} />;
+  if (template === "matrix") return <MatrixEditor project={project} />;
+  if (template === "ranking") return <RankingEditor project={project} />;
   return <MindMapEditor project={project} />;
 }
+
