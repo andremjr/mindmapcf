@@ -150,9 +150,12 @@ export function BracketPresentation({
   }, [focusKey, fullData]);
 
   const focusWinnerId = focusKey ? effectiveWinners[focusKey] ?? null : null;
-  const showOverlay = !!focusedMatch && !!focusedMatch.a && !!focusedMatch.b;
+  // Overlay only shows during the "focus:" step. On "reveal:" we return to the
+  // overview so the user sees the bracket progress in place.
+  const showOverlay = isFocusStep && !!focusedMatch && !!focusedMatch.a && !!focusedMatch.b;
   const isChampionStep = currentStep === "CHAMPION";
   const showChampionOverlay = isChampionStep && !!fullData.champion;
+  const anyOverlay = showOverlay || showChampionOverlay;
 
   function stateFor(nodeId: string | undefined | null): "idle" | "current" | "winner" | "loser" {
     if (!nodeId) return "idle";
@@ -179,15 +182,16 @@ export function BracketPresentation({
             <div className="text-[11px] uppercase tracking-widest text-white/50">{stepLabel}</div>
           </div>
           <div ref={wrapperRef} className="flex-1 min-h-0 relative overflow-hidden">
-            {/* Bracket (dimmed while a match is in focus) */}
+            {/* Bracket (dimmed and blurred while a match/champion overlay is up) */}
             <div
               ref={boardRef}
-              className="absolute top-0 left-0 origin-top-left transition-opacity duration-500"
+              className="absolute top-0 left-0 origin-top-left"
               style={{
                 transform,
-                transition: "transform 700ms cubic-bezier(0.22, 1, 0.36, 1), opacity 400ms ease",
+                transition: "transform 900ms cubic-bezier(0.22, 1, 0.36, 1), opacity 400ms ease, filter 400ms ease",
                 width: "max-content",
-                opacity: showOverlay || showChampionOverlay ? 0.28 : 1,
+                opacity: anyOverlay ? 0.18 : 1,
+                filter: anyOverlay ? "blur(2px)" : "none",
               }}
             >
               <BracketBoard
@@ -197,6 +201,20 @@ export function BracketPresentation({
                 mode="present"
               />
             </div>
+
+            {/* Solid backdrop behind overlay for legibility */}
+            <AnimatePresence>
+              {anyOverlay && (
+                <motion.div
+                  key="overlay-backdrop"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="absolute inset-0 bg-neutral-950/80 backdrop-blur-sm pointer-events-none"
+                />
+              )}
+            </AnimatePresence>
 
             {/* Focused match overlay: two large cards side-by-side */}
             <AnimatePresence>
@@ -209,7 +227,7 @@ export function BracketPresentation({
                   transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                   className="absolute inset-0 flex items-center justify-center pointer-events-none"
                 >
-                  <div className="flex items-stretch gap-6 max-w-[80%]">
+                  <div className="flex items-stretch gap-6 max-w-[80%] rounded-2xl bg-neutral-950/85 border border-white/15 shadow-[0_20px_80px_rgba(0,0,0,0.6)] px-8 py-6">
                     <div className="w-[280px]">
                       <CompetitorCard node={focusedMatch.a} state={stateFor(focusedMatch.a.id)} expanded />
                     </div>
