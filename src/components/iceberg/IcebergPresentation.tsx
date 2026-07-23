@@ -284,6 +284,7 @@ export function IcebergPresentation({
 
       <div className={recording ? "absolute inset-0 grid place-items-center" : "absolute inset-0"}>
         <div ref={frameRef} style={frameStyle} className="bg-background">
+          <AvatarLayer project={project} frameSize={size} />
           {/* Scrollable stack — background art scrolls together with the levels */}
           <div ref={scrollRef} className="absolute inset-0 overflow-y-auto scroll-smooth">
             <div className="relative w-full">
