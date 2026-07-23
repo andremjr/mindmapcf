@@ -215,6 +215,7 @@ export function TierListEditor({ project }: { project: Project }) {
 
   async function onPickFormat(fmt: any) {
     setRecordOpen(false);
+    if (!validatePlacement()) return;
     try {
       await launchRecording(project, fmt, isPro);
     } catch (e: any) {
