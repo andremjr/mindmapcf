@@ -334,17 +334,61 @@ export function MatrixEditor({ project }: { project: Project }) {
 
 
           {/* Plane */}
-          <ChartPlane
-            chart={chart}
-            axis={axis}
-            planeRef={planeRef}
-            cards={cards}
-            onCardMouseDown={onCardMouseDown}
-            onDelete={(id) => deleteNode(project.id, id)}
-            onEdit={(id) => setEditingId(id)}
-          />
+          <div
+            onDragOver={(e) => { if (dragPoolId) e.preventDefault(); }}
+            onDrop={onPlaneDrop}
+          >
+            <ChartPlane
+              chart={chart}
+              axis={axis}
+              planeRef={planeRef}
+              cards={placedCards}
+              onCardMouseDown={onCardMouseDown}
+              onDelete={(id) => deleteNode(project.id, id)}
+              onEdit={(id) => setEditingId(id)}
+            />
+          </div>
+
+          {/* Pool of unplaced cards */}
+          <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <div className="text-sm font-semibold">Cards disponíveis</div>
+                <div className="text-xs text-muted-foreground">
+                  Arraste até o gráfico para posicionar — ou deixe todos aqui para posicionar ao vivo na apresentação/gravação.
+                </div>
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {cards.length} total · {placedCards.length} no gráfico
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 min-h-[80px]">
+              {unplacedCards.length === 0 && (
+                <div className="text-xs text-muted-foreground italic self-center px-2">
+                  Todos os cards estão posicionados no gráfico.
+                </div>
+              )}
+              {unplacedCards.map((c) => (
+                <div
+                  key={c.id}
+                  draggable
+                  onDragStart={() => setDragPoolId(c.id)}
+                  onDragEnd={() => setDragPoolId(null)}
+                  className="cursor-grab active:cursor-grabbing"
+                >
+                  <MatrixCard
+                    node={c}
+                    compact
+                    onDelete={() => deleteNode(project.id, c.id)}
+                    onEdit={() => setEditingId(c.id)}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </main>
+
 
       {editingCard && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setEditingId(null)}>
