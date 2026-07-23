@@ -388,6 +388,10 @@ export function RankingEditor({ project }: { project: Project }) {
                 placeholder="Descrição (opcional) — aparece no card expandido durante a chamada"
                 className="text-sm min-h-[48px] resize-none"
               />
+              <NodeColorPicker
+                value={selected.color}
+                onChange={(c) => updateNode(project.id, selected.id, { color: c } as Partial<MindNode>)}
+              />
             </div>
           </div>
         </div>
