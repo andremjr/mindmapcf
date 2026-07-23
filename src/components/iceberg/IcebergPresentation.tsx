@@ -16,6 +16,7 @@ import {
 } from "@/lib/screenRecorder";
 import { loadRecordFormat, defaultRecordFormat, type RecordFormat } from "@/lib/recordFormats";
 import { RecorderHUD } from "@/components/mindmap/RecorderHUD";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { resolveEmbed } from "@/lib/embedUrl";
 
 function fmtDur(ms: number) {
@@ -370,7 +371,8 @@ export function IcebergPresentation({
         </div>
       </div>
 
-      <div className="absolute top-4 right-4 z-10">
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        {!recording && <ThemeToggle />}
         <button onClick={stopAndDownload} className="size-10 grid place-items-center rounded-full bg-foreground/10 backdrop-blur border border-border hover:bg-foreground/20 text-foreground">
           <X className="size-4" />
         </button>
