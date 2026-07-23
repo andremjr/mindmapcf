@@ -263,14 +263,15 @@ export function TierListEditor({ project }: { project: Project }) {
                 }}
               >
                 <div
-                  className="w-24 shrink-0 grid place-items-center px-2 py-3 font-bold text-lg text-white text-center"
+                  className="min-w-[8rem] max-w-[14rem] w-40 shrink-0 grid place-items-center px-2 py-3 font-bold text-base text-white text-center"
                   style={{ background: tier.color || "#334155" }}
                 >
                   <input
                     value={tier.text}
                     onChange={(e) => updateNode(project.id, tier.id, { text: e.target.value })}
-                    className="bg-transparent text-center outline-none w-full font-bold uppercase tracking-wider"
-                    maxLength={6}
+                    className="bg-transparent text-center outline-none w-full font-bold uppercase tracking-wider text-sm leading-tight"
+                    placeholder="Nome do tier"
+                    maxLength={24}
                   />
                 </div>
                 <div className="flex-1 min-h-[112px] bg-muted/30 p-2 flex flex-wrap gap-2 items-start">
