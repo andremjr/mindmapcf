@@ -398,7 +398,7 @@ export function RankingPresentation({
                   transition={{ type: "spring", stiffness: 200, damping: 22 }}
                   className="absolute inset-0 flex items-center justify-center pointer-events-none p-6"
                 >
-                  <SpotlightCard node={spotlightNode} targetRank={rankOf.get(spotlightNode.id)} />
+                  <SpotlightCard node={spotlightNode} />
                 </motion.div>
               </>
             )}
