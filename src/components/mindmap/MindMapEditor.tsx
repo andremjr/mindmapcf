@@ -54,6 +54,7 @@ export function MindMapEditor({ project }: { project: Project }) {
   const replaceProjectNodes = useStore((s) => s.replaceProjectNodes);
   const setNodeColor = useStore((s) => s.setNodeColor);
   const setViewportPersist = useStore((s) => s.setViewport);
+  const setNarration = useStore((s) => s.setNarration);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { isPro } = useSubscription(user?.id);
@@ -621,8 +622,25 @@ export function MindMapEditor({ project }: { project: Project }) {
   async function startRecordingWithFormat(fmt: RecordFormat) {
     setRecordFormatOpen(false);
     saveRecordFormat(project.id, fmt);
+    let narrationEl: HTMLAudioElement | undefined;
+    if (isPro && project.narrationRef) {
+      try {
+        const url = await resolveImage(project.narrationRef);
+        if (url) {
+          narrationEl = new Audio(url);
+          narrationEl.preload = "auto";
+          narrationEl.crossOrigin = "anonymous";
+        }
+      } catch (e) {
+        console.error("[mindmap] resolve narration", e);
+      }
+    }
     try {
-      await startRecording({ filenameBase: project.title || "apresentacao", armed: true });
+      await startRecording({
+        filenameBase: project.title || "apresentacao",
+        armed: true,
+        narrationEl,
+      });
     } catch (e: any) {
       console.error("[mindmap] recording start", e);
       if (e?.name !== "NotAllowedError") {
