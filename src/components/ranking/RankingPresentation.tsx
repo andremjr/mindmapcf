@@ -2,8 +2,10 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import type { MindNode, Project } from "@/lib/types";
 import { resolveImage } from "@/lib/imageStorage";
+import { useStore } from "@/lib/store";
 import { PresentationShell } from "@/components/shared/PresentationShell";
 import { AvatarLayer } from "@/components/shared/AvatarLayer";
+
 
 /* ---------- image ---------- */
 function useResolvedImage(node: MindNode | undefined) {
