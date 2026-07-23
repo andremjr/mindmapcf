@@ -551,3 +551,105 @@ function EmptyMsg({ text }: { text: string }) {
     </div>
   );
 }
+
+/* ---------- Bullseye ring editor + legend ---------- */
+export function RingLegend({ rings, className = "" }: { rings: RingConfig[]; className?: string }) {
+  return (
+    <div className={`flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground ${className}`}>
+      {rings.map((r, i) => (
+        <div key={i} className="flex items-center gap-1.5">
+          <span className="inline-block size-2.5 rounded-full border border-border/60" style={{ background: r.color }} />
+          <span>{r.label || `Anel ${i + 1}`}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RingsEditor({ rings, onChange }: { rings: RingConfig[]; onChange: (r: RingConfig[]) => void }) {
+  const patch = (i: number, p: Partial<RingConfig>) => {
+    const next = rings.slice();
+    next[i] = { ...next[i], ...p };
+    onChange(next);
+  };
+  const labels = ["Anel externo", "Anel 2", "Anel 3", "Centro (alvo)"];
+  return (
+    <div className="rounded-lg border border-border/60 p-3 space-y-2">
+      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Anéis do alvo</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {rings.map((r, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <span className="text-[11px] text-muted-foreground w-24 shrink-0">{labels[i]}</span>
+            <input
+              type="color"
+              value={r.color}
+              onChange={(e) => patch(i, { color: e.target.value })}
+              className="size-8 rounded border border-border/60 bg-transparent cursor-pointer"
+            />
+            <Input
+              value={r.label}
+              onChange={(e) => patch(i, { label: e.target.value })}
+              placeholder="Significado deste anel"
+              className="h-8 text-sm flex-1"
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Timeline milestone editor ---------- */
+function LinePointsEditor({ points, onChange }: { points: LinePoint[]; onChange: (p: LinePoint[]) => void }) {
+  const add = () => {
+    const id = (typeof crypto !== "undefined" && "randomUUID" in crypto)
+      ? crypto.randomUUID() : `pt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    onChange([...points, { id, pctX: 50, label: "Marco", side: "bottom" }]);
+  };
+  const patch = (id: string, p: Partial<LinePoint>) =>
+    onChange(points.map((x) => (x.id === id ? { ...x, ...p } : x)));
+  const remove = (id: string) => onChange(points.filter((x) => x.id !== id));
+  return (
+    <div className="rounded-lg border border-border/60 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Marcos da linha do tempo</div>
+        <Button size="sm" variant="outline" onClick={add} className="gap-1.5 h-7">
+          <Plus className="size-3" /> Marco
+        </Button>
+      </div>
+      {points.length === 0 ? (
+        <div className="text-xs text-muted-foreground">Sem marcos. Adicione datas, eventos ou fases da narrativa.</div>
+      ) : (
+        <div className="space-y-2">
+          {points.map((p) => (
+            <div key={p.id} className="flex items-center gap-2">
+              <Input value={p.label} onChange={(e) => patch(p.id, { label: e.target.value })}
+                placeholder="Rótulo (ex.: 2020, Fase 1…)" className="h-8 text-sm flex-1" />
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] text-muted-foreground">%</span>
+                <Input
+                  type="number" min={0} max={100}
+                  value={Math.round(p.pctX)}
+                  onChange={(e) => patch(p.id, { pctX: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
+                  className="h-8 w-16 text-sm"
+                />
+              </div>
+              <select
+                value={p.side}
+                onChange={(e) => patch(p.id, { side: e.target.value as "top" | "bottom" })}
+                className="h-8 text-xs bg-background border border-border/60 rounded-md px-2"
+              >
+                <option value="top">Acima</option>
+                <option value="bottom">Abaixo</option>
+              </select>
+              <Button size="sm" variant="ghost" onClick={() => remove(p.id)} className="size-8 p-0">
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
