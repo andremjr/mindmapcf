@@ -132,9 +132,16 @@ export function MatrixEditor({ project }: { project: Project }) {
   const axis = useMemo(() => parseAxis(root?.body), [root?.body]);
   const chart = axis.chartType;
 
+  /** A card is "placed" once the author has assigned it a chart position. */
+  const isPlaced = (n: MindNode) =>
+    typeof n.pctX === "number" && (chart === "line" || typeof n.pctY === "number");
+  const placedCards = useMemo(() => cards.filter(isPlaced), [cards, chart]);
+  const unplacedCards = useMemo(() => cards.filter((c) => !isPlaced(c)), [cards, chart]);
+
   const [titleDraft, setTitleDraft] = useState(project.title);
   const [recordOpen, setRecordOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [dragPoolId, setDragPoolId] = useState<string | null>(null);
   const planeRef = useRef<HTMLDivElement>(null);
 
   function setAxis(patch: Partial<AxisConfig>) {
@@ -142,21 +149,20 @@ export function MatrixEditor({ project }: { project: Project }) {
     updateNode(project.id, root.id, { body: JSON.stringify({ ...axis, ...patch }) } as Partial<MindNode>);
   }
 
+  /** New cards start in the "unplaced" pool; the author drags them onto the
+   *  chart (or leaves them unplaced to position live during presentation). */
   function addCard() {
     if (!root) return;
     const id = addNode(project.id, { parentId: root.id });
     if (!id) return;
-    const initial: Partial<MindNode> = {
+    updateNode(project.id, id, {
       text: "Novo card",
       role: "item",
-      pctX: 50,
-      pctY: chart === "line" ? 50 : 50,
       width: 132,
-    };
-    updateNode(project.id, id, initial);
+    } as Partial<MindNode>);
   }
 
-  // Drag
+  // Drag existing (placed) card around the chart
   const dragRef = useRef<{ id: string } | null>(null);
   function onCardMouseDown(e: React.MouseEvent, node: MindNode) {
     if (!planeRef.current) return;
@@ -182,8 +188,33 @@ export function MatrixEditor({ project }: { project: Project }) {
     void e;
   }
 
+  /** Drop from the pool onto the plane at the cursor point. */
+  function onPlaneDrop(e: React.DragEvent) {
+    if (!dragPoolId || !planeRef.current) return;
+    e.preventDefault();
+    const r = planeRef.current.getBoundingClientRect();
+    const pctX = Math.max(2, Math.min(98, ((e.clientX - r.left) / r.width) * 100));
+    const pctY = chart === "line"
+      ? 50
+      : Math.max(2, Math.min(98, ((e.clientY - r.top) / r.height) * 100));
+    updateNode(project.id, dragPoolId, { pctX, pctY } as Partial<MindNode>);
+    setDragPoolId(null);
+  }
+
+  function validatePlacement(): boolean {
+    if (cards.length === 0) return true;
+    const placed = placedCards.length;
+    if (placed === 0 || placed === cards.length) return true;
+    alert(
+      `Você tem ${placed} de ${cards.length} cards posicionados. ` +
+      `Posicione todos ou deixe todos no pool (para arrastar ao vivo).`
+    );
+    return false;
+  }
+
   async function onPickFormat(fmt: RecordFormat) {
     setRecordOpen(false);
+    if (!validatePlacement()) return;
     try { await launchRecording(project, fmt, isPro); }
     catch (e: any) {
       if (e?.name !== "NotAllowedError") alert(e?.message || "Falha ao iniciar gravação.");
@@ -193,6 +224,7 @@ export function MatrixEditor({ project }: { project: Project }) {
   }
 
   function handlePresent() {
+    if (!validatePlacement()) return;
     if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => {});
     }
