@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { MindNode, Project } from "@/lib/types";
 import { resolveImage } from "@/lib/imageStorage";
+import { useStore } from "@/lib/store";
 import { PresentationShell } from "@/components/shared/PresentationShell";
 import { AvatarLayer } from "@/components/shared/AvatarLayer";
 import { parseAxis, RingLegend, type AxisConfig, type ChartType } from "./MatrixEditor";
+
 
 
 /* ---------- Card ---------- */
