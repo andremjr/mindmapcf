@@ -16,6 +16,7 @@ import {
 } from "@/lib/screenRecorder";
 import { loadRecordFormat, defaultRecordFormat, type RecordFormat } from "@/lib/recordFormats";
 import { RecorderHUD } from "@/components/mindmap/RecorderHUD";
+import { resolveEmbed } from "@/lib/embedUrl";
 
 function fmtDur(ms: number) {
   const s = Math.floor(ms / 1000);
