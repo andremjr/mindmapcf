@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, X, Download } from "lucide-react";
 import { LayoutGroup, motion } from "framer-motion";
 import type { MindNode, Project } from "@/lib/types";
 import { resolveImage } from "@/lib/imageStorage";
+import { useStore } from "@/lib/store";
 import {
   isRecording,
   stopRecording,
@@ -42,32 +43,44 @@ function useResolvedImage(node: MindNode | null | undefined) {
 
 function TierItem({
   node,
-  size = 88,
+  size = 92,
   highlighted = false,
+  draggable = false,
+  onDragStart,
+  onDragEnd,
 }: {
   node: MindNode;
   size?: number;
   highlighted?: boolean;
+  draggable?: boolean;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }) {
   const url = useResolvedImage(node);
+  const ring = highlighted
+    ? { boxShadow: `0 0 28px ${node.color ?? "rgba(255,255,255,0.55)"}` }
+    : undefined;
   return (
     <div
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       className={`relative rounded-md overflow-hidden border ${
         highlighted
-          ? "ring-2 ring-white shadow-[0_0_28px_rgba(255,255,255,0.55)] border-white"
+          ? "ring-2 ring-white border-white"
           : "border-white/20"
-      }`}
-      style={{ width: size, height: size, background: "#111" }}
+      } ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      style={{ width: size, height: size, background: node.color ?? "#111", ...ring }}
     >
       {url ? (
         <img src={url} alt="" className="absolute inset-0 size-full object-cover" />
       ) : (
-        <div className="absolute inset-0 grid place-items-center text-[11px] text-center px-1 leading-tight text-white/95">
+        <div className="absolute inset-0 grid place-items-center text-[11px] text-center px-1.5 leading-tight text-white/95 break-words whitespace-normal overflow-hidden">
           {node.text || "Item"}
         </div>
       )}
       {url && node.text && (
-        <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] px-1 py-0.5 truncate">
+        <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] px-1 py-0.5 leading-tight break-words whitespace-normal max-h-[55%] overflow-hidden">
           {node.text}
         </div>
       )}
@@ -83,6 +96,7 @@ export function TierListPresentation({
   recording?: boolean;
 }) {
   const navigate = useNavigate();
+  const setParent = useStore((s) => s.setParent);
   const frameRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 1280, h: 720 });
   const [result, setResult] = useState<RecordingResult | null>(null);
@@ -160,48 +174,75 @@ export function TierListPresentation({
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
     [project.nodes, board?.id],
   );
+  const tierIds = useMemo(() => new Set(tiers.map((t) => t.id)), [tiers]);
 
-  /** Ordered queue of items to reveal, grouped by tier order. */
-  const queue = useMemo(() => {
-    const arr: Array<{ item: MindNode; tierId: string }> = [];
-    for (const t of tiers) {
-      for (const n of project.nodes) {
-        if (n.role === "item" && n.parentId === t.id) arr.push({ item: n, tierId: t.id });
-      }
-    }
-    return arr;
-  }, [project.nodes, tiers]);
+  const allItems = useMemo(
+    () => project.nodes
+      .filter((n) => n.role === "item")
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    [project.nodes],
+  );
+
+  /** Items pre-placed in a tier (in creator's call order). */
+  const preplacedQueue = useMemo(
+    () => allItems.filter((n) => n.parentId && tierIds.has(n.parentId)),
+    [allItems, tierIds],
+  );
+
+  /** MANUAL mode: no items pre-placed → user drags live on stage. */
+  const manualMode = preplacedQueue.length === 0 && allItems.length > 0;
+
+  /* ============ ANIMATED MODE (pre-placed) ============ */
+
+  /** idx = number of items already placed (0..queue.length). */
+  const [idx, setIdx] = useState(0);
+  const currentItemId = idx > 0 ? preplacedQueue[idx - 1].id : null;
+  const currentTierId = idx > 0 ? preplacedQueue[idx - 1].parentId : (preplacedQueue[0]?.parentId ?? null);
 
   const placedByTier = useMemo(() => {
     const m = new Map<string, MindNode[]>();
     for (const t of tiers) m.set(t.id, []);
+    if (manualMode) {
+      // In manual mode, always show live state from allItems
+      for (const n of allItems) {
+        if (n.parentId && m.has(n.parentId)) m.get(n.parentId)!.push(n);
+      }
+    } else {
+      for (let i = 0; i < idx; i++) {
+        const q = preplacedQueue[i];
+        if (q.parentId && m.has(q.parentId)) m.get(q.parentId)!.push(q);
+      }
+    }
     return m;
-  }, [tiers]);
+  }, [tiers, manualMode, allItems, idx, preplacedQueue]);
 
-  /** idx = number of items already placed (0..queue.length). */
-  const [idx, setIdx] = useState(0);
-  const placedIds = useMemo(() => new Set(queue.slice(0, idx).map((q) => q.item.id)), [queue, idx]);
-  const remaining = queue.slice(idx);
-  const currentItemId = idx > 0 ? queue[idx - 1].item.id : null;
-  const currentTierId = idx > 0 ? queue[idx - 1].tierId : (queue[0]?.tierId ?? null);
-
-  // Populate placed items into their tier bucket (by placement order)
-  for (const t of tiers) placedByTier.set(t.id, []);
-  for (let i = 0; i < idx; i++) {
-    const q = queue[i];
-    placedByTier.get(q.tierId)!.push(q.item);
-  }
+  const remaining = manualMode
+    ? allItems.filter((n) => !n.parentId || !tierIds.has(n.parentId))
+    : preplacedQueue.slice(idx);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!scrollRef.current || !currentTierId) return;
+    if (manualMode || !scrollRef.current || !currentTierId) return;
     const el = scrollRef.current.querySelector<HTMLElement>(`[data-tier-id="${currentTierId}"]`);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [idx, currentTierId]);
+  }, [idx, currentTierId, manualMode]);
 
-  const totalSteps = queue.length + 1; // step 0 shows all in pool
-  const next = () => { if (countdown === null) setIdx((i) => Math.min(queue.length, i + 1)); };
-  const prev = () => { if (countdown === null) setIdx((i) => Math.max(0, i - 1)); };
+  const next = () => { if (!manualMode && countdown === null) setIdx((i) => Math.min(preplacedQueue.length, i + 1)); };
+  const prev = () => { if (!manualMode && countdown === null) setIdx((i) => Math.max(0, i - 1)); };
+
+  /* ============ DRAG (manual mode) ============ */
+  const [dragId, setDragId] = useState<string | null>(null);
+  const onTierDrop = (tierId: string) => (e: React.DragEvent) => {
+    e.preventDefault();
+    if (dragId) setParent(project.id, dragId, tierId);
+    setDragId(null);
+  };
+  const onPoolDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (dragId && board) setParent(project.id, dragId, board.id);
+    setDragId(null);
+  };
+  const allowDrop = (e: React.DragEvent) => { if (dragId) e.preventDefault(); };
 
   async function stopAndDownload() {
     const narr = getRecordingNarrationEl();
@@ -246,7 +287,7 @@ export function TierListPresentation({
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queue.length, recording]);
+  }, [preplacedQueue.length, recording, manualMode]);
 
   const [, setRecTick] = useState(0);
   useEffect(() => {
@@ -274,23 +315,32 @@ export function TierListPresentation({
           <AvatarLayer project={project} frameSize={size} />
           <LayoutGroup>
             <div className="absolute inset-0 flex flex-col p-6">
-              <div className="text-2xl font-bold text-center mb-3 opacity-90">{project.title}</div>
+              <div className="text-2xl font-bold text-center mb-2 opacity-90">{project.title}</div>
+              {manualMode && (
+                <div className="text-center text-[11px] uppercase tracking-widest text-muted-foreground mb-2">
+                  Modo manual — arraste os itens para os tiers
+                </div>
+              )}
 
               {/* Tiers */}
               <div ref={scrollRef} className="flex-1 overflow-y-auto scroll-smooth space-y-2 pr-1">
                 {tiers.map((tier) => {
                   const items = placedByTier.get(tier.id) ?? [];
-                  const isActive = currentTierId === tier.id;
+                  const isActive = !manualMode && currentTierId === tier.id;
                   return (
                     <div
                       key={tier.id}
                       data-tier-id={tier.id}
+                      onDragOver={allowDrop}
+                      onDrop={onTierDrop(tier.id)}
                       className={`flex items-stretch rounded-lg overflow-hidden border border-border transition-all duration-300 ${
-                        isActive ? "opacity-100 scale-100" : "opacity-45 scale-[0.98]"
+                        manualMode
+                          ? (dragId ? "ring-2 ring-primary/40" : "")
+                          : (isActive ? "opacity-100 scale-100" : "opacity-45 scale-[0.98]")
                       }`}
                     >
                       <div
-                        className="min-w-[8rem] max-w-[14rem] shrink-0 grid place-items-center px-3 py-3 font-black text-xl text-foreground text-center uppercase tracking-wider break-words"
+                        className="min-w-[8rem] max-w-[14rem] shrink-0 grid place-items-center px-3 py-3 font-black text-lg text-white text-center uppercase tracking-wider break-words whitespace-normal leading-tight"
                         style={{ background: tier.color || "#334155" }}
                       >
                         {tier.text}
@@ -302,11 +352,19 @@ export function TierListPresentation({
                             layoutId={`item-${it.id}`}
                             transition={{ type: "spring", stiffness: 260, damping: 28 }}
                           >
-                            <TierItem node={it} highlighted={currentItemId === it.id} />
+                            <TierItem
+                              node={it}
+                              highlighted={!manualMode && currentItemId === it.id}
+                              draggable={manualMode}
+                              onDragStart={() => setDragId(it.id)}
+                              onDragEnd={() => setDragId(null)}
+                            />
                           </motion.div>
                         ))}
                         {items.length === 0 && !isActive && (
-                          <div className="text-xs opacity-40 italic self-center px-2">— vazio —</div>
+                          <div className="text-xs opacity-40 italic self-center px-2">
+                            {manualMode ? "solte aqui" : "— vazio —"}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -315,28 +373,39 @@ export function TierListPresentation({
               </div>
 
               {/* Pool of remaining items */}
-              <div className="mt-3 rounded-lg border border-border bg-muted/40 px-3 py-2">
+              <div
+                onDragOver={allowDrop}
+                onDrop={onPoolDrop}
+                className="mt-3 rounded-lg border border-border bg-muted/40 px-3 py-2"
+              >
                 <div className="flex items-center justify-between mb-1">
                   <div className="text-[11px] uppercase tracking-widest opacity-60">
-                    A classificar
+                    {manualMode ? "Arraste para classificar" : "A classificar"}
                   </div>
                   <div className="text-[11px] opacity-60 font-mono tabular-nums">
                     {remaining.length} restante{remaining.length === 1 ? "" : "s"}
                   </div>
                 </div>
-                <div className="flex gap-2 items-center overflow-x-auto min-h-[76px]">
+                <div className="flex gap-2 items-center overflow-x-auto min-h-[80px]">
                   {remaining.length === 0 && (
                     <div className="text-xs opacity-50 italic self-center px-2">
                       Todos os itens foram classificados.
                     </div>
                   )}
-                  {remaining.map((q, i) => (
+                  {remaining.map((it, i) => (
                     <motion.div
-                      key={q.item.id}
-                      layoutId={`item-${q.item.id}`}
+                      key={it.id}
+                      layoutId={`item-${it.id}`}
                       transition={{ type: "spring", stiffness: 260, damping: 28 }}
                     >
-                      <TierItem node={q.item} size={64} highlighted={i === 0} />
+                      <TierItem
+                        node={it}
+                        size={72}
+                        highlighted={!manualMode && i === 0}
+                        draggable={manualMode}
+                        onDragStart={() => setDragId(it.id)}
+                        onDragEnd={() => setDragId(null)}
+                      />
                     </motion.div>
                   ))}
                 </div>
@@ -363,19 +432,21 @@ export function TierListPresentation({
         </button>
       </div>
 
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-foreground/10 backdrop-blur border border-border text-foreground px-2 py-2">
-        <button onClick={prev} disabled={idx === 0} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
-          <ChevronLeft className="size-5" />
-        </button>
-        <span className="px-3 text-sm font-mono tabular-nums min-w-[70px] text-center">
-          {`${idx} / ${queue.length}`}
-        </span>
-        <button onClick={next} disabled={idx >= queue.length} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
-          <ChevronRight className="size-5" />
-        </button>
-      </div>
+      {!manualMode && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-foreground/10 backdrop-blur border border-border text-foreground px-2 py-2">
+          <button onClick={prev} disabled={idx === 0} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
+            <ChevronLeft className="size-5" />
+          </button>
+          <span className="px-3 text-sm font-mono tabular-nums min-w-[70px] text-center">
+            {`${idx} / ${preplacedQueue.length}`}
+          </span>
+          <button onClick={next} disabled={idx >= preplacedQueue.length} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
+            <ChevronRight className="size-5" />
+          </button>
+        </div>
+      )}
 
-      {totalSteps === 1 && (
+      {allItems.length === 0 && (
         <div className="absolute inset-0 grid place-items-center pointer-events-none">
           <p className="text-muted-foreground">Adicione tiers e itens antes de apresentar.</p>
         </div>
