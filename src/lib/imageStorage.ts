@@ -24,7 +24,7 @@ export interface ImageRef {
   lastModified: number;
   contentType?: string;
   /** Media kind. Missing = image (backwards compatible). */
-  kind?: "image" | "video";
+  kind?: "image" | "video" | "audio";
 }
 
 interface Entry extends ImageRef {
