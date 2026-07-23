@@ -490,8 +490,8 @@ function RankSlot({
       className={[
         "relative min-h-0 rounded-lg overflow-hidden flex flex-col transition",
         node
-          ? "bg-background border-2 border-border"
-          : `border-2 border-dashed ${dropActive ? "border-primary bg-primary/10" : "border-border bg-muted/40 dark:bg-muted/20"}`,
+          ? "bg-background border-2 border-emerald-500/70"
+          : `border-2 border-dashed ${dropActive ? "border-primary bg-primary/10" : "border-rose-400/70 dark:border-rose-500/50 bg-rose-500/5"}`,
         selected ? "ring-2 ring-primary/50" : "",
         dragging ? "opacity-30" : "",
       ].join(" ")}
@@ -500,6 +500,11 @@ function RankSlot({
       <span className={`absolute top-1 left-1 z-10 size-7 rounded-full grid place-items-center text-[12px] font-black tabular-nums shadow-sm ${medal}`}>
         {rank}
       </span>
+      {!node && (
+        <span className="absolute top-1 right-1 z-10 h-6 px-1.5 rounded-md bg-rose-500 text-white text-[10px] font-bold uppercase tracking-wider grid place-items-center shadow-sm">
+          Vazio
+        </span>
+      )}
 
       {node ? (
         <>
