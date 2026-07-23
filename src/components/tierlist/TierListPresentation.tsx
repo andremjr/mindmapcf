@@ -183,14 +183,29 @@ export function TierListPresentation({
     [project.nodes],
   );
 
-  /** Items pre-placed in a tier (in creator's call order). */
-  const preplacedQueue = useMemo(
-    () => allItems.filter((n) => n.parentId && tierIds.has(n.parentId)),
-    [allItems, tierIds],
-  );
+  /**
+   * Snapshot the initial placement state. The mode is decided ONCE at mount
+   * and locked for the session — otherwise placing an item live in manual
+   * mode would flip to the animated queue and end the presentation.
+   */
+  const initialPreplacedIds = useState<string[]>(() =>
+    project.nodes
+      .filter((n) => n.role === "item" && n.parentId && n.parentId !== board?.id)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .map((n) => n.id),
+  )[0];
+  const initialHadItems = useState<boolean>(() =>
+    project.nodes.some((n) => n.role === "item"),
+  )[0];
 
-  /** MANUAL mode: no items pre-placed → user drags live on stage. */
-  const manualMode = preplacedQueue.length === 0 && allItems.length > 0;
+  /** Items pre-placed in a tier at mount time, resolved to current nodes. */
+  const preplacedQueue = useMemo(() => {
+    const byId = new Map(allItems.map((n) => [n.id, n]));
+    return initialPreplacedIds.map((id) => byId.get(id)).filter(Boolean) as MindNode[];
+  }, [allItems, initialPreplacedIds]);
+
+  /** MANUAL mode: no items were pre-placed at mount → user drags live. Locked for the session. */
+  const manualMode = initialPreplacedIds.length === 0 && initialHadItems;
 
   /* ============ ANIMATED MODE (pre-placed) ============ */
 
