@@ -154,20 +154,33 @@ export function CompetitorCard({
   const textCls = state === "loser" ? "line-through text-white/60" : "text-white/95";
 
   if (expanded) {
+    const hasImage = !!url;
+    const body = (node.body || "").trim();
     return (
       <div
-        className={`relative w-full rounded-lg overflow-hidden border transition-all flex flex-col ${cls}`}
+        className={`relative w-full rounded-xl overflow-hidden border transition-all flex flex-col ${cls}`}
       >
-        <div className="w-full aspect-square bg-black/70 grid place-items-center overflow-hidden">
-          {url ? (
-            <img src={url} alt="" className="size-full object-contain" />
-          ) : (
-            <span className="text-[11px] text-white/40">sem imagem</span>
-          )}
-        </div>
-        <div className={`px-2 py-2 font-semibold leading-tight line-clamp-3 text-center text-sm ${textCls}`}>
-          {node.text || "—"}
-        </div>
+        {hasImage ? (
+          <>
+            <div className="w-full aspect-square bg-black/70 grid place-items-center overflow-hidden">
+              <img src={url!} alt="" className="size-full object-contain" />
+            </div>
+            <div className={`px-3 py-2 font-semibold leading-tight line-clamp-3 text-center text-sm ${textCls}`}>
+              {node.text || "—"}
+            </div>
+          </>
+        ) : (
+          <div className="w-full aspect-square flex flex-col items-center justify-center px-4 py-4 gap-2 text-center">
+            <div className={`font-bold leading-tight ${body ? "text-base line-clamp-3" : "text-xl line-clamp-4"} ${textCls}`}>
+              {node.text || "—"}
+            </div>
+            {body && (
+              <div className={`text-xs leading-snug line-clamp-6 ${state === "loser" ? "text-white/40" : "text-white/70"}`}>
+                {body}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   }
