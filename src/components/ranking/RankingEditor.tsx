@@ -438,14 +438,10 @@ function CallCard({
       <span className="absolute top-1 left-1 z-10 min-w-6 h-6 px-1.5 rounded-md bg-background/85 text-foreground text-[11px] font-bold tabular-nums grid place-items-center border border-border">
         {callIdx + 1}
       </span>
-      {/* status badge: rank if placed, else "falta" */}
-      {placed ? (
+      {/* status badge: rank if placed */}
+      {placed && (
         <span className="absolute top-1 right-1 z-10 h-6 px-1.5 rounded-md bg-emerald-500 text-white text-[11px] font-bold tabular-nums grid place-items-center shadow-sm">
           #{node.rank}
-        </span>
-      ) : (
-        <span className="absolute top-1 right-1 z-10 h-6 px-1.5 rounded-md bg-rose-500 text-white text-[10px] font-bold uppercase tracking-wider grid place-items-center shadow-sm">
-          Falta
         </span>
       )}
       {/* thumbnail area */}
