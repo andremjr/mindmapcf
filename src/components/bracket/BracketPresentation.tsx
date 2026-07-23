@@ -124,7 +124,12 @@ export function BracketPresentation({
         const el = board.querySelector<HTMLElement>(`[data-match-key="${CSS.escape(focusKey)}"]`);
         if (el) {
           const pos = offsetInside(el, board);
-          const scale = focusKey === "FINAL" ? 1.9 : 2.1;
+          // Fit the focused (already-expanded) match to ~72% of the viewport.
+          const fitScale = Math.min(
+            (wrapW * 0.72) / pos.w,
+            (wrapH * 0.78) / pos.h,
+          );
+          const scale = Math.max(0.9, Math.min(fitScale, 1.6));
           const cx = pos.x + pos.w / 2;
           const cy = pos.y + pos.h / 2;
           const tx = wrapW / 2 - cx * scale;
