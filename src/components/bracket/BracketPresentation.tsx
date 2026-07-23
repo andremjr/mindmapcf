@@ -22,8 +22,8 @@ function buildPresentSteps(data: ReturnType<typeof buildBracket>): string[] {
     for (let i = 0; i < maxI; i++) {
       const lm = data.L.rounds[r]?.[i];
       const rm = data.R.rounds[r]?.[i];
-      if (lm && !lm.isBye) { steps.push(`focus:${lm.key}`); steps.push(`reveal:${lm.key}`); }
-      if (rm && !rm.isBye) { steps.push(`focus:${rm.key}`); steps.push(`reveal:${rm.key}`); }
+      if (lm && !lm.isBye) { steps.push(`focus:${lm.key}`); steps.push(`reveal:${lm.key}`); steps.push(`overview:${lm.key}`); }
+      if (rm && !rm.isBye) { steps.push(`focus:${rm.key}`); steps.push(`reveal:${rm.key}`); steps.push(`overview:${rm.key}`); }
     }
   }
   if (!data.finalMatch.isBye) {
