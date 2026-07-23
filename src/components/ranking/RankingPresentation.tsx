@@ -110,8 +110,8 @@ function EmptySlot({ rank, height }: { rank: number; height: number }) {
 
 /* ---------- pool card ---------- */
 function PoolCard({
-  node, called, highlighted, w, h,
-}: { node: MindNode; called: boolean; highlighted: boolean; w: number; h: number }) {
+  node, called, highlighted, badge, w, h,
+}: { node: MindNode; called: boolean; highlighted: boolean; badge?: string; w: number; h: number }) {
   const url = useResolvedImage(node);
   const titleSize = Math.max(9, Math.min(15, h * 0.11));
   return (
@@ -145,14 +145,15 @@ function PoolCard({
           {node.text || "—"}
         </div>
       )}
-      {highlighted && (
-        <div className="absolute top-1 left-1 rounded-full bg-amber-400 text-neutral-950 font-bold px-2 py-0.5 text-[10px] uppercase tracking-wider">
-          Próximo
+      {highlighted && badge && (
+        <div className="absolute top-1 left-1 rounded-full bg-amber-400 text-neutral-950 font-black px-2 py-0.5 text-xs tabular-nums shadow-lg">
+          {badge}
         </div>
       )}
     </motion.div>
   );
 }
+
 
 /* ---------- spotlight ---------- */
 function SpotlightCard({ node }: { node: MindNode }) {
