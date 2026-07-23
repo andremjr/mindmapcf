@@ -283,7 +283,7 @@ export function RankingEditor({ project }: { project: Project }) {
                 </div>
               </button>
             ) : (
-              <div ref={callGrid.ref} className="flex-1 min-h-0 p-2 grid gap-2" style={gridStyle(callGrid)}>
+              <div className={stackClass}>
                 {items.map((it, i) => {
                   const placed = typeof it.rank === "number";
                   return (
@@ -321,7 +321,7 @@ export function RankingEditor({ project }: { project: Project }) {
                 As posições aparecem quando você adicionar itens.
               </div>
             ) : (
-              <div ref={rankGrid.ref} className="flex-1 min-h-0 p-2 grid gap-2" style={gridStyle(rankGrid)}>
+              <div className={stackClass}>
                 {Array.from({ length: N }, (_, i) => i + 1).map((rank) => {
                   const it = byRank.get(rank);
                   return (
