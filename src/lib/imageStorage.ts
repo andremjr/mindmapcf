@@ -34,6 +34,7 @@ interface Entry extends ImageRef {
 
 const IMAGE_EXT = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif", ".svg"];
 const VIDEO_EXT = [".mp4", ".webm", ".mov", ".m4v", ".ogg", ".ogv", ".mkv"];
+const AUDIO_EXT = [".mp3", ".wav", ".m4a", ".aac", ".ogg", ".oga", ".webm", ".flac"];
 const urlCache = new Map<string, string>();
 
 function openDB(): Promise<IDBDatabase> {
