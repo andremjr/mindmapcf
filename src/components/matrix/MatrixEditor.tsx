@@ -16,6 +16,7 @@ import { RecordFormatMenu } from "@/components/RecordFormatMenu";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { launchRecording } from "@/lib/launchRecording";
 import type { RecordFormat } from "@/lib/recordFormats";
+import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
 
 export type ChartType = "quadrants" | "scatter" | "line" | "bullseye";
 export interface AxisConfig {
