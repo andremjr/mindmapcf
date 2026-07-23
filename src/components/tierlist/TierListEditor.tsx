@@ -343,10 +343,21 @@ export function TierListEditor({ project }: { project: Project }) {
                   </Button>
                 </div>
               </div>
-              <div className="min-h-[120px] flex flex-wrap gap-2 p-2">
+              <div
+                className="min-h-[120px] flex flex-wrap gap-2 p-2"
+                onDragOver={(e) => { if (dragItemId) e.preventDefault(); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (!dragItemId) return;
+                  const idx = computeInsertIndex(e.currentTarget, e.clientX, e.clientY, dragItemId);
+                  moveItem(dragItemId, null, idx);
+                  setDragItemId(null);
+                }}
+              >
                 {poolItems.map((it) => (
                   <div
                     key={it.id}
+                    data-item-id={it.id}
                     draggable
                     onDragStart={() => setDragItemId(it.id)}
                     onDragEnd={() => setDragItemId(null)}
@@ -369,6 +380,7 @@ export function TierListEditor({ project }: { project: Project }) {
                   </div>
                 )}
               </div>
+
             </div>
 
             {tiers.map((tier) => {
