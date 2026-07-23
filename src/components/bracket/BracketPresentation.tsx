@@ -59,9 +59,25 @@ export function BracketPresentation({
     try { return root?.body ? JSON.parse(root.body) : {}; } catch { return {}; }
   }, [root?.body]);
 
+  /** Manual mode locked at mount: no winners pre-picked → author decides live. */
+  const manualMode = useState<boolean>(() => {
+    if (competitors.length < 2) return false;
+    try {
+      const w = root?.body ? JSON.parse(root.body) : {};
+      return Object.keys(w).length === 0;
+    } catch { return true; }
+  })[0];
+  const updateNode = useStore((s) => s.updateNode);
+  function pickWinnerLive(matchKey: string, id: string) {
+    if (!root) return;
+    const next = clearDownstreamWinners(competitors, { ...winners, [matchKey]: id }, matchKey);
+    updateNode(project.id, root.id, { body: JSON.stringify(next) } as Partial<MindNode>);
+  }
+
   // Full bracket used purely to enumerate the step order (all winners applied).
   const fullData = useMemo(() => buildBracket(competitors, winners), [competitors, winners]);
   const steps = useMemo(() => buildPresentSteps(fullData), [fullData]);
+
 
   const [idx, setIdx] = useState(0);
   const currentStep = steps[idx] ?? "pool";
