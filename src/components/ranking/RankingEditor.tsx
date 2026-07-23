@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  ChevronLeft, Plus, Trash2, Image as ImageIcon, Play, Circle, GripVertical,
+  ChevronLeft, Plus, Trash2, Image as ImageIcon, Play, Circle, GripVertical, X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -31,11 +31,20 @@ function useResolvedImage(node: MindNode | undefined) {
   return url;
 }
 
-function Thumb({ node }: { node: MindNode }) {
+function Thumb({ node, size = 32 }: { node: MindNode; size?: number }) {
   const url = useResolvedImage(node);
-  if (!url) return <div className="size-full grid place-items-center text-[10px] text-muted-foreground">—</div>;
-  return <img src={url} alt="" className="size-full object-cover" />;
+  if (!url) {
+    return (
+      <div
+        className="rounded bg-muted grid place-items-center text-[10px] text-muted-foreground shrink-0"
+        style={{ width: size, height: size }}
+      >—</div>
+    );
+  }
+  return <img src={url} alt="" className="rounded object-cover shrink-0" style={{ width: size, height: size }} />;
 }
+
+type DragPayload = { id: string; from: "call" | "rank" };
 
 export function RankingEditor({ project }: { project: Project }) {
   const addNode = useStore((s) => s.addNode);
@@ -47,7 +56,7 @@ export function RankingEditor({ project }: { project: Project }) {
   const { isPro } = useSubscription(user?.id);
 
   const root = project.nodes.find((n) => n.role === "ranking" || !n.parentId);
-  // Sorted by CALL order (reveal order in presentation).
+
   const items = useMemo(
     () => project.nodes
       .filter((n) => n.role === "item" && n.parentId === root?.id)
@@ -55,44 +64,41 @@ export function RankingEditor({ project }: { project: Project }) {
     [project.nodes, root?.id],
   );
 
+  const N = items.length;
+  const itemsById = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
+  const byRank = useMemo(() => {
+    const m = new Map<number, MindNode>();
+    for (const it of items) if (typeof it.rank === "number") m.set(it.rank, it);
+    return m;
+  }, [items]);
+
   const [titleDraft, setTitleDraft] = useState(project.title);
   const [recordOpen, setRecordOpen] = useState(false);
-  const [dragId, setDragId] = useState<string | null>(null);
+  const [drag, setDrag] = useState<DragPayload | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = selectedId ? itemsById.get(selectedId) ?? null : null;
 
-  function nextRank(): number {
-    const used = new Set(items.map((n) => n.rank).filter((r): r is number => typeof r === "number"));
-    for (let i = 1; i <= items.length + 1; i++) if (!used.has(i)) return i;
-    return items.length + 1;
+  function nextRank(): number | undefined {
+    for (let i = 1; i <= N + 1; i++) if (!byRank.has(i)) return i;
+    return undefined;
   }
 
   function addItem() {
     if (!root) return;
     const id = addNode(project.id, { parentId: root.id });
     if (!id) return;
+    const rank = (() => {
+      for (let i = 1; i <= N + 1; i++) if (!byRank.has(i)) return i;
+      return N + 1;
+    })();
     updateNode(project.id, id, {
-      text: `Item ${items.length + 1}`,
+      text: `Item ${N + 1}`,
       role: "item",
-      order: items.length,
-      rank: nextRank(),
+      order: N,
+      rank,
       width: 300,
     } as Partial<MindNode>);
-  }
-
-  async function addImageItem() {
-    if (!root) return;
-    const ref = await pickMediaAndStore("image");
-    if (!ref) return;
-    const id = addNode(project.id, { parentId: root.id });
-    if (!id) return;
-    updateNode(project.id, id, {
-      text: ref.name.replace(/\.[^.]+$/, "").slice(0, 40),
-      role: "item",
-      order: items.length,
-      rank: nextRank(),
-      imageRef: ref,
-      imageName: ref.name,
-      width: 300,
-    } as Partial<MindNode>);
+    setSelectedId(id);
   }
 
   function reindexCallOrder(newList: MindNode[]) {
@@ -101,19 +107,50 @@ export function RankingEditor({ project }: { project: Project }) {
     });
   }
 
-  function moveTo(id: string, targetIdx: number) {
+  function moveCall(id: string, targetIdx: number) {
     const src = items.findIndex((n) => n.id === id);
     if (src === -1 || src === targetIdx) return;
     const next = [...items];
     const [n] = next.splice(src, 1);
-    next.splice(targetIdx, 0, n);
+    next.splice(Math.max(0, Math.min(N - 1, targetIdx)), 0, n);
     reindexCallOrder(next);
   }
 
-  function setRank(id: string, raw: string) {
-    const parsed = parseInt(raw, 10);
-    const clamped = Number.isFinite(parsed) ? Math.max(1, Math.min(items.length, parsed)) : undefined;
-    updateNode(project.id, id, { rank: clamped } as Partial<MindNode>);
+  function assignRank(itemId: string, targetRank: number) {
+    const item = itemsById.get(itemId);
+    if (!item) return;
+    const prev = item.rank;
+    if (prev === targetRank) return;
+    const occupant = byRank.get(targetRank);
+    updateNode(project.id, itemId, { rank: targetRank } as Partial<MindNode>);
+    // Swap: the previous occupant takes this item's old rank (or clears).
+    if (occupant && occupant.id !== itemId) {
+      updateNode(project.id, occupant.id, { rank: prev } as Partial<MindNode>);
+    }
+  }
+
+  function removeItem(id: string) {
+    if (selectedId === id) setSelectedId(null);
+    deleteNode(project.id, id);
+  }
+
+  async function setItemImage() {
+    if (!selected) return;
+    const ref = await pickMediaAndStore("image");
+    if (!ref) return;
+    updateNode(project.id, selected.id, {
+      imageRef: ref,
+      imageName: ref.name,
+    } as Partial<MindNode>);
+  }
+
+  function clearItemImage() {
+    if (!selected) return;
+    updateNode(project.id, selected.id, {
+      imageRef: undefined,
+      image: undefined,
+      imageName: undefined,
+    } as Partial<MindNode>);
   }
 
   async function onPickFormat(fmt: RecordFormat) {
@@ -133,7 +170,6 @@ export function RankingEditor({ project }: { project: Project }) {
     navigate({ to: "/projects/$id/present", params: { id: project.id }, search: {} });
   }
 
-  // Warnings: duplicate ranks or missing ranks.
   const rankIssues = useMemo(() => {
     const seen = new Map<number, number>();
     const dupes = new Set<number>();
@@ -162,9 +198,6 @@ export function RankingEditor({ project }: { project: Project }) {
         <Button size="sm" variant="outline" onClick={addItem} className="gap-1.5">
           <Plus className="size-3.5" /> Item
         </Button>
-        <Button size="sm" variant="outline" onClick={addImageItem} className="gap-1.5">
-          <ImageIcon className="size-3.5" /> Imagem
-        </Button>
         <Button variant="destructive" size="sm" onClick={() => setRecordOpen(true)} className="gap-1.5">
           <Circle className="size-3 fill-current" /> Gravar
         </Button>
@@ -173,80 +206,170 @@ export function RankingEditor({ project }: { project: Project }) {
         </Button>
       </header>
 
-      <main className="flex-1 overflow-auto p-6">
-        <div className="mx-auto max-w-4xl space-y-4">
-          <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
-            <p className="font-medium text-foreground mb-1">Como funciona</p>
-            <p><strong>Ordem de chamada</strong> (arraste os itens): a sequência em que aparecem na apresentação.</p>
-            <p><strong>Posição no ranking</strong> (número à direita): onde cada item termina no ranking final.</p>
-            <p>Assim, o público vê os itens aparecerem e serem posicionados — e um item novo pode passar outro no topo.</p>
+      <main className="flex-1 overflow-hidden flex flex-col">
+        <div className="px-6 pt-4 pb-2 shrink-0">
+          <div className="mx-auto max-w-6xl rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5 text-xs text-muted-foreground">
+            <span className="text-foreground font-medium">Como funciona: </span>
+            arraste na coluna <strong>Ordem de chamada</strong> para definir a sequência de revelação.
+            Arraste itens para as posições da coluna <strong>Ranking</strong> para definir onde cada um termina.
+            Clique num item para editar texto, descrição e imagem.
             {(rankIssues.dupes.size > 0 || rankIssues.missing > 0) && (
-              <p className="mt-2 text-amber-600 dark:text-amber-400">
-                {rankIssues.missing > 0 && `${rankIssues.missing} item(s) sem posição definida. `}
-                {rankIssues.dupes.size > 0 && `Posições duplicadas: ${[...rankIssues.dupes].sort((a, b) => a - b).join(", ")}.`}
-              </p>
+              <span className="ml-2 text-amber-600 dark:text-amber-400">
+                {rankIssues.missing > 0 && `${rankIssues.missing} sem posição. `}
+                {rankIssues.dupes.size > 0 && `Duplicadas: ${[...rankIssues.dupes].sort((a, b) => a - b).join(", ")}.`}
+              </span>
             )}
           </div>
+        </div>
 
-          {items.length === 0 && (
-            <div className="text-center text-sm text-muted-foreground py-12">
-              Adicione itens acima. Arraste para reordenar a chamada; defina a posição final em cada card.
-            </div>
-          )}
-
-          <div className="space-y-3">
-            {items.map((it, i) => (
-              <div
-                key={it.id}
-                draggable
-                onDragStart={() => setDragId(it.id)}
-                onDragEnd={() => setDragId(null)}
-                onDragOver={(e) => { if (dragId && dragId !== it.id) e.preventDefault(); }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (dragId) moveTo(dragId, i);
-                  setDragId(null);
-                }}
-                className={`rounded-lg border border-border/60 bg-card p-3 shadow-sm space-y-2 ${
-                  dragId === it.id ? "opacity-50" : ""
-                } ${rankIssues.dupes.has(it.rank ?? -1) ? "ring-1 ring-amber-400/60" : ""}`}
-              >
-                <div className="flex items-center gap-3">
-                  <GripVertical className="size-4 text-muted-foreground shrink-0 cursor-grab" />
-                  <div className="flex flex-col items-center w-14 shrink-0">
-                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Chamada</span>
-                    <span className="text-xl font-bold tabular-nums">{i + 1}º</span>
-                  </div>
-                  <div className="size-12 rounded bg-muted overflow-hidden shrink-0"><Thumb node={it} /></div>
-                  <Input value={it.text} onChange={(e) => updateNode(project.id, it.id, { text: e.target.value })}
-                    placeholder="Título do item"
-                    className="h-9 text-sm flex-1" />
-                  <div className="flex flex-col items-center shrink-0">
-                    <label className="text-[10px] uppercase tracking-wide text-muted-foreground">Ranking</label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={items.length}
-                      value={it.rank ?? ""}
-                      onChange={(e) => setRank(it.id, e.target.value)}
-                      className="h-9 w-16 text-center tabular-nums font-semibold"
-                    />
-                  </div>
-                  <button onClick={() => deleteNode(project.id, it.id)}
-                    className="size-8 grid place-items-center rounded hover:bg-destructive/10 text-destructive shrink-0">
-                    <Trash2 className="size-4" />
-                  </button>
+        <div className="flex-1 overflow-hidden px-6 pb-6">
+          <div className="mx-auto max-w-6xl h-full grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* ============= CALL ORDER COLUMN ============= */}
+            <section className="flex flex-col rounded-lg border border-border/60 bg-card/50 overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-border/60 flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-semibold">Ordem de chamada</div>
+                  <div className="text-[11px] text-muted-foreground">Sequência de revelação na apresentação.</div>
                 </div>
-                <Textarea
-                  value={it.body ?? ""}
-                  onChange={(e) => updateNode(project.id, it.id, { body: e.target.value } as Partial<MindNode>)}
-                  placeholder="Descrição (opcional) — aparece no card expandido durante a chamada"
-                  className="text-sm min-h-[60px] resize-none"
-                />
+                <Button size="sm" variant="outline" onClick={addItem} className="gap-1.5 h-7">
+                  <Plus className="size-3.5" /> Item
+                </Button>
               </div>
-            ))}
+              <div className="flex-1 overflow-auto p-3 space-y-1.5">
+                {items.length === 0 && (
+                  <div className="text-center text-xs text-muted-foreground italic py-8">
+                    Adicione itens para começar.
+                  </div>
+                )}
+                {items.map((it, i) => (
+                  <div
+                    key={it.id}
+                    draggable
+                    onDragStart={(e) => {
+                      setDrag({ id: it.id, from: "call" });
+                      e.dataTransfer.effectAllowed = "move";
+                    }}
+                    onDragEnd={() => setDrag(null)}
+                    onDragOver={(e) => {
+                      if (drag && drag.from === "call" && drag.id !== it.id) e.preventDefault();
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (drag && drag.from === "call") moveCall(drag.id, i);
+                      setDrag(null);
+                    }}
+                    onClick={() => setSelectedId(it.id)}
+                    className={`group flex items-center gap-2 rounded-md border px-2 py-1.5 bg-background cursor-grab active:cursor-grabbing transition ${
+                      selectedId === it.id ? "border-primary ring-1 ring-primary/40" : "border-border/60 hover:border-border"
+                    } ${drag?.id === it.id ? "opacity-40" : ""}`}
+                  >
+                    <GripVertical className="size-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-xs font-bold tabular-nums w-6 text-muted-foreground shrink-0">{i + 1}º</span>
+                    <Thumb node={it} size={28} />
+                    <span className="flex-1 text-sm truncate">{it.text || <span className="text-muted-foreground italic">sem título</span>}</span>
+                    {typeof it.rank === "number" && (
+                      <span className="text-[10px] font-semibold tabular-nums text-muted-foreground shrink-0">#{it.rank}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* ============= RANKING COLUMN ============= */}
+            <section className="flex flex-col rounded-lg border border-border/60 bg-card/50 overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-border/60">
+                <div className="text-sm font-semibold">Ranking final</div>
+                <div className="text-[11px] text-muted-foreground">Arraste um item para a posição desejada. Solte sobre um slot ocupado para trocar.</div>
+              </div>
+              <div className="flex-1 overflow-auto p-3 space-y-1.5">
+                {N === 0 && (
+                  <div className="text-center text-xs text-muted-foreground italic py-8">
+                    Sem itens ainda.
+                  </div>
+                )}
+                {Array.from({ length: N }, (_, i) => i + 1).map((rank) => {
+                  const it = byRank.get(rank);
+                  const medal = rank === 1 ? "text-amber-400" : rank === 2 ? "text-slate-300" : rank === 3 ? "text-amber-600" : "text-muted-foreground";
+                  return (
+                    <div
+                      key={rank}
+                      onDragOver={(e) => { if (drag) e.preventDefault(); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (drag) assignRank(drag.id, rank);
+                        setDrag(null);
+                      }}
+                      className={`flex items-center gap-2 rounded-md border px-2 py-1.5 min-h-[44px] transition ${
+                        it ? "bg-background border-border/60" : "bg-muted/20 border-dashed border-border/40"
+                      }`}
+                    >
+                      <span className={`text-base font-bold tabular-nums w-8 text-center shrink-0 ${medal}`}>{rank}º</span>
+                      {it ? (
+                        <div
+                          draggable
+                          onDragStart={(e) => {
+                            setDrag({ id: it.id, from: "rank" });
+                            e.dataTransfer.effectAllowed = "move";
+                          }}
+                          onDragEnd={() => setDrag(null)}
+                          onClick={() => setSelectedId(it.id)}
+                          className={`flex-1 flex items-center gap-2 rounded px-1.5 py-1 cursor-grab active:cursor-grabbing transition ${
+                            selectedId === it.id ? "bg-primary/10 ring-1 ring-primary/40" : "hover:bg-muted/50"
+                          } ${drag?.id === it.id ? "opacity-40" : ""}`}
+                        >
+                          <Thumb node={it} size={28} />
+                          <span className="flex-1 text-sm truncate">{it.text || <span className="text-muted-foreground italic">sem título</span>}</span>
+                        </div>
+                      ) : (
+                        <span className="flex-1 text-xs text-muted-foreground italic">Solte um item aqui</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
           </div>
         </div>
+
+        {/* ============= INSPECTOR (bottom sheet) ============= */}
+        {selected && (
+          <div className="border-t border-border/60 bg-card/80 backdrop-blur px-6 py-3 shrink-0">
+            <div className="mx-auto max-w-6xl flex items-start gap-3">
+              <div className="shrink-0"><Thumb node={selected} size={64} /></div>
+              <div className="flex-1 min-w-0 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={selected.text}
+                    onChange={(e) => updateNode(project.id, selected.id, { text: e.target.value })}
+                    placeholder="Título do item"
+                    className="h-8 text-sm"
+                  />
+                  <Button size="sm" variant="outline" onClick={setItemImage} className="gap-1.5 h-8 shrink-0">
+                    <ImageIcon className="size-3.5" /> {selected.imageRef || selected.image ? "Trocar" : "Imagem"}
+                  </Button>
+                  {(selected.imageRef || selected.image) && (
+                    <Button size="sm" variant="ghost" onClick={clearItemImage} className="h-8 shrink-0" aria-label="Remover imagem">
+                      <X className="size-3.5" />
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" onClick={() => removeItem(selected.id)}
+                    className="h-8 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5">
+                    <Trash2 className="size-3.5" /> Excluir
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedId(null)} className="h-8 shrink-0" aria-label="Fechar">
+                    <X className="size-4" />
+                  </Button>
+                </div>
+                <Textarea
+                  value={selected.body ?? ""}
+                  onChange={(e) => updateNode(project.id, selected.id, { body: e.target.value } as Partial<MindNode>)}
+                  placeholder="Descrição (opcional) — aparece no card expandido durante a chamada"
+                  className="text-sm min-h-[52px] resize-none"
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       <RecordFormatMenu open={recordOpen} onClose={() => setRecordOpen(false)} onPick={onPickFormat} />
