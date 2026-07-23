@@ -326,10 +326,7 @@ export function IcebergEditor({ project }: { project: Project }) {
           node={expanded}
           projectId={project.id}
           onClose={() => setExpandedId(null)}
-          onDelete={() => {
-            deleteNode(project.id, expanded.id);
-            setExpandedId(null);
-          }}
+          onDelete={() => handleDeleteItem(expanded)}
         />
       )}
 
