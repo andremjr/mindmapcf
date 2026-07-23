@@ -183,7 +183,7 @@ export function BracketEditor({ project }: { project: Project }) {
                 <div className="text-sm font-semibold">Definir vencedores</div>
                 <div className="text-xs text-white/60">Clique no competidor vencedor de cada confronto. O vencedor avança automaticamente para a próxima rodada.</div>
               </div>
-              <div className="min-h-[520px] rounded-md bg-gradient-to-br from-neutral-950 via-slate-900 to-neutral-950 p-3">
+              <div className="h-[70vh] min-h-[420px] rounded-md bg-gradient-to-br from-neutral-950 via-slate-900 to-neutral-950 p-3 overflow-auto">
                 <BracketBoard
                   competitors={competitors}
                   winners={winners}
@@ -192,6 +192,7 @@ export function BracketEditor({ project }: { project: Project }) {
                   onPickWinner={pickWinner}
                 />
               </div>
+
             </div>
           )}
         </div>
