@@ -1,9 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
-import { ArrowLeft, Crown, ExternalLink } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowLeft, Crown, ExternalLink, Check, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
+import { supabase } from "@/integrations/supabase/client";
 import { KIWIFY_CUSTOMER_PORTAL } from "@/lib/kiwifyLinks";
 
 const PLAN_LABEL: Record<string, string> = {
