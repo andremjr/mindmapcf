@@ -132,7 +132,7 @@ function useResolvedImage(node: MindNode | null | undefined) {
   return url;
 }
 
-function CompetitorCard({
+export function CompetitorCard({
   node, state, onClick, small = false, expanded = false,
 }: {
   node: MindNode;
