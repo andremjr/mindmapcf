@@ -1062,6 +1062,40 @@ export function MindMapEditor({ project }: { project: Project }) {
                   : "Escolher avatar sonoro (Pro)"}
 
               </button>
+
+              <div className="mt-3 rounded-lg border border-border/60 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-xs font-medium">Narração pré-gravada (Pro)</div>
+                  {project.narrationRef && (
+                    <button
+                      onClick={() => setNarration(project.id, null)}
+                      className="text-[11px] text-muted-foreground hover:text-destructive"
+                    >
+                      Remover
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Anexe um áudio (mp3/wav/m4a). No modo Gravar, o áudio substitui o microfone e você opera os nós no ritmo da narração. O avatar sonoro reage à narração.
+                </p>
+                <button
+                  onClick={async () => {
+                    if (!isPro) {
+                      toast.error("Narração pré-gravada é um recurso Pro.");
+                      return;
+                    }
+                    const ref = await pickMediaAndStore("audio");
+                    if (ref) {
+                      setNarration(project.id, ref);
+                      toast.success(`Narração anexada: ${ref.name}`);
+                    }
+                  }}
+                  className="mt-2 inline-flex items-center gap-2 text-xs rounded-md border border-border/60 hover:border-primary hover:bg-muted/50 px-3 py-1.5"
+                >
+                  <Mic className="size-3.5" />
+                  {project.narrationRef ? `Trocar áudio (${project.narrationRef.name})` : "Anexar áudio"}
+                </button>
+              </div>
             </div>
 
             <div className="p-3 grid gap-2">
