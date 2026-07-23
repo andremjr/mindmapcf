@@ -40,6 +40,17 @@ function AccountPage() {
   const navigate = useNavigate();
   const { subscription, loading: subLoading, isPro } = useSubscription(user?.id);
 
+  const initialName =
+    ((user?.user_metadata as { display_name?: string } | null)?.display_name ?? "").trim();
+  const [displayName, setDisplayName] = useState(initialName);
+  const [savingName, setSavingName] = useState(false);
+
+  useEffect(() => {
+    setDisplayName(
+      ((user?.user_metadata as { display_name?: string } | null)?.display_name ?? "").trim(),
+    );
+  }, [user?.id, user?.user_metadata]);
+
   useEffect(() => {
     if (!authLoading && !session) navigate({ to: "/auth", replace: true });
   }, [authLoading, session, navigate]);
@@ -52,6 +63,20 @@ function AccountPage() {
   const status = subscription?.status;
   const isCanceled = status === "canceled";
   const isPastDue = status === "past_due";
+  const greetingName = displayName.trim() || user?.email;
+  const nameDirty = displayName.trim() !== initialName;
+
+  async function saveDisplayName() {
+    const trimmed = displayName.trim().slice(0, 60);
+    setSavingName(true);
+    const { error } = await supabase.auth.updateUser({ data: { display_name: trimmed } });
+    setSavingName(false);
+    if (error) {
+      toast.error("Não foi possível salvar seu nome");
+      return;
+    }
+    toast.success("Nome atualizado");
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -66,13 +91,37 @@ function AccountPage() {
 
       <main className="mx-auto max-w-4xl px-6 py-10 space-y-8">
         <section>
-          <h1 className="text-2xl font-semibold">Olá, {user?.email}</h1>
+          <h1 className="text-2xl font-semibold">Olá, {greetingName}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Gerencie sua assinatura, meio de pagamento e faturas.
+            Gerencie seu nome de exibição, assinatura e faturas.
           </p>
         </section>
 
         <section className="rounded-xl border border-border bg-card p-6">
+          <h2 className="text-base font-semibold">Nome de exibição</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Aparece no topo do app. Deixe em branco para voltar a mostrar seu e-mail.
+          </p>
+          <div className="mt-4 flex flex-col sm:flex-row gap-3 sm:items-end">
+            <div className="flex-1">
+              <Label htmlFor="display-name" className="text-xs text-muted-foreground">
+                Nome
+              </Label>
+              <Input
+                id="display-name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                maxLength={60}
+                placeholder="Como você quer ser chamado"
+                className="mt-1"
+              />
+            </div>
+            <Button onClick={saveDisplayName} disabled={savingName || !nameDirty} className="gap-2">
+              {savingName ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+              Salvar
+            </Button>
+          </div>
+        </section>
           <div className="flex items-center gap-3">
             <div className="grid size-10 place-items-center rounded-lg bg-primary text-primary-foreground">
               <Crown className="size-5" />
