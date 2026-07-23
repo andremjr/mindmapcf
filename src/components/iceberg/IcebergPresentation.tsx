@@ -38,17 +38,29 @@ function useResolvedImage(node: MindNode | null | undefined) {
   return url;
 }
 
-function ItemTile({ node, active, onClick }: { node: MindNode; active: boolean; onClick: () => void }) {
+function ItemTile({ node, active, onClick, scatter }: { node: MindNode; active: boolean; onClick: () => void; scatter?: { left: string; top: string; rotate: number; size: number } }) {
   const url = useResolvedImage(node);
+  const style: React.CSSProperties = scatter
+    ? {
+        position: "absolute",
+        left: scatter.left,
+        top: scatter.top,
+        width: scatter.size,
+        height: scatter.size,
+        transform: `translate(-50%,-50%) rotate(${scatter.rotate}deg)${active ? " scale(1.12)" : ""}`,
+        background: "rgba(0,0,0,0.5)",
+        zIndex: active ? 5 : 1,
+      }
+    : { width: 104, height: 104, background: "rgba(0,0,0,0.5)" };
   return (
     <button
       onClick={onClick}
-      className={`relative rounded-md border overflow-hidden shrink-0 transition-all duration-300 ${
+      className={`rounded-md border overflow-hidden shrink-0 transition-all duration-300 ${
         active
-          ? "ring-2 ring-white/90 scale-105 shadow-[0_0_30px_rgba(255,255,255,0.4)] border-white/70"
+          ? "ring-2 ring-white/90 shadow-[0_0_30px_rgba(255,255,255,0.4)] border-white/70"
           : "border-white/30 hover:border-white/60"
       }`}
-      style={{ width: 104, height: 104, background: "rgba(0,0,0,0.5)" }}
+      style={style}
     >
       {url ? (
         <img src={url} alt="" className="absolute inset-0 size-full object-cover" />
@@ -60,6 +72,14 @@ function ItemTile({ node, active, onClick }: { node: MindNode; active: boolean; 
     </button>
   );
 }
+
+/** Deterministic pseudo-random in [0,1) from a string seed. */
+function seeded(seed: string) {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return ((h >>> 0) % 10000) / 10000;
+}
+
 
 export function IcebergPresentation({
   project,
