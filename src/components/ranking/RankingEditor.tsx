@@ -39,8 +39,10 @@ function Thumb({ node }: { node: MindNode }) {
   return <img src={url} alt="" className="absolute inset-0 size-full object-cover" />;
 }
 
-/* ---------- auto-fit grid dimensions ---------- */
-/** Picks the (cols × rows) layout whose cells are closest to square. */
+/* ---------- auto-fit grid dimensions ----------
+   Picks the (cols × rows) layout that maximizes the size of SQUARE cells
+   that fit inside the container. Cards render as squares (aspect-square)
+   so they look consistent no matter how many items exist. */
 function useAutoGrid(count: number) {
   const ref = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ w: 0, h: 0 });
@@ -58,15 +60,15 @@ function useAutoGrid(count: number) {
   const layout = useMemo(() => {
     const n = Math.max(1, count);
     const { w, h } = dims;
-    if (!w || !h) return { cols: 1, rows: n };
-    let best = { cols: 1, rows: n, score: Infinity };
+    if (!w || !h) return { cols: 1, rows: n, cell: 0 };
+    const GAP = 8;
+    let best = { cols: 1, rows: n, cell: 0 };
     for (let c = 1; c <= n; c++) {
       const r = Math.ceil(n / c);
-      const cw = w / c;
-      const ch = h / r;
-      // score = distance from square, prefer near-square cells
-      const score = Math.abs(Math.log(cw / ch));
-      if (score < best.score) best = { cols: c, rows: r, score };
+      const cellW = (w - GAP * (c - 1)) / c;
+      const cellH = (h - GAP * (r - 1)) / r;
+      const cell = Math.floor(Math.min(cellW, cellH));
+      if (cell > best.cell) best = { cols: c, rows: r, cell };
     }
     return best;
   }, [count, dims]);
@@ -211,12 +213,14 @@ export function RankingEditor({ project }: { project: Project }) {
     return { dupes, missing };
   }, [items]);
 
-  /* --- auto-fit grid: no scroll, everything fits in the frame --- */
+  /* --- auto-fit grid: no scroll, square cards fit inside the frame --- */
   const callGrid = useAutoGrid(N || 1);
   const rankGrid = useAutoGrid(N || 1);
-  const gridStyle = (g: { cols: number; rows: number }) => ({
-    gridTemplateColumns: `repeat(${g.cols}, minmax(0, 1fr))`,
-    gridTemplateRows: `repeat(${g.rows}, minmax(0, 1fr))`,
+  const gridStyle = (g: { cols: number; cell: number }) => ({
+    gridTemplateColumns: `repeat(${g.cols}, ${g.cell}px)`,
+    gridAutoRows: `${g.cell}px`,
+    justifyContent: "center" as const,
+    alignContent: "center" as const,
   });
 
   return (
