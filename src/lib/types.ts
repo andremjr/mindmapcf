@@ -39,7 +39,16 @@ export interface MindNode {
   color?: string;
   /** Optional URL — shown as a button in presentation that opens the site in an in-frame iframe. */
   url?: string;
+  /** Semantic role used by template renderers (tierlist / iceberg). */
+  role?: "tier" | "item" | "level" | "board" | "iceberg";
+  /** Long-form body shown in iceberg's expanded card. */
+  body?: string;
+  /** Sort index within siblings (used by tiers/levels). */
+  order?: number;
 }
+
+/** Which canvas renderer this project uses. Default = mindmap. */
+export type ProjectTemplate = "mindmap" | "tierlist" | "iceberg";
 
 /**
  * A user-owned "sonic avatar" from the global library (persisted in
