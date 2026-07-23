@@ -455,7 +455,8 @@ export function TierListPresentation({
 
               {/* Pool of remaining items */}
               <div
-                onDragOver={allowDrop}
+                onDragOver={manualMode ? onHoverOver("pool") : allowDrop}
+                onDragLeave={manualMode ? onHoverLeave : undefined}
                 onDrop={onPoolDrop}
                 className="mt-3 rounded-lg border border-border bg-muted/40 px-3 py-2"
               >
@@ -474,23 +475,25 @@ export function TierListPresentation({
                     </div>
                   )}
                   {remaining.map((it, i) => (
-                    <motion.div
-                      key={it.id}
-                      data-item-id={it.id}
-                      layoutId={`item-${it.id}`}
-                      transition={{ type: "spring", stiffness: 260, damping: 28 }}
-                    >
-
-                      <TierItem
-                        node={it}
-                        size={72}
-                        highlighted={!manualMode && i === 0}
-                        draggable={manualMode}
-                        onDragStart={() => setDragId(it.id)}
-                        onDragEnd={() => setDragId(null)}
-                      />
-                    </motion.div>
+                    <div key={it.id} className="contents">
+                      {manualMode && hover?.key === "pool" && hover.idx === i && <DropIndicator />}
+                      <motion.div
+                        data-item-id={it.id}
+                        layoutId={`item-${it.id}`}
+                        transition={{ type: "spring", stiffness: 260, damping: 28 }}
+                      >
+                        <TierItem
+                          node={it}
+                          size={72}
+                          highlighted={!manualMode && i === 0}
+                          draggable={manualMode}
+                          onDragStart={() => setDragId(it.id)}
+                          onDragEnd={() => { setDragId(null); setHover(null); }}
+                        />
+                      </motion.div>
+                    </div>
                   ))}
+                  {manualMode && dragId && hover?.key === "pool" && hover.idx === remaining.length && <DropIndicator />}
                 </div>
               </div>
             </div>
