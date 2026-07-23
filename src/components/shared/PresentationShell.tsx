@@ -194,12 +194,13 @@ export function PresentationShell({
         </div>
       </div>
 
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+      <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
         {!recording && <ThemeToggle />}
         <button onClick={stopAndDownload} className="size-10 grid place-items-center rounded-full bg-foreground/10 backdrop-blur border border-border hover:bg-foreground/20 text-foreground">
           <X className="size-4" />
         </button>
       </div>
+
 
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-foreground/10 backdrop-blur border border-border px-2 py-2 text-foreground">
         <button onClick={onPrev} disabled={!canPrev} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
