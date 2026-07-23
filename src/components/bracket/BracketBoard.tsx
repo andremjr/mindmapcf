@@ -193,12 +193,12 @@ export function CompetitorCard({
       style={{ minHeight: small ? 42 : 52 }}
     >
       <div className="flex items-center gap-2 p-1.5">
-        <div className={`rounded bg-black/60 overflow-hidden shrink-0 grid place-items-center ${small ? "size-8" : "size-10"}`}>
-          {url ? <img src={url} alt="" className="size-full object-cover" /> : (
-            <span className="text-[10px] text-white/50">?</span>
-          )}
-        </div>
-        <div className={`font-medium leading-tight line-clamp-2 ${textCls} ${small ? "text-[11px]" : "text-xs"}`}>
+        {url ? (
+          <div className={`rounded bg-black/60 overflow-hidden shrink-0 grid place-items-center ${small ? "size-8" : "size-10"}`}>
+            <img src={url} alt="" className="size-full object-cover" />
+          </div>
+        ) : null}
+        <div className={`flex-1 font-medium leading-tight line-clamp-2 ${textCls} ${small ? "text-[11px]" : "text-xs"} ${url ? "" : "text-center px-1"}`}>
           {node.text || "—"}
         </div>
       </div>
