@@ -314,16 +314,21 @@ export function IcebergPresentation({
                     </div>
                     <div className="relative z-10 flex-1 w-full" style={{ minHeight: levelHeight - 140 }}>
                       {items.map((it, k) => {
-                        const rx = seeded(it.id + "x");
-                        const ry = seeded(it.id + "y");
-                        const rr = seeded(it.id + "r");
-                        const rs = seeded(it.id + "s");
-                        // Spread horizontally in bands so they don't overlap too much
-                        const band = items.length > 0 ? (k + 0.5) / items.length : 0.5;
-                        const leftPct = 8 + band * 84 + (rx - 0.5) * 14;
-                        const topPct = 15 + ry * 70;
-                        const rotate = (rr - 0.5) * 18;
-                        const size = 96 + Math.round(rs * 32);
+                        // Non-overlapping slot grid with small jitter inside each slot.
+                        const n = items.length;
+                        const cols = Math.min(n, Math.max(1, Math.ceil(Math.sqrt(n * 1.8))));
+                        const rows = Math.ceil(n / cols);
+                        const col = k % cols;
+                        const row = Math.floor(k / cols);
+                        const slotW = 84 / cols;   // % width per slot (leaves 8% margin each side)
+                        const slotH = 80 / rows;   // % height per slot
+                        const jitterX = (seeded(it.id + "x") - 0.5) * slotW * 0.35;
+                        const jitterY = (seeded(it.id + "y") - 0.5) * slotH * 0.35;
+                        const leftPct = 8 + slotW * (col + 0.5) + jitterX;
+                        const topPct = 10 + slotH * (row + 0.5) + jitterY;
+                        const rotate = (seeded(it.id + "r") - 0.5) * 16;
+                        // Keep sizes close so grid stays tidy; slight variation for organic feel.
+                        const size = 100 + Math.round(seeded(it.id + "s") * 20);
                         return (
                           <ItemTile
                             key={it.id}
@@ -338,6 +343,7 @@ export function IcebergPresentation({
                         );
                       })}
                     </div>
+
 
                   </div>
                 );
