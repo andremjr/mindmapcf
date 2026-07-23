@@ -28,7 +28,7 @@ export function PresentationShell({
   onPrev,
   canNext,
   canPrev,
-  frameBg = "bg-neutral-950",
+  frameBg = "bg-background",
   children,
 }: {
   project: Project;
@@ -172,7 +172,7 @@ export function PresentationShell({
     : { position: "absolute", inset: 0 };
 
   return (
-    <div className="fixed inset-0 bg-neutral-950 text-white overflow-hidden">
+    <div className="fixed inset-0 bg-background text-foreground overflow-hidden">
       {recording && recState?.state === "recording" && recState.startedAt != null && (
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3">
           <RecorderHUD startedAt={recState.startedAt} onStop={stopAndDownload} cropped={cropOk} />
@@ -186,8 +186,8 @@ export function PresentationShell({
             <div className="absolute inset-0 grid place-items-center pointer-events-none z-30">
               <div
                 key={countdown}
-                className="animate-scale-in text-white/90 font-semibold tabular-nums"
-                style={{ fontSize: Math.round(Math.min(size.w, size.h) * 0.35), textShadow: "0 8px 40px rgba(0,0,0,0.6)", lineHeight: 1 }}
+                className="animate-scale-in text-foreground/90 font-semibold tabular-nums"
+                style={{ fontSize: Math.round(Math.min(size.w, size.h) * 0.35), textShadow: "0 8px 40px rgba(0,0,0,0.3)", lineHeight: 1 }}
               >{countdown}</div>
             </div>
           )}
@@ -196,39 +196,39 @@ export function PresentationShell({
 
       <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
         {!recording && <ThemeToggle />}
-        <button onClick={stopAndDownload} className="size-10 grid place-items-center rounded-full bg-black/70 backdrop-blur border border-white/20 hover:bg-black/90 text-white">
+        <button onClick={stopAndDownload} className="size-10 grid place-items-center rounded-full bg-foreground/10 backdrop-blur border border-border hover:bg-foreground/20 text-foreground">
           <X className="size-4" />
         </button>
       </div>
 
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-black/70 backdrop-blur border border-white/20 px-2 py-2">
-        <button onClick={onPrev} disabled={!canPrev} className="size-9 grid place-items-center rounded-full hover:bg-white/10 disabled:opacity-40">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-foreground/10 backdrop-blur border border-border px-2 py-2 text-foreground">
+        <button onClick={onPrev} disabled={!canPrev} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
           <ChevronLeft className="size-5" />
         </button>
         <span className="px-3 text-sm font-mono tabular-nums min-w-[70px] text-center">{navLabel}</span>
-        <button onClick={onNext} disabled={!canNext} className="size-9 grid place-items-center rounded-full hover:bg-white/10 disabled:opacity-40">
+        <button onClick={onNext} disabled={!canNext} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
           <ChevronRight className="size-5" />
         </button>
       </div>
 
       {result && (
-        <div className="absolute inset-0 z-30 bg-black/90 backdrop-blur grid place-items-center p-6">
-          <div className="w-full max-w-2xl rounded-2xl border border-white/20 bg-neutral-900 shadow-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
+        <div className="absolute inset-0 z-30 bg-background/95 backdrop-blur grid place-items-center p-6">
+          <div className="w-full max-w-2xl rounded-2xl border border-border bg-card text-card-foreground shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold">Gravação finalizada</h2>
-                <p className="text-xs text-white/60 mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {result.mimeType} · {fmtDur(result.durationMs)} · {(result.blob.size / 1024 / 1024).toFixed(1)} MB
                 </p>
               </div>
-              <button onClick={closeResult} className="size-8 grid place-items-center rounded-full hover:bg-white/10">
+              <button onClick={closeResult} className="size-8 grid place-items-center rounded-full hover:bg-foreground/10">
                 <X className="size-4" />
               </button>
             </div>
             <video src={result.url} controls className="w-full aspect-video bg-black" />
             <div className="px-6 py-4 flex items-center justify-end gap-2">
-              <button onClick={closeResult} className="px-3 py-2 text-sm rounded-md hover:bg-white/10">Fechar</button>
-              <a href={result.url} download={result.filename} className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md bg-white text-black hover:opacity-90">
+              <button onClick={closeResult} className="px-3 py-2 text-sm rounded-md hover:bg-foreground/10">Fechar</button>
+              <a href={result.url} download={result.filename} className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:opacity-90">
                 <Download className="size-4" /> Baixar novamente
               </a>
             </div>
