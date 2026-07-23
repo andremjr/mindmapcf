@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ChevronLeft, Plus, Trash2, Image as ImageIcon, X, Play, Circle } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Image as ImageIcon, X, Play, Circle, GripVertical } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,52 +12,79 @@ import { launchRecording } from "@/lib/launchRecording";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
 
 const TIER_COLORS = [
   "#f43f5e", "#f97316", "#eab308", "#22c55e",
   "#3b82f6", "#8b5cf6", "#ec4899", "#64748b",
 ];
 
-function useResolvedImage(node: MindNode | undefined) {
-  const [url, setUrl] = useState<string | null>(node?.image ?? null);
+function useResolvedImage(node: MindNode | null | undefined) {
+  const [url, setUrl] = useState<string | null>(null);
   const key = node?.imageRef?.id ?? node?.image ?? "";
-  // Use a real effect (previous useMemo was misusing side effects)
-  useMemo(() => {
+  useEffect(() => {
     if (!node) { setUrl(null); return; }
     if (node.image) { setUrl(node.image); return; }
     if (!node.imageRef) { setUrl(null); return; }
-    resolveImage(node.imageRef).then((u) => setUrl(u));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    let alive = true;
+    resolveImage(node.imageRef).then((u) => alive && setUrl(u));
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
   return url;
 }
 
-function ItemThumb({ node, onRemove }: { node: MindNode; onRemove: () => void }) {
+function ItemThumb({
+  node,
+  selected,
+  onClick,
+  onRemove,
+}: {
+  node: MindNode;
+  selected?: boolean;
+  onClick?: () => void;
+  onRemove: () => void;
+}) {
   const url = useResolvedImage(node);
   return (
     <div
-      className="group relative rounded-md border border-border/60 bg-card overflow-hidden shrink-0"
-      style={{ width: 96, height: 96 }}
+      onClick={onClick}
+      className={`group relative rounded-md border overflow-hidden shrink-0 bg-card cursor-pointer transition ${
+        selected
+          ? "border-primary ring-2 ring-primary/40"
+          : "border-border/60 hover:border-primary/50"
+      }`}
+      style={{ width: 104, height: 104 }}
     >
-      {url ? (
+      {url && (
         <img src={url} alt="" className="absolute inset-0 size-full object-cover" />
-      ) : (
-        <div className="absolute inset-0 grid place-items-center text-[11px] text-center px-1 leading-tight">
+      )}
+      {!url && (
+        <div className="absolute inset-0 grid place-items-center text-center px-1.5 leading-tight text-[11px] break-words whitespace-normal overflow-hidden">
           {node.text || "Item"}
         </div>
       )}
       {url && node.text && (
-        <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 py-0.5 truncate">
+        <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] px-1 py-0.5 leading-tight break-words whitespace-normal max-h-[45%] overflow-hidden">
           {node.text}
         </div>
       )}
+      {node.color && (
+        <div
+          className="absolute top-1 left-1 size-3 rounded-full border border-white/70 shadow"
+          style={{ background: node.color }}
+        />
+      )}
       <button
-        onClick={onRemove}
+        onClick={(e) => { e.stopPropagation(); onRemove(); }}
         className="absolute top-0.5 right-0.5 size-5 rounded-full bg-black/60 text-white grid place-items-center opacity-0 group-hover:opacity-100 transition"
         aria-label="Remover"
       >
         <X className="size-3" />
       </button>
+      <div className="absolute bottom-0.5 right-0.5 size-4 rounded bg-black/50 text-white grid place-items-center opacity-0 group-hover:opacity-100">
+        <GripVertical className="size-3" />
+      </div>
     </div>
   );
 }
@@ -81,21 +108,32 @@ export function TierListEditor({ project }: { project: Project }) {
     [project.nodes, board?.id],
   );
 
+  const allItems = useMemo(
+    () => project.nodes.filter((n) => n.role === "item"),
+    [project.nodes],
+  );
+
   const { itemsByTier, poolItems } = useMemo(() => {
     const m = new Map<string, MindNode[]>();
     for (const t of tiers) m.set(t.id, []);
     const pool: MindNode[] = [];
-    for (const n of project.nodes) {
-      if (n.role !== "item") continue;
+    for (const n of allItems) {
       if (n.parentId && m.has(n.parentId)) m.get(n.parentId)!.push(n);
       else pool.push(n);
     }
+    // Sort each bucket by call order
+    const byOrder = (a: MindNode, b: MindNode) => (a.order ?? 0) - (b.order ?? 0);
+    for (const arr of m.values()) arr.sort(byOrder);
+    pool.sort(byOrder);
     return { itemsByTier: m, poolItems: pool };
-  }, [project.nodes, tiers]);
+  }, [allItems, tiers]);
 
   const [titleDraft, setTitleDraft] = useState(project.title);
-  const [uploadTierId, setUploadTierId] = useState<string | null>(null);
   const [recordOpen, setRecordOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = selectedId ? allItems.find((n) => n.id === selectedId) ?? null : null;
+  const [selectedTierId, setSelectedTierId] = useState<string | null>(null);
+  const selectedTier = selectedTierId ? tiers.find((t) => t.id === selectedTierId) ?? null : null;
 
   function addTier() {
     if (!board) return;
@@ -110,42 +148,37 @@ export function TierListEditor({ project }: { project: Project }) {
     } as Partial<MindNode>);
   }
 
-  /** Add an item to the unassigned pool (parent = board). */
-  function addPoolItem(text = "Novo item") {
+  /** Add one item to the pool. Its order = next index across all items. */
+  function addItem() {
     if (!board) return;
-    const id = addNode(project.id, { parentId: board.id });
-    if (!id) return;
-    updateNode(project.id, id, { text, role: "item", width: 200 } as Partial<MindNode>);
-  }
-
-  async function uploadPoolImage() {
-    if (!board) return;
-    const ref = await pickMediaAndStore("image");
-    if (!ref) return;
+    const nextOrder = allItems.reduce((m, n) => Math.max(m, n.order ?? -1), -1) + 1;
     const id = addNode(project.id, { parentId: board.id });
     if (!id) return;
     updateNode(project.id, id, {
-      text: ref.name.replace(/\.[^.]+$/, "").slice(0, 30),
+      text: `Item ${nextOrder + 1}`,
       role: "item",
-      imageRef: ref,
-      imageName: ref.name,
+      order: nextOrder,
       width: 200,
     } as Partial<MindNode>);
+    setSelectedId(id);
+    setSelectedTierId(null);
   }
 
-  async function uploadItemImageIntoTier(tierId: string) {
-    setUploadTierId(tierId);
+  async function setSelectedImage() {
+    if (!selected) return;
     const ref = await pickMediaAndStore("image");
-    setUploadTierId(null);
     if (!ref) return;
-    const id = addNode(project.id, { parentId: tierId });
-    if (!id) return;
-    updateNode(project.id, id, {
-      text: ref.name.replace(/\.[^.]+$/, "").slice(0, 30),
-      role: "item",
+    updateNode(project.id, selected.id, {
       imageRef: ref,
       imageName: ref.name,
-      width: 200,
+    } as Partial<MindNode>);
+  }
+  function clearSelectedImage() {
+    if (!selected) return;
+    updateNode(project.id, selected.id, {
+      imageRef: undefined,
+      image: undefined,
+      imageName: undefined,
     } as Partial<MindNode>);
   }
 
@@ -179,6 +212,8 @@ export function TierListEditor({ project }: { project: Project }) {
     });
   }
 
+  const placedCount = allItems.length - poolItems.length;
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <header className="border-b border-border/60 px-4 py-3 flex items-center gap-3">
@@ -204,134 +239,205 @@ export function TierListEditor({ project }: { project: Project }) {
       </header>
 
       <main className="flex-1 overflow-auto p-6">
-        <div className="mx-auto max-w-6xl space-y-4">
-          {/* Pool of unassigned items */}
-          <div
-            className="rounded-lg border border-dashed border-border/60 bg-muted/20 p-3"
-            onDragOver={(e) => { if (dragItemId) e.preventDefault(); }}
-            onDrop={(e) => {
-              e.preventDefault();
-              if (dragItemId) { moveItem(dragItemId, null); setDragItemId(null); }
-            }}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <div className="text-sm font-semibold">Itens disponíveis</div>
-                <div className="text-xs text-muted-foreground">Adicione itens aqui e arraste para os tiers abaixo.</div>
+        <div className="mx-auto max-w-7xl grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
+          <div className="space-y-4">
+            {/* Pool of unassigned items */}
+            <div
+              className="rounded-lg border border-dashed border-border/60 bg-muted/20 p-3"
+              onDragOver={(e) => { if (dragItemId) e.preventDefault(); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (dragItemId) { moveItem(dragItemId, null); setDragItemId(null); }
+              }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <div className="text-sm font-semibold">Itens disponíveis</div>
+                  <div className="text-xs text-muted-foreground">
+                    Adicione itens em ordem de chamada e arraste para os tiers — ou deixe todos aqui para posicionar ao vivo na apresentação/gravação.
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-muted-foreground">
+                    {allItems.length} total · {placedCount} nos tiers
+                  </span>
+                  <Button size="sm" variant="outline" onClick={addItem} className="gap-1.5">
+                    <Plus className="size-3.5" /> Item
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => addPoolItem()} className="gap-1.5">
-                  <Plus className="size-3.5" /> Item texto
-                </Button>
-                <Button size="sm" variant="outline" onClick={uploadPoolImage} className="gap-1.5">
-                  <ImageIcon className="size-3.5" /> Item imagem
-                </Button>
+              <div className="min-h-[120px] flex flex-wrap gap-2 p-2">
+                {poolItems.map((it) => (
+                  <div
+                    key={it.id}
+                    draggable
+                    onDragStart={() => setDragItemId(it.id)}
+                    onDragEnd={() => setDragItemId(null)}
+                    className="cursor-grab active:cursor-grabbing relative"
+                  >
+                    <div className="absolute -top-1.5 -left-1.5 z-10 size-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold grid place-items-center shadow">
+                      {(it.order ?? 0) + 1}
+                    </div>
+                    <ItemThumb
+                      node={it}
+                      selected={selectedId === it.id}
+                      onClick={() => { setSelectedId(it.id); setSelectedTierId(null); }}
+                      onRemove={() => deleteNode(project.id, it.id)}
+                    />
+                  </div>
+                ))}
+                {poolItems.length === 0 && (
+                  <div className="self-center text-xs text-muted-foreground italic px-2">
+                    Nenhum item no pool.
+                  </div>
+                )}
               </div>
             </div>
-            <div className="min-h-[110px] flex flex-wrap gap-2 p-2">
-              {poolItems.map((it) => (
+
+            {tiers.map((tier) => {
+              const items = itemsByTier.get(tier.id) ?? [];
+              return (
                 <div
-                  key={it.id}
-                  draggable
-                  onDragStart={() => setDragItemId(it.id)}
-                  onDragEnd={() => setDragItemId(null)}
-                  onDoubleClick={() => {
-                    const t = prompt("Texto do item:", it.text || "");
-                    if (t !== null) updateNode(project.id, it.id, { text: t });
+                  key={tier.id}
+                  className="flex items-stretch rounded-lg overflow-hidden border border-border/60"
+                  onDragOver={(e) => { if (dragItemId) e.preventDefault(); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (dragItemId) { moveItem(dragItemId, tier.id); setDragItemId(null); }
                   }}
-                  className="cursor-grab active:cursor-grabbing"
                 >
-                  <ItemThumb node={it} onRemove={() => deleteNode(project.id, it.id)} />
+                  <div
+                    className={`min-w-[8rem] max-w-[14rem] w-40 shrink-0 grid place-items-center px-2 py-3 text-center cursor-pointer transition ${
+                      selectedTierId === tier.id ? "ring-2 ring-inset ring-foreground/30" : ""
+                    }`}
+                    style={{ background: tier.color || "#334155" }}
+                    onClick={() => { setSelectedTierId(tier.id); setSelectedId(null); }}
+                  >
+                    <textarea
+                      value={tier.text}
+                      onChange={(e) => updateNode(project.id, tier.id, { text: e.target.value })}
+                      className="bg-transparent text-center outline-none w-full font-bold uppercase tracking-wider text-base leading-tight resize-none text-white break-words whitespace-normal"
+                      placeholder="Nome do tier"
+                      rows={2}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                  <div className="flex-1 min-h-[128px] bg-muted/30 p-2 flex flex-wrap gap-2 items-start">
+                    {items.map((it) => (
+                      <div
+                        key={it.id}
+                        draggable
+                        onDragStart={() => setDragItemId(it.id)}
+                        onDragEnd={() => setDragItemId(null)}
+                        className="cursor-grab active:cursor-grabbing relative"
+                      >
+                        <div className="absolute -top-1.5 -left-1.5 z-10 size-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold grid place-items-center shadow">
+                          {(it.order ?? 0) + 1}
+                        </div>
+                        <ItemThumb
+                          node={it}
+                          selected={selectedId === it.id}
+                          onClick={() => { setSelectedId(it.id); setSelectedTierId(null); }}
+                          onRemove={() => deleteNode(project.id, it.id)}
+                        />
+                      </div>
+                    ))}
+                    {items.length === 0 && (
+                      <div className="self-center text-xs text-muted-foreground italic px-2">Arraste itens aqui.</div>
+                    )}
+                  </div>
+                  <div className="w-10 shrink-0 flex flex-col items-center justify-center gap-1 p-1 bg-muted/10 border-l border-border/40">
+                    <button
+                      onClick={() => deleteNode(project.id, tier.id)}
+                      className="text-muted-foreground hover:text-destructive p-1"
+                      title="Remover tier"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
                 </div>
-              ))}
-              {poolItems.length === 0 && (
-                <div className="self-center text-xs text-muted-foreground italic px-2">
-                  Nenhum item no pool. Adicione acima e depois arraste para um tier.
-                </div>
-              )}
+              );
+            })}
+
+            <div className="pt-2">
+              <Button variant="outline" onClick={addTier} className="gap-2">
+                <Plus className="size-4" /> Adicionar tier
+              </Button>
             </div>
           </div>
 
-          {tiers.map((tier) => {
-            const items = itemsByTier.get(tier.id) ?? [];
-            return (
-              <div
-                key={tier.id}
-                className="flex items-stretch rounded-lg overflow-hidden border border-border/60"
-                onDragOver={(e) => { if (dragItemId) e.preventDefault(); }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (dragItemId) { moveItem(dragItemId, tier.id); setDragItemId(null); }
-                }}
-              >
-                <div
-                  className="min-w-[8rem] max-w-[14rem] w-40 shrink-0 grid place-items-center px-2 py-3 font-bold text-base text-white text-center"
-                  style={{ background: tier.color || "#334155" }}
-                >
-                  <input
-                    value={tier.text}
-                    onChange={(e) => updateNode(project.id, tier.id, { text: e.target.value })}
-                    className="bg-transparent text-center outline-none w-full font-bold uppercase tracking-wider text-sm leading-tight"
-                    placeholder="Nome do tier"
-                    maxLength={24}
+          {/* Inspector */}
+          <aside className="rounded-lg border border-border/60 bg-card/40 p-4 h-fit sticky top-4 space-y-4">
+            {!selected && !selectedTier && (
+              <div className="text-sm text-muted-foreground">
+                Selecione um item ou tier para editar.
+              </div>
+            )}
+
+            {selected && (
+              <div className="space-y-3">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground">Item selecionado</div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground">Título</label>
+                  <Input
+                    value={selected.text}
+                    onChange={(e) => updateNode(project.id, selected.id, { text: e.target.value })}
+                    placeholder="Nome do item"
                   />
                 </div>
-                <div className="flex-1 min-h-[112px] bg-muted/30 p-2 flex flex-wrap gap-2 items-start">
-                  {items.map((it) => (
-                    <div
-                      key={it.id}
-                      draggable
-                      onDragStart={() => setDragItemId(it.id)}
-                      onDragEnd={() => setDragItemId(null)}
-                      onDoubleClick={() => {
-                        const t = prompt("Texto do item:", it.text || "");
-                        if (t !== null) updateNode(project.id, it.id, { text: t });
-                      }}
-                      className="cursor-grab active:cursor-grabbing"
-                    >
-                      <ItemThumb node={it} onRemove={() => deleteNode(project.id, it.id)} />
-                    </div>
-                  ))}
-                  {items.length === 0 && (
-                    <div className="self-center text-xs text-muted-foreground italic px-2">Arraste itens aqui.</div>
+
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={setSelectedImage} className="gap-1.5">
+                    <ImageIcon className="size-3.5" />
+                    {selected.imageRef ? "Trocar imagem" : "Adicionar imagem"}
+                  </Button>
+                  {selected.imageRef && (
+                    <Button size="sm" variant="ghost" onClick={clearSelectedImage} className="gap-1.5 text-destructive">
+                      <X className="size-3.5" /> Remover
+                    </Button>
                   )}
                 </div>
-                <div className="w-32 shrink-0 flex flex-col gap-1 p-2 bg-muted/10 border-l border-border/40">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => uploadItemImageIntoTier(tier.id)}
-                    disabled={uploadTierId === tier.id}
-                  >
-                    <ImageIcon className="size-3.5" /> + imagem
-                  </Button>
-                  <div className="flex items-center gap-1 flex-wrap px-1 pt-1">
-                    {TIER_COLORS.slice(0, 6).map((c) => (
-                      <button
-                        key={c}
-                        onClick={() => updateNode(project.id, tier.id, { color: c })}
-                        className="size-4 rounded-full border border-border/50"
-                        style={{ background: c }}
-                        aria-label={`Cor ${c}`}
-                      />
-                    ))}
-                  </div>
-                  <button
-                    onClick={() => deleteNode(project.id, tier.id)}
-                    className="text-[11px] text-muted-foreground hover:text-destructive flex items-center gap-1 px-2 py-1"
-                  >
-                    <Trash2 className="size-3" /> Remover tier
-                  </button>
-                </div>
-              </div>
-            );
-          })}
 
-          <div className="pt-2">
-            <Button variant="outline" onClick={addTier} className="gap-2">
-              <Plus className="size-4" /> Adicionar tier
-            </Button>
-          </div>
+                <NodeColorPicker
+                  value={selected.color}
+                  onChange={(c) => updateNode(project.id, selected.id, { color: c })}
+                  label="Cor do card"
+                />
+
+                <div className="text-[11px] text-muted-foreground pt-2 border-t border-border/40">
+                  Ordem de chamada: <strong className="text-foreground">#{(selected.order ?? 0) + 1}</strong>
+                </div>
+
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-destructive w-full justify-start gap-1.5"
+                  onClick={() => { deleteNode(project.id, selected.id); setSelectedId(null); }}
+                >
+                  <Trash2 className="size-3.5" /> Excluir item
+                </Button>
+              </div>
+            )}
+
+            {selectedTier && (
+              <div className="space-y-3">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground">Tier selecionado</div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground">Nome</label>
+                  <Input
+                    value={selectedTier.text}
+                    onChange={(e) => updateNode(project.id, selectedTier.id, { text: e.target.value })}
+                    placeholder="Nome do tier"
+                  />
+                </div>
+                <NodeColorPicker
+                  value={selectedTier.color}
+                  onChange={(c) => updateNode(project.id, selectedTier.id, { color: c })}
+                  label="Cor do tier"
+                />
+              </div>
+            )}
+          </aside>
         </div>
       </main>
 
