@@ -321,12 +321,8 @@ export function TierListEditor({ project }: { project: Project }) {
             {/* Pool of unassigned items */}
             <div
               className="rounded-lg border border-dashed border-border/60 bg-muted/20 p-3"
-              onDragOver={(e) => { if (dragItemId) e.preventDefault(); }}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (dragItemId) { moveItem(dragItemId, null); setDragItemId(null); }
-              }}
             >
+
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <div className="text-sm font-semibold">Itens disponíveis</div>
