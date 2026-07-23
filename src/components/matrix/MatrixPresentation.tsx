@@ -56,6 +56,14 @@ function Card({ node, active }: { node: MindNode; active: boolean }) {
   );
 }
 
+/* ---------- Pool thumb (manual-mode drag source) ---------- */
+function PoolThumb({ node }: { node: MindNode }) {
+  const url = useResolvedImage(node);
+  if (!url) return <div className="aspect-square bg-muted" />;
+  return <div className="aspect-square bg-muted"><img src={url} alt="" className="size-full object-cover" /></div>;
+}
+
+
 /* ---------- Spotlight modal (justification focus) ---------- */
 function Spotlight({ node, onClose }: { node: MindNode; onClose: () => void }) {
   const url = useResolvedImage(node);
