@@ -93,7 +93,7 @@ function ProjectThumb({ project }: { project: Project }) {
           className="absolute inset-0 size-full object-cover"
           loading="lazy"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-background/70 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
         <div className="absolute bottom-2 right-2 text-[10px] font-mono text-foreground/90 bg-background/70 px-2 py-0.5 rounded">
           {project.nodes.length} {project.nodes.length === 1 ? "nó" : "nós"}
         </div>
