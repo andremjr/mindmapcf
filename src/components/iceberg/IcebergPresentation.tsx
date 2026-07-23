@@ -18,6 +18,7 @@ import { loadRecordFormat, defaultRecordFormat, type RecordFormat } from "@/lib/
 import { RecorderHUD } from "@/components/mindmap/RecorderHUD";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { resolveEmbed } from "@/lib/embedUrl";
+import { AvatarLayer } from "@/components/shared/AvatarLayer";
 
 function fmtDur(ms: number) {
   const s = Math.floor(ms / 1000);
@@ -283,6 +284,7 @@ export function IcebergPresentation({
 
       <div className={recording ? "absolute inset-0 grid place-items-center" : "absolute inset-0"}>
         <div ref={frameRef} style={frameStyle} className="bg-background">
+          <AvatarLayer project={project} frameSize={size} />
           {/* Scrollable stack — background art scrolls together with the levels */}
           <div ref={scrollRef} className="absolute inset-0 overflow-y-auto scroll-smooth">
             <div className="relative w-full">
@@ -371,7 +373,7 @@ export function IcebergPresentation({
         </div>
       </div>
 
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+      <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
         {!recording && <ThemeToggle />}
         <button onClick={stopAndDownload} className="size-10 grid place-items-center rounded-full bg-foreground/10 backdrop-blur border border-border hover:bg-foreground/20 text-foreground">
           <X className="size-4" />

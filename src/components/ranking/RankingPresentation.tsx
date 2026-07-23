@@ -3,6 +3,7 @@ import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import type { MindNode, Project } from "@/lib/types";
 import { resolveImage } from "@/lib/imageStorage";
 import { PresentationShell } from "@/components/shared/PresentationShell";
+import { AvatarLayer } from "@/components/shared/AvatarLayer";
 
 /* ---------- image ---------- */
 function useResolvedImage(node: MindNode | undefined) {
@@ -309,8 +310,9 @@ export function RankingPresentation({
       canPrev={step > 0}
       frameBg="bg-background"
     >
-      {() => (
+      {({ size }) => (
         <div className="absolute inset-0 flex flex-col p-6 text-foreground">
+          <AvatarLayer project={project} frameSize={size} />
           <div className="text-2xl md:text-3xl font-bold text-center mb-3 opacity-95 shrink-0">
             {project.title}
           </div>

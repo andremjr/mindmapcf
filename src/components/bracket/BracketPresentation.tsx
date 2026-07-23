@@ -2,6 +2,7 @@ import { useMemo, useState, useRef, useEffect, useLayoutEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { Project } from "@/lib/types";
 import { PresentationShell } from "@/components/shared/PresentationShell";
+import { AvatarLayer } from "@/components/shared/AvatarLayer";
 import { BracketBoard, buildBracket, CompetitorCard, type WinnersMap } from "./BracketBoard";
 
 /**
@@ -215,8 +216,9 @@ export function BracketPresentation({
       canPrev={idx > 0}
       frameBg="bg-background"
     >
-      {() => (
+      {({ size }) => (
         <div className="absolute inset-0 flex flex-col p-5">
+          <AvatarLayer project={project} frameSize={size} />
           <div className="flex items-center justify-between mb-2">
             <div className="text-xl font-bold opacity-90">{project.title}</div>
             <div className="text-[11px] uppercase tracking-widest text-white/50">{stepLabel}</div>

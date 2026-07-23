@@ -18,6 +18,7 @@ import {
 import { loadRecordFormat, defaultRecordFormat, type RecordFormat } from "@/lib/recordFormats";
 import { RecorderHUD } from "@/components/mindmap/RecorderHUD";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { AvatarLayer } from "@/components/shared/AvatarLayer";
 
 function fmtDur(ms: number) {
   const s = Math.floor(ms / 1000);
@@ -270,6 +271,7 @@ export function TierListPresentation({
 
       <div className={recording ? "absolute inset-0 grid place-items-center" : "absolute inset-0"}>
         <div ref={frameRef} style={frameStyle} className="bg-background">
+          <AvatarLayer project={project} frameSize={size} />
           <LayoutGroup>
             <div className="absolute inset-0 flex flex-col p-6">
               <div className="text-2xl font-bold text-center mb-3 opacity-90">{project.title}</div>
@@ -354,7 +356,7 @@ export function TierListPresentation({
         </div>
       </div>
 
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+      <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
         {!recording && <ThemeToggle />}
         <button onClick={stopAndDownload} className="size-10 grid place-items-center rounded-full bg-foreground/10 backdrop-blur border border-border hover:bg-foreground/20 text-foreground">
           <X className="size-4" />
