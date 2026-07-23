@@ -282,17 +282,17 @@ export function TierListPresentation({
                     <div
                       key={tier.id}
                       data-tier-id={tier.id}
-                      className={`flex items-stretch rounded-lg overflow-hidden border border-white/10 transition-all duration-300 ${
+                      className={`flex items-stretch rounded-lg overflow-hidden border border-border transition-all duration-300 ${
                         isActive ? "opacity-100 scale-100" : "opacity-45 scale-[0.98]"
                       }`}
                     >
                       <div
-                        className="min-w-[8rem] max-w-[14rem] shrink-0 grid place-items-center px-3 py-3 font-black text-xl text-white text-center uppercase tracking-wider break-words"
+                        className="min-w-[8rem] max-w-[14rem] shrink-0 grid place-items-center px-3 py-3 font-black text-xl text-foreground text-center uppercase tracking-wider break-words"
                         style={{ background: tier.color || "#334155" }}
                       >
                         {tier.text}
                       </div>
-                      <div className="flex-1 min-h-[112px] bg-black/30 p-3 flex flex-wrap gap-2 items-start">
+                      <div className="flex-1 min-h-[112px] bg-muted/30 p-3 flex flex-wrap gap-2 items-start">
                         {items.map((it) => (
                           <motion.div
                             key={it.id}
@@ -312,7 +312,7 @@ export function TierListPresentation({
               </div>
 
               {/* Pool of remaining items */}
-              <div className="mt-3 rounded-lg border border-white/10 bg-black/40 px-3 py-2">
+              <div className="mt-3 rounded-lg border border-border bg-muted/40 px-3 py-2">
                 <div className="flex items-center justify-between mb-1">
                   <div className="text-[11px] uppercase tracking-widest opacity-60">
                     A classificar
