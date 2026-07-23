@@ -467,9 +467,9 @@ function IcebergArt({ levels }: { levels: number }) {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
       <style>{`
-        @keyframes fishR { from { transform: translateX(-20%); } to { transform: translateX(120%); } }
-        @keyframes fishL { from { transform: translateX(120%) scaleX(-1); } to { transform: translateX(-20%) scaleX(-1); } }
-        @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+        @keyframes drift-r { from { transform: translateX(-30%); } to { transform: translateX(130%); } }
+        @keyframes drift-l { from { transform: translateX(130%); } to { transform: translateX(-30%); } }
+        @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
         @keyframes glow { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
       `}</style>
       <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -485,22 +485,55 @@ function IcebergArt({ levels }: { levels: number }) {
         <path d="M40 22 L46 55 L42 90" stroke="#fff" strokeOpacity="0.12" strokeWidth="0.2" fill="none" />
         <path d="M60 22 L58 50 L64 85" stroke="#fff" strokeOpacity="0.12" strokeWidth="0.2" fill="none" />
       </svg>
-      {Array.from({ length: Math.max(0, levels - 1) }).map((_, i) => {
-        const levelIdx = i + 1;
-        const depthRatio = levelIdx / Math.max(1, levels - 1);
+      {Array.from({ length: Math.max(0, levels) }).map((_, levelIdx) => {
+        const depthRatio = levels > 1 ? levelIdx / (levels - 1) : 0;
         // Depth ladder: fish → crab → octopus → anglerfish
         let variant: CreatureVariant = "fish";
         if (depthRatio > 0.75) variant = "angler";
         else if (depthRatio > 0.5) variant = "octopus";
         else if (depthRatio > 0.25) variant = "crab";
-        const topPct = ((levelIdx + 0.5) / levels) * 100;
+        // Dark strokes contrast on the light top level, light strokes on deep dark.
+        const stroke = depthRatio < 0.3 ? "#0b1f3a" : "#e2e8f0";
+        const opacity = variant === "angler" ? 0.55 : depthRatio < 0.3 ? 0.5 : 0.4;
+
+        // 5-6 creatures per level with pseudo-random directions/delays/y-offsets.
+        const count = variant === "angler" ? 4 : 6;
+        const creatures = Array.from({ length: count }).map((__, k) => {
+          const s1 = seeded(`${levelIdx}-${k}-a`);
+          const s2 = seeded(`${levelIdx}-${k}-b`);
+          const s3 = seeded(`${levelIdx}-${k}-c`);
+          return {
+            key: `${levelIdx}-${k}`,
+            dir: s1 > 0.5 ? "r" : "l" as "r" | "l",
+            delay: -s2 * 40,           // negative delay → staggered starts, no gap on load
+            duration: 34 + s3 * 30,    // 34-64s slow drift
+            yPct: 8 + s1 * 82,         // vertical offset inside the level band (%)
+            scale: 0.85 + s2 * 0.45,
+          };
+        });
+
         return (
-          <div key={i} className="absolute left-0 right-0" style={{ top: `${topPct}%` }}>
-            <Creature variant={variant} delay={0} duration={44 + i * 4} dir="r" y={-38} />
-            <Creature variant={variant} delay={16} duration={52 + i * 3} dir="l" y={22} />
-            {depthRatio > 0.55 && (
-              <Creature variant={variant} delay={30} duration={60} dir="r" y={70} />
-            )}
+          <div
+            key={levelIdx}
+            className="absolute left-0 right-0"
+            style={{
+              top: `${(levelIdx / levels) * 100}%`,
+              height: `${(1 / levels) * 100}%`,
+            }}
+          >
+            {creatures.map((c) => (
+              <Creature
+                key={c.key}
+                variant={variant}
+                dir={c.dir}
+                delay={c.delay}
+                duration={c.duration}
+                yPct={c.yPct}
+                scale={c.scale}
+                stroke={stroke}
+                opacity={opacity}
+              />
+            ))}
           </div>
         );
       })}
@@ -510,35 +543,55 @@ function IcebergArt({ levels }: { levels: number }) {
 
 type CreatureVariant = "fish" | "crab" | "octopus" | "angler";
 
-function Creature({ variant, delay, duration, dir, y }: { variant: CreatureVariant; delay: number; duration: number; dir: "l" | "r"; y: number }) {
-  const size = variant === "angler" ? 38 : variant === "octopus" ? 34 : variant === "crab" ? 30 : 26;
-  const opacity = variant === "angler" ? 0.4 : 0.28;
-  const stroke = "#e2e8f0";
-  const sw = 1.1;
+function Creature({
+  variant,
+  dir,
+  delay,
+  duration,
+  yPct,
+  scale,
+  stroke,
+  opacity,
+}: {
+  variant: CreatureVariant;
+  dir: "l" | "r";
+  delay: number;
+  duration: number;
+  yPct: number;
+  scale: number;
+  stroke: string;
+  opacity: number;
+}) {
+  const baseSize = variant === "angler" ? 44 : variant === "octopus" ? 38 : variant === "crab" ? 34 : 30;
+  const size = Math.round(baseSize * scale);
+  const sw = 1.2;
   return (
-    <div className="absolute w-full" style={{ top: y, opacity }}>
-      <div style={{ width: size, height: size, animation: `${dir === "r" ? "fishR" : "fishL"} ${duration}s linear ${delay}s infinite` }}>
-        <div style={{ animation: "bob 3.2s ease-in-out infinite" }}>
+    <div
+      className="absolute left-0 right-0"
+      style={{
+        top: `${yPct}%`,
+        opacity,
+        animation: `${dir === "r" ? "drift-r" : "drift-l"} ${duration}s linear ${delay}s infinite`,
+      }}
+    >
+      <div style={{ width: size, height: size, animation: "bob 3.2s ease-in-out infinite" }}>
+        <div style={{ transform: dir === "l" ? "scaleX(-1)" : undefined, transformOrigin: "center" }}>
           {variant === "fish" && (
             <svg viewBox="0 0 32 18" width={size} height={size * 0.6} fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round">
               <path d="M2 9 Q10 -1 22 3 Q28 9 22 15 Q10 19 2 9 Z" />
               <polyline points="22,3 30,0 26,9 30,18 22,15" />
-              <circle cx="10" cy="7" r="0.8" fill={stroke} stroke="none" />
+              <circle cx="10" cy="7" r="0.9" fill={stroke} stroke="none" />
             </svg>
           )}
           {variant === "crab" && (
             <svg viewBox="0 0 40 26" width={size} height={size * 0.7} fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round">
-              {/* Body */}
               <ellipse cx="20" cy="16" rx="10" ry="6" />
-              {/* Eyes */}
               <line x1="16" y1="10" x2="15" y2="6" />
               <line x1="24" y1="10" x2="25" y2="6" />
               <circle cx="15" cy="5" r="1" fill={stroke} stroke="none" />
               <circle cx="25" cy="5" r="1" fill={stroke} stroke="none" />
-              {/* Claws */}
               <path d="M10 15 Q3 12 4 8 Q7 9 8 12" />
               <path d="M30 15 Q37 12 36 8 Q33 9 32 12" />
-              {/* Legs */}
               <path d="M12 19 L7 24" />
               <path d="M15 21 L12 25" />
               <path d="M25 21 L28 25" />
@@ -547,11 +600,9 @@ function Creature({ variant, delay, duration, dir, y }: { variant: CreatureVaria
           )}
           {variant === "octopus" && (
             <svg viewBox="0 0 40 40" width={size} height={size} fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round">
-              {/* Head */}
               <path d="M10 16 Q10 4 20 4 Q30 4 30 16 Q30 22 24 24 L16 24 Q10 22 10 16 Z" />
               <circle cx="16" cy="14" r="0.9" fill={stroke} stroke="none" />
               <circle cx="24" cy="14" r="0.9" fill={stroke} stroke="none" />
-              {/* Tentacles */}
               <path d="M12 22 Q9 30 13 38" />
               <path d="M17 24 Q15 32 18 39" />
               <path d="M22 24 Q25 32 22 39" />
@@ -565,11 +616,8 @@ function Creature({ variant, delay, duration, dir, y }: { variant: CreatureVaria
               <svg viewBox="0 0 44 22" width={size} height={size * 0.55} fill="none" stroke={stroke} strokeWidth={sw} strokeLinejoin="round" strokeLinecap="round">
                 <path d="M6 11 Q16 0 32 4 Q38 11 32 18 Q16 22 6 11 Z" />
                 <polyline points="32,4 42,0 36,11 42,22 32,18" />
-                {/* Teeth */}
                 <path d="M8 12 L10 14 L12 12 L14 14 L16 12" />
-                {/* Eye */}
                 <circle cx="16" cy="8" r="1" fill={stroke} stroke="none" />
-                {/* Lure rod */}
                 <path d="M12 6 Q6 -4 16 -6" />
               </svg>
               <span
@@ -591,31 +639,3 @@ function Creature({ variant, delay, duration, dir, y }: { variant: CreatureVaria
   );
 }
 
-
-function FishSprite({ variant, delay, duration, dir, y }: { variant: "normal" | "angler"; delay: number; duration: number; dir: "l" | "r"; y: number }) {
-  const size = variant === "angler" ? 32 : 24;
-  const opacity = variant === "angler" ? 0.32 : 0.22;
-  return (
-    <div className="absolute w-full" style={{ top: y, opacity }}>
-      <div style={{ width: size, height: size * 0.55, animation: `${dir === "r" ? "fishR" : "fishL"} ${duration}s linear ${delay}s infinite` }}>
-        {variant === "normal" ? (
-          <svg viewBox="0 0 32 18" width={size} height={size * 0.55}>
-            <path d="M2 9 Q10 -1 22 3 Q28 9 22 15 Q10 19 2 9 Z" fill="#e2e8f0" />
-            <polygon points="22,3 30,0 26,9 30,18 22,15" fill="#cbd5e1" />
-            <circle cx="10" cy="7" r="1" fill="#0f172a" />
-          </svg>
-        ) : (
-          <div className="relative">
-            <svg viewBox="0 0 40 20" width={size} height={size * 0.55}>
-              <path d="M4 10 Q14 -1 30 4 Q36 10 30 16 Q14 21 4 10 Z" fill="#1e293b" />
-              <polygon points="30,4 40,0 34,10 40,20 30,16" fill="#0f172a" />
-              <circle cx="14" cy="7" r="1.2" fill="#facc15" />
-              <path d="M8 6 Q4 -2 12 -4" stroke="#334155" strokeWidth="0.6" fill="none" />
-            </svg>
-            <span className="absolute rounded-full" style={{ left: size * 0.3, top: -size * 0.28, width: size * 0.2, height: size * 0.2, background: "radial-gradient(circle,#fde68a,#f59e0b 60%,transparent 70%)", animation: "glow 2.2s ease-in-out infinite" }} />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
