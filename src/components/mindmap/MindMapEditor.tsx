@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   Plus,
   Play,
+  Pause,
   Maximize,
   LayoutGrid,
   Trash2,
@@ -12,6 +13,10 @@ import {
   Mic,
   Sun,
   Moon,
+  ChevronUp,
+  ChevronDown,
+  X,
+  Keyboard,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
