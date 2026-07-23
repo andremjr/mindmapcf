@@ -204,10 +204,12 @@ function MatchBox({
 
   return (
     <div
+      data-match-key={match.key}
       className={`rounded-lg p-1.5 space-y-1 transition-all ${
         isCurrent ? "bg-white/5 ring-1 ring-amber-300/40" : ""
       }`}
     >
+
       {showContents && match.a ? (
         <motion.div layoutId={`comp-${match.a.id}-at-${match.key}-a`} initial={{ opacity: 0, y: side === "L" ? -6 : side === "R" ? -6 : -6 }} animate={{ opacity: 1, y: 0 }}>
           <CompetitorCard
@@ -257,7 +259,20 @@ function RoundColumn({
       <div className="flex-1 flex flex-col justify-around gap-2">
         {round.map((m, i) => {
           const midx = steps.indexOf(m.key);
-          const revealed = mode === "edit" || m.isBye || (midx >= 0 && stepIdx >= midx);
+          // In present mode, participants appear as soon as both slots are filled
+          // (progressive disclosure is driven upstream by the winners map that
+          // the parent passes in). "pool" step hides everything for a clean intro.
+          const revealed =
+            mode === "edit"
+              ? true
+              : m.isBye
+                ? true
+                : currentStep === "pool"
+                  ? false
+                  : !!m.a && !!m.b
+                    ? true
+                    : midx >= 0 && stepIdx >= midx;
+
           const isCurrent = currentStep === m.key;
           return (
             <div key={m.key} style={{ marginTop: i > 0 ? spacing : 0 }}>
@@ -300,7 +315,17 @@ export function BracketBoard({
   const showChampion = mode === "edit" ? !!data.champion : (isChampionStep && !!data.champion);
 
   const finalMidx = steps.indexOf("FINAL");
-  const finalRevealed = mode === "edit" || data.finalMatch.isBye || (finalMidx >= 0 && stepIdx >= finalMidx);
+  const finalRevealed =
+    mode === "edit"
+      ? true
+      : data.finalMatch.isBye
+        ? true
+        : currentStep === "pool"
+          ? false
+          : !!data.finalMatch.a && !!data.finalMatch.b
+            ? true
+            : finalMidx >= 0 && stepIdx >= finalMidx;
+
   const finalIsCurrent = currentStep === "FINAL";
 
   if (competitors.length < 2) {
