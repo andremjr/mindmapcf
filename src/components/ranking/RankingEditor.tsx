@@ -421,7 +421,7 @@ function CallCard({
       onDrop={(e) => { e.preventDefault(); onDropOnCard(); }}
       onClick={onClick}
       className={[
-        "relative shrink-0 h-20 rounded-lg border-2 bg-background overflow-hidden",
+        "relative min-h-0 rounded-lg border-2 bg-background overflow-hidden",
         "cursor-grab active:cursor-grabbing transition",
         "flex flex-col",
         selected
