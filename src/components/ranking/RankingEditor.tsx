@@ -13,6 +13,7 @@ import { pickMediaAndStore, resolveImage } from "@/lib/imageStorage";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { RecordFormatMenu } from "@/components/RecordFormatMenu";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { launchRecording } from "@/lib/launchRecording";
 import type { RecordFormat } from "@/lib/recordFormats";
 
@@ -235,6 +236,7 @@ export function RankingEditor({ project }: { project: Project }) {
         <Button size="sm" variant="outline" onClick={addItem} className="gap-1.5">
           <Plus className="size-3.5" /> Item
         </Button>
+        <ThemeToggle />
         <Button variant="destructive" size="sm" onClick={() => setRecordOpen(true)} className="gap-1.5">
           <Circle className="size-3 fill-current" /> Gravar
         </Button>

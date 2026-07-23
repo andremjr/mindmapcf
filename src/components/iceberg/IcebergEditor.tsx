@@ -251,6 +251,7 @@ export function IcebergEditor({ project }: { project: Project }) {
           />
           <span className="text-xs text-muted-foreground shrink-0">Iceberg</span>
         </div>
+        <ThemeToggle />
         <Button variant="destructive" size="sm" onClick={() => setRecordOpen(true)} className="gap-1.5">
           <Circle className="size-3 fill-current" /> Gravar
         </Button>
