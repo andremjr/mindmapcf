@@ -39,7 +39,11 @@ export function buildBracket(competitors: MindNode[], winners: WinnersMap) {
         const key = `${side}-r${r}i${i / 2}`;
         const isBye = a === null || b === null;
         let winnerId: string | null = winners[key] ?? null;
-        if (isBye) winnerId = a?.id ?? b?.id ?? null;
+        // Only auto-advance BYEs in the very first round (structural byes from
+        // odd bracket sizes). In later rounds, missing opponents mean the
+        // upstream match hasn't been decided yet — do NOT cascade the winner
+        // forward, otherwise a single win could skip multiple rounds.
+        if (isBye && r === 0) winnerId = a?.id ?? b?.id ?? null;
         matches.push({ key, a, b, winnerId, isBye });
       }
       rounds.push(matches);
