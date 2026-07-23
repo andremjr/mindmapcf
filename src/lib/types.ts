@@ -45,8 +45,10 @@ export interface MindNode {
     | "bracket" | "matrix" | "ranking";
   /** Long-form body shown in iceberg's expanded card (or JSON blob for template root config). */
   body?: string;
-  /** Sort index within siblings (used by tiers/levels/ranking). */
+  /** Sort index within siblings (used by tiers/levels/ranking as the reveal / call order). */
   order?: number;
+  /** Absolute final position for ranking template (1-based). Independent of reveal order. */
+  rank?: number;
   /** Percent X position (0-100) for matrix cards. */
   pctX?: number;
   /** Percent Y position (0-100) for matrix cards. */

@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  ChevronLeft, Plus, Trash2, Image as ImageIcon, Play, Circle, GripVertical, ArrowUp, ArrowDown,
+  ChevronLeft, Plus, Trash2, Image as ImageIcon, Play, Circle, GripVertical,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useStore } from "@/lib/store";
 import type { MindNode, Project } from "@/lib/types";
 import { pickMediaAndStore, resolveImage } from "@/lib/imageStorage";
@@ -46,6 +47,7 @@ export function RankingEditor({ project }: { project: Project }) {
   const { isPro } = useSubscription(user?.id);
 
   const root = project.nodes.find((n) => n.role === "ranking" || !n.parentId);
+  // Sorted by CALL order (reveal order in presentation).
   const items = useMemo(
     () => project.nodes
       .filter((n) => n.role === "item" && n.parentId === root?.id)
@@ -57,6 +59,12 @@ export function RankingEditor({ project }: { project: Project }) {
   const [recordOpen, setRecordOpen] = useState(false);
   const [dragId, setDragId] = useState<string | null>(null);
 
+  function nextRank(): number {
+    const used = new Set(items.map((n) => n.rank).filter((r): r is number => typeof r === "number"));
+    for (let i = 1; i <= items.length + 1; i++) if (!used.has(i)) return i;
+    return items.length + 1;
+  }
+
   function addItem() {
     if (!root) return;
     const id = addNode(project.id, { parentId: root.id });
@@ -65,6 +73,7 @@ export function RankingEditor({ project }: { project: Project }) {
       text: `Item ${items.length + 1}`,
       role: "item",
       order: items.length,
+      rank: nextRank(),
       width: 300,
     } as Partial<MindNode>);
   }
@@ -79,13 +88,14 @@ export function RankingEditor({ project }: { project: Project }) {
       text: ref.name.replace(/\.[^.]+$/, "").slice(0, 40),
       role: "item",
       order: items.length,
+      rank: nextRank(),
       imageRef: ref,
       imageName: ref.name,
       width: 300,
     } as Partial<MindNode>);
   }
 
-  function reindex(newList: MindNode[]) {
+  function reindexCallOrder(newList: MindNode[]) {
     newList.forEach((n, i) => {
       if ((n.order ?? -1) !== i) updateNode(project.id, n.id, { order: i } as Partial<MindNode>);
     });
@@ -97,14 +107,13 @@ export function RankingEditor({ project }: { project: Project }) {
     const next = [...items];
     const [n] = next.splice(src, 1);
     next.splice(targetIdx, 0, n);
-    reindex(next);
+    reindexCallOrder(next);
   }
 
-  function moveBy(id: string, delta: number) {
-    const idx = items.findIndex((n) => n.id === id);
-    if (idx === -1) return;
-    const t = Math.max(0, Math.min(items.length - 1, idx + delta));
-    moveTo(id, t);
+  function setRank(id: string, raw: string) {
+    const parsed = parseInt(raw, 10);
+    const clamped = Number.isFinite(parsed) ? Math.max(1, Math.min(items.length, parsed)) : undefined;
+    updateNode(project.id, id, { rank: clamped } as Partial<MindNode>);
   }
 
   async function onPickFormat(fmt: RecordFormat) {
@@ -123,6 +132,20 @@ export function RankingEditor({ project }: { project: Project }) {
     }
     navigate({ to: "/projects/$id/present", params: { id: project.id }, search: {} });
   }
+
+  // Warnings: duplicate ranks or missing ranks.
+  const rankIssues = useMemo(() => {
+    const seen = new Map<number, number>();
+    const dupes = new Set<number>();
+    let missing = 0;
+    items.forEach((n) => {
+      if (typeof n.rank !== "number") { missing++; return; }
+      const c = (seen.get(n.rank) ?? 0) + 1;
+      seen.set(n.rank, c);
+      if (c > 1) dupes.add(n.rank);
+    });
+    return { dupes, missing };
+  }, [items]);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -151,47 +174,78 @@ export function RankingEditor({ project }: { project: Project }) {
       </header>
 
       <main className="flex-1 overflow-auto p-6">
-        <div className="mx-auto max-w-2xl space-y-2">
+        <div className="mx-auto max-w-4xl space-y-4">
+          <div className="rounded-lg border border-border/60 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground mb-1">Como funciona</p>
+            <p><strong>Ordem de chamada</strong> (arraste os itens): a sequência em que aparecem na apresentação.</p>
+            <p><strong>Posição no ranking</strong> (número à direita): onde cada item termina no ranking final.</p>
+            <p>Assim, o público vê os itens aparecerem e serem posicionados — e um item novo pode passar outro no topo.</p>
+            {(rankIssues.dupes.size > 0 || rankIssues.missing > 0) && (
+              <p className="mt-2 text-amber-600 dark:text-amber-400">
+                {rankIssues.missing > 0 && `${rankIssues.missing} item(s) sem posição definida. `}
+                {rankIssues.dupes.size > 0 && `Posições duplicadas: ${[...rankIssues.dupes].sort((a, b) => a - b).join(", ")}.`}
+              </p>
+            )}
+          </div>
+
           {items.length === 0 && (
             <div className="text-center text-sm text-muted-foreground py-12">
-              Adicione itens acima. Arraste para reordenar; os números atualizam sozinhos.
+              Adicione itens acima. Arraste para reordenar a chamada; defina a posição final em cada card.
             </div>
           )}
-          {items.map((it, i) => (
-            <div
-              key={it.id}
-              draggable
-              onDragStart={() => setDragId(it.id)}
-              onDragEnd={() => setDragId(null)}
-              onDragOver={(e) => { if (dragId && dragId !== it.id) e.preventDefault(); }}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (dragId) moveTo(dragId, i);
-                setDragId(null);
-              }}
-              className={`flex items-center gap-3 rounded-lg border border-border/60 bg-card p-3 shadow-sm ${
-                dragId === it.id ? "opacity-50" : ""
-              }`}
-            >
-              <GripVertical className="size-4 text-muted-foreground shrink-0 cursor-grab" />
-              <div className="text-2xl font-black tabular-nums w-10 text-center text-primary">{i + 1}</div>
-              <div className="size-12 rounded bg-muted overflow-hidden shrink-0"><Thumb node={it} /></div>
-              <Input value={it.text} onChange={(e) => updateNode(project.id, it.id, { text: e.target.value })}
-                className="h-9 text-sm flex-1" />
-              <button onClick={() => moveBy(it.id, -1)} disabled={i === 0}
-                className="size-8 grid place-items-center rounded hover:bg-muted disabled:opacity-30">
-                <ArrowUp className="size-4" />
-              </button>
-              <button onClick={() => moveBy(it.id, 1)} disabled={i === items.length - 1}
-                className="size-8 grid place-items-center rounded hover:bg-muted disabled:opacity-30">
-                <ArrowDown className="size-4" />
-              </button>
-              <button onClick={() => deleteNode(project.id, it.id)}
-                className="size-8 grid place-items-center rounded hover:bg-destructive/10 text-destructive">
-                <Trash2 className="size-4" />
-              </button>
-            </div>
-          ))}
+
+          <div className="space-y-3">
+            {items.map((it, i) => (
+              <div
+                key={it.id}
+                draggable
+                onDragStart={() => setDragId(it.id)}
+                onDragEnd={() => setDragId(null)}
+                onDragOver={(e) => { if (dragId && dragId !== it.id) e.preventDefault(); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragId) moveTo(dragId, i);
+                  setDragId(null);
+                }}
+                className={`rounded-lg border border-border/60 bg-card p-3 shadow-sm space-y-2 ${
+                  dragId === it.id ? "opacity-50" : ""
+                } ${rankIssues.dupes.has(it.rank ?? -1) ? "ring-1 ring-amber-400/60" : ""}`}
+              >
+                <div className="flex items-center gap-3">
+                  <GripVertical className="size-4 text-muted-foreground shrink-0 cursor-grab" />
+                  <div className="flex flex-col items-center w-14 shrink-0">
+                    <span className="text-[10px] uppercase tracking-wide text-muted-foreground">Chamada</span>
+                    <span className="text-xl font-bold tabular-nums">{i + 1}º</span>
+                  </div>
+                  <div className="size-12 rounded bg-muted overflow-hidden shrink-0"><Thumb node={it} /></div>
+                  <Input value={it.text} onChange={(e) => updateNode(project.id, it.id, { text: e.target.value })}
+                    placeholder="Título do item"
+                    className="h-9 text-sm flex-1" />
+                  <div className="flex flex-col items-center shrink-0">
+                    <label className="text-[10px] uppercase tracking-wide text-muted-foreground">Ranking</label>
+                    <Input
+                      type="number"
+                      min={1}
+                      max={items.length}
+                      value={it.rank ?? ""}
+                      onChange={(e) => setRank(it.id, e.target.value)}
+                      className="h-9 w-16 text-center tabular-nums font-semibold"
+                    />
+                  </div>
+                  <button onClick={() => deleteNode(project.id, it.id)}
+                    className="size-8 grid place-items-center rounded hover:bg-destructive/10 text-destructive shrink-0">
+                    <Trash2 className="size-4" />
+                  </button>
+                </div>
+                <Textarea
+                  value={it.body ?? ""}
+                  onChange={(e) => updateNode(project.id, it.id, { body: e.target.value } as Partial<MindNode>)}
+                  placeholder="Descrição (opcional) — aparece no card expandido durante a chamada"
+                  className="text-sm min-h-[60px] resize-none"
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </main>
 
