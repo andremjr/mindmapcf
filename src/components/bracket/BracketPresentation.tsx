@@ -150,9 +150,10 @@ export function BracketPresentation({
   }, [focusKey, fullData]);
 
   const focusWinnerId = focusKey ? effectiveWinners[focusKey] ?? null : null;
-  // Overlay only shows during the "focus:" step. On "reveal:" we return to the
-  // overview so the user sees the bracket progress in place.
-  const showOverlay = isFocusStep && !!focusedMatch && !!focusedMatch.a && !!focusedMatch.b;
+  // Overlay stays open through both "focus:" and "reveal:" steps so the winner
+  // can visibly turn green inside the modal before we return to the overview.
+  const isRevealStep = currentStep.startsWith("reveal:");
+  const showOverlay = (isFocusStep || isRevealStep) && !!focusedMatch && !!focusedMatch.a && !!focusedMatch.b;
   const isChampionStep = currentStep === "CHAMPION";
   const showChampionOverlay = isChampionStep && !!fullData.champion;
   const anyOverlay = showOverlay || showChampionOverlay;
