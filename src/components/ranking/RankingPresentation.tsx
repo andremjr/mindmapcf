@@ -3,6 +3,7 @@ import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import type { MindNode, Project } from "@/lib/types";
 import { resolveImage } from "@/lib/imageStorage";
 import { PresentationShell } from "@/components/shared/PresentationShell";
+import { AvatarLayer } from "@/components/shared/AvatarLayer";
 
 /* ---------- image ---------- */
 function useResolvedImage(node: MindNode | undefined) {
