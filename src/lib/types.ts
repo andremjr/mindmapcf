@@ -47,6 +47,8 @@ export interface MindNode {
   body?: string;
   /** Sort index within siblings (used by tiers/levels/ranking as the reveal / call order). */
   order?: number;
+  /** Manual position within a tier (tier list). Independent of `order` (call order). */
+  placementOrder?: number;
   /** Absolute final position for ranking template (1-based). Independent of reveal order. */
   rank?: number;
   /** Percent X position (0-100) for matrix cards. */

@@ -121,12 +121,15 @@ export function TierListEditor({ project }: { project: Project }) {
       if (n.parentId && m.has(n.parentId)) m.get(n.parentId)!.push(n);
       else pool.push(n);
     }
-    // Sort each bucket by call order
+    // Pool → call order. Tiers → manual placement order (falls back to call order).
     const byOrder = (a: MindNode, b: MindNode) => (a.order ?? 0) - (b.order ?? 0);
-    for (const arr of m.values()) arr.sort(byOrder);
+    const byPlacement = (a: MindNode, b: MindNode) =>
+      (a.placementOrder ?? a.order ?? 0) - (b.placementOrder ?? b.order ?? 0);
+    for (const arr of m.values()) arr.sort(byPlacement);
     pool.sort(byOrder);
     return { itemsByTier: m, poolItems: pool };
   }, [allItems, tiers]);
+
 
   const [titleDraft, setTitleDraft] = useState(project.title);
   const [recordOpen, setRecordOpen] = useState(false);
@@ -182,12 +185,68 @@ export function TierListEditor({ project }: { project: Project }) {
     } as Partial<MindNode>);
   }
 
-  function moveItem(itemId: string, targetTierId: string | null) {
-    if (targetTierId) setParent(project.id, itemId, targetTierId);
-    else if (board) setParent(project.id, itemId, board.id);
+  /**
+   * Move `itemId` into `targetTierId` (or pool if null), inserted at
+   * `insertIndex` within the destination. Rewrites `placementOrder` for
+   * the destination bucket so drop position is preserved. When dropping
+   * into the pool, also rewrites `order` (call order) so pool reordering
+   * changes the reveal queue.
+   */
+  function moveItem(itemId: string, targetTierId: string | null, insertIndex?: number) {
+    const dest = targetTierId
+      ? (itemsByTier.get(targetTierId) ?? []).filter((n) => n.id !== itemId)
+      : poolItems.filter((n) => n.id !== itemId);
+    const item = allItems.find((n) => n.id === itemId);
+    if (!item) return;
+    const idx = insertIndex == null ? dest.length : Math.max(0, Math.min(insertIndex, dest.length));
+    const nextParent = targetTierId ?? (board ? board.id : null);
+    if (nextParent && item.parentId !== nextParent) {
+      setParent(project.id, itemId, nextParent);
+    }
+    const arr = [...dest.slice(0, idx), item, ...dest.slice(idx)];
+    if (targetTierId) {
+      arr.forEach((n, i) => {
+        if ((n.placementOrder ?? -1) !== i) {
+          updateNode(project.id, n.id, { placementOrder: i } as Partial<MindNode>);
+        }
+      });
+    } else {
+      arr.forEach((n, i) => {
+        if ((n.order ?? -1) !== i) {
+          updateNode(project.id, n.id, { order: i } as Partial<MindNode>);
+        }
+      });
+    }
   }
 
   const [dragItemId, setDragItemId] = useState<string | null>(null);
+
+  /** Given a horizontal-wrap container and a pointer event, find the insertion
+   * index by comparing pointer position to each child card's midpoint. */
+  function computeInsertIndex(
+    container: HTMLElement,
+    clientX: number,
+    clientY: number,
+    draggedId: string | null,
+  ): number {
+    const cards = Array.from(container.querySelectorAll<HTMLElement>("[data-item-id]"));
+    let idx = cards.length;
+    for (let i = 0; i < cards.length; i++) {
+      const el = cards[i];
+      if (draggedId && el.dataset.itemId === draggedId) continue;
+      const r = el.getBoundingClientRect();
+      // Row-aware: only cards vertically overlapping the pointer count.
+      if (clientY < r.top || clientY > r.bottom) continue;
+      if (clientX < r.left + r.width / 2) { idx = i; break; }
+    }
+    // Adjust when dragged card comes before the target within the same list.
+    if (draggedId) {
+      const draggedIdx = cards.findIndex((el) => el.dataset.itemId === draggedId);
+      if (draggedIdx !== -1 && draggedIdx < idx) idx -= 1;
+    }
+    return idx;
+  }
+
 
   /**
    * Enforce all-or-none placement: either every item is inside a tier
@@ -262,12 +321,8 @@ export function TierListEditor({ project }: { project: Project }) {
             {/* Pool of unassigned items */}
             <div
               className="rounded-lg border border-dashed border-border/60 bg-muted/20 p-3"
-              onDragOver={(e) => { if (dragItemId) e.preventDefault(); }}
-              onDrop={(e) => {
-                e.preventDefault();
-                if (dragItemId) { moveItem(dragItemId, null); setDragItemId(null); }
-              }}
             >
+
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <div className="text-sm font-semibold">Itens disponíveis</div>
@@ -284,10 +339,21 @@ export function TierListEditor({ project }: { project: Project }) {
                   </Button>
                 </div>
               </div>
-              <div className="min-h-[120px] flex flex-wrap gap-2 p-2">
+              <div
+                className="min-h-[120px] flex flex-wrap gap-2 p-2"
+                onDragOver={(e) => { if (dragItemId) e.preventDefault(); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (!dragItemId) return;
+                  const idx = computeInsertIndex(e.currentTarget, e.clientX, e.clientY, dragItemId);
+                  moveItem(dragItemId, null, idx);
+                  setDragItemId(null);
+                }}
+              >
                 {poolItems.map((it) => (
                   <div
                     key={it.id}
+                    data-item-id={it.id}
                     draggable
                     onDragStart={() => setDragItemId(it.id)}
                     onDragEnd={() => setDragItemId(null)}
@@ -310,6 +376,7 @@ export function TierListEditor({ project }: { project: Project }) {
                   </div>
                 )}
               </div>
+
             </div>
 
             {tiers.map((tier) => {
@@ -318,11 +385,6 @@ export function TierListEditor({ project }: { project: Project }) {
                 <div
                   key={tier.id}
                   className="flex items-stretch rounded-lg overflow-hidden border border-border/60"
-                  onDragOver={(e) => { if (dragItemId) e.preventDefault(); }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (dragItemId) { moveItem(dragItemId, tier.id); setDragItemId(null); }
-                  }}
                 >
                   <div
                     className={`min-w-[8rem] max-w-[14rem] w-40 shrink-0 grid place-items-center px-2 py-3 text-center cursor-pointer transition ${
@@ -340,10 +402,21 @@ export function TierListEditor({ project }: { project: Project }) {
                       onClick={(e) => e.stopPropagation()}
                     />
                   </div>
-                  <div className="flex-1 min-h-[128px] bg-muted/30 p-2 flex flex-wrap gap-2 items-start">
+                  <div
+                    className="flex-1 min-h-[128px] bg-muted/30 p-2 flex flex-wrap gap-2 items-start"
+                    onDragOver={(e) => { if (dragItemId) e.preventDefault(); }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (!dragItemId) return;
+                      const idx = computeInsertIndex(e.currentTarget, e.clientX, e.clientY, dragItemId);
+                      moveItem(dragItemId, tier.id, idx);
+                      setDragItemId(null);
+                    }}
+                  >
                     {items.map((it) => (
                       <div
                         key={it.id}
+                        data-item-id={it.id}
                         draggable
                         onDragStart={() => setDragItemId(it.id)}
                         onDragEnd={() => setDragItemId(null)}
@@ -364,6 +437,7 @@ export function TierListEditor({ project }: { project: Project }) {
                       <div className="self-center text-xs text-muted-foreground italic px-2">Arraste itens aqui.</div>
                     )}
                   </div>
+
                   <div className="w-10 shrink-0 flex flex-col items-center justify-center gap-1 p-1 bg-muted/10 border-l border-border/40">
                     <button
                       onClick={() => deleteNode(project.id, tier.id)}

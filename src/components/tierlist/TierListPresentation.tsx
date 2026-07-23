@@ -228,8 +228,13 @@ export function TierListPresentation({
         if (q.parentId && m.has(q.parentId)) m.get(q.parentId)!.push(q);
       }
     }
+    // Preserve the creator's manual position within each tier.
+    const byPlacement = (a: MindNode, b: MindNode) =>
+      (a.placementOrder ?? a.order ?? 0) - (b.placementOrder ?? b.order ?? 0);
+    for (const arr of m.values()) arr.sort(byPlacement);
     return m;
   }, [tiers, manualMode, allItems, idx, preplacedQueue]);
+
 
   const remaining = manualMode
     ? allItems.filter((n) => !n.parentId || !tierIds.has(n.parentId))
@@ -247,17 +252,60 @@ export function TierListPresentation({
 
   /* ============ DRAG (manual mode) ============ */
   const [dragId, setDragId] = useState<string | null>(null);
+  const updateNode = useStore((s) => s.updateNode);
+
+  /** Where the user drops is where the item stays: compute insertion index
+   * from pointer position and rewrite placementOrder for the destination. */
+  function commitDrop(
+    container: HTMLElement,
+    clientX: number,
+    clientY: number,
+    targetTierId: string | null,
+  ) {
+    if (!dragId) return;
+    const item = allItems.find((n) => n.id === dragId);
+    if (!item) return;
+    const cards = Array.from(container.querySelectorAll<HTMLElement>("[data-item-id]"));
+    let insertIdx = cards.length;
+    for (let i = 0; i < cards.length; i++) {
+      const el = cards[i];
+      if (el.dataset.itemId === dragId) continue;
+      const r = el.getBoundingClientRect();
+      if (clientY < r.top || clientY > r.bottom) continue;
+      if (clientX < r.left + r.width / 2) { insertIdx = i; break; }
+    }
+    const nextParent = targetTierId ?? (board ? board.id : null);
+    if (nextParent && item.parentId !== nextParent) {
+      setParent(project.id, dragId, nextParent);
+    }
+    // Collect destination bucket (excluding dragged), insert, rewrite placementOrder.
+    const dest = targetTierId
+      ? allItems.filter((n) => n.parentId === targetTierId && n.id !== dragId)
+      : allItems.filter((n) => (!n.parentId || !tierIds.has(n.parentId)) && n.id !== dragId);
+    dest.sort((a, b) => (a.placementOrder ?? a.order ?? 0) - (b.placementOrder ?? b.order ?? 0));
+    // Adjust for dragged card previously appearing before insertIdx in the visible list.
+    const draggedVisibleIdx = cards.findIndex((el) => el.dataset.itemId === dragId);
+    if (draggedVisibleIdx !== -1 && draggedVisibleIdx < insertIdx) insertIdx -= 1;
+    insertIdx = Math.max(0, Math.min(insertIdx, dest.length));
+    const arr = [...dest.slice(0, insertIdx), item, ...dest.slice(insertIdx)];
+    arr.forEach((n, i) => {
+      if ((n.placementOrder ?? -1) !== i) {
+        updateNode(project.id, n.id, { placementOrder: i });
+      }
+    });
+    setDragId(null);
+  }
+
   const onTierDrop = (tierId: string) => (e: React.DragEvent) => {
     e.preventDefault();
-    if (dragId) setParent(project.id, dragId, tierId);
-    setDragId(null);
+    commitDrop(e.currentTarget as HTMLElement, e.clientX, e.clientY, tierId);
   };
   const onPoolDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    if (dragId && board) setParent(project.id, dragId, board.id);
-    setDragId(null);
+    commitDrop(e.currentTarget as HTMLElement, e.clientX, e.clientY, null);
   };
   const allowDrop = (e: React.DragEvent) => { if (dragId) e.preventDefault(); };
+
 
   async function stopAndDownload() {
     const narr = getRecordingNarrationEl();
@@ -364,9 +412,11 @@ export function TierListPresentation({
                         {items.map((it) => (
                           <motion.div
                             key={it.id}
+                            data-item-id={it.id}
                             layoutId={`item-${it.id}`}
                             transition={{ type: "spring", stiffness: 260, damping: 28 }}
                           >
+
                             <TierItem
                               node={it}
                               highlighted={!manualMode && currentItemId === it.id}
@@ -410,9 +460,11 @@ export function TierListPresentation({
                   {remaining.map((it, i) => (
                     <motion.div
                       key={it.id}
+                      data-item-id={it.id}
                       layoutId={`item-${it.id}`}
                       transition={{ type: "spring", stiffness: 260, damping: 28 }}
                     >
+
                       <TierItem
                         node={it}
                         size={72}
