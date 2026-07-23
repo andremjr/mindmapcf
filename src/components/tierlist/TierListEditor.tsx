@@ -385,11 +385,6 @@ export function TierListEditor({ project }: { project: Project }) {
                 <div
                   key={tier.id}
                   className="flex items-stretch rounded-lg overflow-hidden border border-border/60"
-                  onDragOver={(e) => { if (dragItemId) e.preventDefault(); }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    if (dragItemId) { moveItem(dragItemId, tier.id); setDragItemId(null); }
-                  }}
                 >
                   <div
                     className={`min-w-[8rem] max-w-[14rem] w-40 shrink-0 grid place-items-center px-2 py-3 text-center cursor-pointer transition ${
@@ -407,10 +402,21 @@ export function TierListEditor({ project }: { project: Project }) {
                       onClick={(e) => e.stopPropagation()}
                     />
                   </div>
-                  <div className="flex-1 min-h-[128px] bg-muted/30 p-2 flex flex-wrap gap-2 items-start">
+                  <div
+                    className="flex-1 min-h-[128px] bg-muted/30 p-2 flex flex-wrap gap-2 items-start"
+                    onDragOver={(e) => { if (dragItemId) e.preventDefault(); }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (!dragItemId) return;
+                      const idx = computeInsertIndex(e.currentTarget, e.clientX, e.clientY, dragItemId);
+                      moveItem(dragItemId, tier.id, idx);
+                      setDragItemId(null);
+                    }}
+                  >
                     {items.map((it) => (
                       <div
                         key={it.id}
+                        data-item-id={it.id}
                         draggable
                         onDragStart={() => setDragItemId(it.id)}
                         onDragEnd={() => setDragItemId(null)}
@@ -431,6 +437,7 @@ export function TierListEditor({ project }: { project: Project }) {
                       <div className="self-center text-xs text-muted-foreground italic px-2">Arraste itens aqui.</div>
                     )}
                   </div>
+
                   <div className="w-10 shrink-0 flex flex-col items-center justify-center gap-1 p-1 bg-muted/10 border-l border-border/40">
                     <button
                       onClick={() => deleteNode(project.id, tier.id)}
