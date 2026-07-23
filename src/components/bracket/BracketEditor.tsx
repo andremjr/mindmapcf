@@ -17,6 +17,7 @@ import { launchRecording } from "@/lib/launchRecording";
 import type { RecordFormat } from "@/lib/recordFormats";
 import { BracketBoard, clearDownstreamWinners, type WinnersMap } from "./BracketBoard";
 import { PanZoom } from "@/components/ui/PanZoom";
+import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
 
 
 
