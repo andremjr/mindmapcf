@@ -299,6 +299,14 @@ export function Presentation({
     setIdx((i) => Math.max(0, i - 1));
   }
   async function stopAndDownload() {
+    // Pause narration on stop (recording or plain presentation).
+    const recNarr = getRecordingNarrationEl();
+    if (recNarr) {
+      try { recNarr.pause(); } catch { /* ignore */ }
+    }
+    if (localNarrationRef.current) {
+      try { localNarrationRef.current.pause(); } catch { /* ignore */ }
+    }
     if (isRecording()) {
       try {
         const r = await stopRecording();
