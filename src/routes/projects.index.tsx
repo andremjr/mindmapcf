@@ -116,8 +116,8 @@ function ProjectThumb({ project }: { project: Project }) {
 export const Route = createFileRoute("/projects/")({
   head: () => ({
     meta: [
-      { title: "Mapas mentais — Canvas Narrativo" },
-      { name: "description", content: "Crie mapas mentais manuais e apresente com movimento de câmera." },
+      { title: "Meus canvas — Canvas Narrativo" },
+      { name: "description", content: "Crie mapas mentais, tier lists, icebergs, chaveamentos, matrizes e rankings — tudo com modo apresentação e gravação." },
     ],
   }),
   component: ProjectsDashboard,
@@ -188,7 +188,7 @@ function ProjectsDashboard() {
 
   const activeFolderLabel =
     activeFolder === ALL_FOLDERS
-      ? "Todos os mapas"
+      ? "Todos os canvas"
       : activeFolder === NO_FOLDER
       ? "Sem pasta"
       : sortedFolders.find((f) => f.id === activeFolder)?.name ?? "Pasta";
@@ -197,7 +197,7 @@ function ProjectsDashboard() {
     if (!isPro && projects.length >= FREE_MAP_LIMIT) {
       setOpen(false);
       setUpgradeOpen(true);
-      toast.error("O plano grátis permite até 3 mapas.");
+      toast.error("O plano grátis permite até 3 canvas.");
       return;
     }
     if (!isPro && template !== "mindmap") {
@@ -254,13 +254,13 @@ function ProjectsDashboard() {
       if (!isPro && projects.length >= FREE_MAP_LIMIT) {
         setImportOpen(false);
         setUpgradeOpen(true);
-        toast.error("O plano grátis permite até 3 mapas mentais.");
+        toast.error("O plano grátis permite até 3 canvas.");
         return;
       }
       if (!isPro && imported.nodes.length > FREE_NODE_LIMIT) {
         setImportOpen(false);
         setUpgradeOpen(true);
-        toast.error("O plano grátis permite importar mapas com até 30 nós.");
+        toast.error("O plano grátis permite importar canvas com até 30 nós.");
         return;
       }
       const base = file.name.replace(/\.[^.]+$/, "");
@@ -272,11 +272,11 @@ function ProjectsDashboard() {
       });
       const id = importProject({ ...project, folderId });
       setImportOpen(false);
-      toast.success(`Mapa importado com ${imported.nodes.length} nós.`);
+      toast.success(`Canvas importado com ${imported.nodes.length} nós.`);
       navigate({ to: "/projects/$id", params: { id } });
     } catch (err) {
       console.error(err);
-      toast.error("Falha ao importar. Verifique o arquivo .md ou .json.");
+      toast.error("Falha ao importar. Envie um arquivo .md ou .json válido.");
     }
   }
 
@@ -293,7 +293,7 @@ function ProjectsDashboard() {
             <img src="/favicon.png" alt="Canvas Narrativo" className="size-9 rounded-lg shadow-lg" />
             <div>
               <h1 className="text-base font-semibold">Canvas Narrativo</h1>
-              <p className="text-xs text-muted-foreground">Mapas mentais com modo apresentação</p>
+              <p className="text-xs text-muted-foreground">6 formatos visuais para vídeos envolventes</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -357,12 +357,12 @@ function ProjectsDashboard() {
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button className="gap-2" disabled={!isPro && projects.length >= FREE_MAP_LIMIT}>
-                  <Plus className="size-4" /> Novo mapa
+                  <Plus className="size-4" /> Novo canvas
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Criar novo projeto</DialogTitle>
+                  <DialogTitle>Criar novo canvas</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
@@ -405,7 +405,7 @@ function ProjectsDashboard() {
                   </div>
                   <Input
                     autoFocus
-                    placeholder="Nome do projeto"
+                    placeholder="Nome do canvas"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleCreate()}
@@ -472,7 +472,7 @@ function ProjectsDashboard() {
             className={`${sidebarItemBase} ${activeFolder === ALL_FOLDERS ? sidebarItemActive : sidebarItemInactive}`}
           >
             <Network className="size-4 shrink-0" />
-            <span className="flex-1 truncate">Todos os mapas</span>
+            <span className="flex-1 truncate">Todos os canvas</span>
             <span className="text-xs text-muted-foreground">{projects.length}</span>
           </button>
 
@@ -591,7 +591,7 @@ function ProjectsDashboard() {
             <div>
               <h2 className="text-2xl font-semibold">{activeFolderLabel}</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                {visibleProjects.length} {visibleProjects.length === 1 ? "mapa" : "mapas"}
+                {visibleProjects.length} {visibleProjects.length === 1 ? "canvas" : "canvas"}
               </p>
             </div>
           </div>
@@ -601,8 +601,8 @@ function ProjectsDashboard() {
               <Network className="size-10 mx-auto text-muted-foreground/60 mb-3" />
               <p className="text-muted-foreground">
                 {activeFolder === ALL_FOLDERS
-                  ? "Nenhum mapa ainda. Crie o primeiro."
-                  : "Nenhum mapa nesta pasta ainda."}
+                  ? "Nenhum canvas ainda. Crie o primeiro."
+                  : "Nenhum canvas nesta pasta ainda."}
               </p>
             </div>
           ) : (
@@ -675,7 +675,7 @@ function ProjectsDashboard() {
                         if (confirm(`Excluir "${p.title}"?`)) deleteProject(p.id);
                       }}
                       className="size-8 grid place-items-center rounded-md text-muted-foreground hover:bg-destructive/20 hover:text-destructive transition"
-                      aria-label="Excluir mapa"
+                      aria-label="Excluir canvas"
                     >
                       <Trash2 className="size-4" />
                     </button>
