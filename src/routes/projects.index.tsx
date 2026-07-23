@@ -138,7 +138,7 @@ function ProjectsDashboard() {
   const { isPro, loading: subscriptionLoading, subscription } = useSubscription(session?.user.id);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [template, setTemplate] = useState<"mindmap" | "tierlist" | "iceberg">("mindmap");
+  const [template, setTemplate] = useState<"mindmap" | "tierlist" | "iceberg" | "bracket" | "matrix" | "ranking">("mindmap");
   const [importOpen, setImportOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [avatarsOpen, setAvatarsOpen] = useState(false);
@@ -203,7 +203,7 @@ function ProjectsDashboard() {
     if (!isPro && template !== "mindmap") {
       setOpen(false);
       setUpgradeOpen(true);
-      toast.error("Tier list e iceberg são recursos Pro.");
+      toast.error("Este formato é um recurso Pro.");
       return;
     }
     const folderId =
@@ -367,11 +367,14 @@ function ProjectsDashboard() {
                 <div className="space-y-4">
                   <div>
                     <label className="text-xs text-muted-foreground mb-2 block">Formato</label>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       {([
                         { key: "mindmap", label: "Mapa mental", desc: "Nós conectados em árvore", pro: false },
                         { key: "tierlist", label: "Tier List", desc: "S / A / B / C / D", pro: true },
                         { key: "iceberg", label: "Iceberg", desc: "Níveis de profundidade", pro: true },
+                        { key: "bracket", label: "Chaveamento", desc: "Torneio eliminatório", pro: true },
+                        { key: "matrix", label: "Matriz 2×2", desc: "Cards em plano de eixos", pro: true },
+                        { key: "ranking", label: "Ranking", desc: "Lista ordenada progressiva", pro: true },
                       ] as const).map((opt) => {
                         const locked = opt.pro && !isPro;
                         const active = template === opt.key;
