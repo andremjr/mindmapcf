@@ -19,13 +19,26 @@ import type { RecordFormat } from "@/lib/recordFormats";
 import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
 
 export type ChartType = "quadrants" | "scatter" | "line" | "bullseye";
+export interface RingConfig { color: string; label: string }
+export interface LinePoint { id: string; pctX: number; label: string; side: "top" | "bottom" }
 export interface AxisConfig {
   chartType: ChartType;
   xLow: string; xHigh: string; yLow: string; yHigh: string;
   xLabel: string; yLabel: string;
   lineLabel: string;
   bullseyeLabel: string;
+  /** 4 rings ordered outer → inner. */
+  rings: RingConfig[];
+  /** Optional milestones drawn on the timeline. */
+  linePoints: LinePoint[];
 }
+
+export const DEFAULT_RINGS: RingConfig[] = [
+  { color: "#94A3B8", label: "Descartar" },
+  { color: "#EAB308", label: "Considerar" },
+  { color: "#F97316", label: "Alta prioridade" },
+  { color: "#EF4444", label: "Alvo" },
+];
 
 const DEFAULT_AXIS: AxisConfig = {
   chartType: "quadrants",
@@ -34,14 +47,20 @@ const DEFAULT_AXIS: AxisConfig = {
   xLabel: "Eixo X", yLabel: "Eixo Y",
   lineLabel: "Linha do tempo",
   bullseyeLabel: "Prioridade (centro = topo)",
+  rings: DEFAULT_RINGS,
+  linePoints: [],
 };
 
 export function parseAxis(body: string | undefined): AxisConfig {
   try {
     const p = body ? JSON.parse(body) : {};
-    return { ...DEFAULT_AXIS, ...p };
+    const merged: AxisConfig = { ...DEFAULT_AXIS, ...p };
+    if (!Array.isArray(merged.rings) || merged.rings.length !== 4) merged.rings = DEFAULT_RINGS;
+    if (!Array.isArray(merged.linePoints)) merged.linePoints = [];
+    return merged;
   } catch { return DEFAULT_AXIS; }
 }
+
 
 const CHART_TYPES: { id: ChartType; label: string; hint: string; Icon: any }[] = [
   { id: "quadrants", label: "Quadrantes", hint: "2 eixos, 4 zonas", Icon: Grid2x2 },
