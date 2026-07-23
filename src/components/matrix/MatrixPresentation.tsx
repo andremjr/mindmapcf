@@ -194,13 +194,18 @@ export function MatrixPresentation({
   }, [steps, step]);
 
   const activeIdx =
-    current?.kind === "reveal" ? current.index : -1;
+    current?.kind === "reveal" || current?.kind === "focus" ? current.index : -1;
+
+  const spotlightCard =
+    current?.kind === "focus" && activeIdx >= 0 ? cards[activeIdx] : null;
 
   const activeCard = activeIdx >= 0 ? cards[activeIdx] : null;
   const caption =
-    (current?.kind === "reveal"
-      ? activeCard?.body
-      : current?.caption) || "";
+    current?.kind === "intro" || current?.kind === "axis"
+      ? current.caption
+      : current?.kind === "reveal"
+        ? activeCard?.body || activeCard?.text || ""
+        : "";
 
   const navLabel = `${step + 1} / ${steps.length}`;
 
