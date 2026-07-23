@@ -588,6 +588,15 @@ export function MindMapEditor({ project }: { project: Project }) {
   const [recordFormatOpen, setRecordFormatOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [hintsOpen, setHintsOpen] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("mm_hints_open") !== "0";
+  });
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("mm_hints_open", hintsOpen ? "1" : "0");
+    }
+  }, [hintsOpen]);
 
   function handleRecordAndPresent() {
     setViewportPersist(project.id, viewport);
