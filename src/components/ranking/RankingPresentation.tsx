@@ -235,21 +235,29 @@ export function RankingPresentation({
   // Derive current UI state from step.
   const placedCount = Math.floor((step + 1) / 3); // items already placed into ranking
   const highlightIndex = (() => {
-    // Highlight applies during phases 1 and 2 (before spotlight closes).
     if (step === 0) return -1;
     const mod = ((step - 1) % 3);
     const k = Math.floor((step - 1) / 3);
     if (k >= N) return -1;
-    // mod 0 → highlight only, mod 1 → highlight + spotlight, mod 2 → highlight cleared
     return mod < 2 ? k : -1;
   })();
-  const spotlightIndex = (() => {
+  // Spotlight only during phase 2 (mod === 1), but delayed so the list-reorder
+  // animation plays first for the viewer.
+  const spotlightBaseIndex = (() => {
     if (step === 0) return -1;
     const mod = ((step - 1) % 3);
     const k = Math.floor((step - 1) / 3);
     if (k >= N) return -1;
     return mod === 1 ? k : -1;
   })();
+  const SPOTLIGHT_DELAY_MS = 1400;
+  const [spotlightIndex, setSpotlightIndex] = useState(-1);
+  useEffect(() => {
+    if (spotlightBaseIndex < 0) { setSpotlightIndex(-1); return; }
+    setSpotlightIndex(-1);
+    const t = window.setTimeout(() => setSpotlightIndex(spotlightBaseIndex), SPOTLIGHT_DELAY_MS);
+    return () => window.clearTimeout(t);
+  }, [spotlightBaseIndex]);
 
   const highlightNode = highlightIndex >= 0 ? callOrder[highlightIndex] : null;
   const spotlightNode = spotlightIndex >= 0 ? callOrder[spotlightIndex] : null;
