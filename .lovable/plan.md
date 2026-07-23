@@ -1,46 +1,51 @@
-# Ajustes de layout — controle manual + regra de vídeo
+# Narração pré-gravada no modo Gravar (Pro)
 
-Referência das práticas usadas (XMind, MindMeister, Miro, Whimsical): largura auto por padrão, alça de resize manual sobrescreve, seleção múltipla via marquee (arrasto do fundo) + Shift-click, grupo arrasta preservando deltas relativos. Vamos adotar o mesmo modelo.
+## A ideia faz sentido?
+Sim, tecnicamente é totalmente viável e encaixa bem no que o app já faz. Hoje o `screenRecorder` já mistura áudios via Web Audio (`MediaStreamDestination`) antes de mandar pro `MediaRecorder`. Basta trocar/adicionar uma fonte de áudio: em vez do microfone, plugamos um `<audio>` com o arquivo de narração. O vídeo final sai com a narração como trilha, e o usuário só opera os nós no tempo dele.
 
-## 1. Resize manual do nó
+Também não estraga o resto: é uma opção **por projeto**, opt-in, só aparece quando o usuário anexa uma narração. Sem narração anexada, tudo funciona exatamente como hoje (mic + áudio do sistema).
 
-- Adicionar alça de resize na borda direita do card (`NodeCard.tsx`), visível apenas quando `selected && !presentation`.
-- Ao arrastar: atualiza `node.width` no store; largura respeita `min=220`, `max=900`.
-- Botão "Auto" no inspector lateral (`MindMapEditor.tsx` painel direito) que limpa `node.width` e volta ao `nodeEffectiveWidth` adaptativo.
-- `nodeEffectiveWidth` já respeita `n.width` quando definido — nada a mudar lá.
-- Após soltar a alça, dispara `reflowTree` (via `updateNode` — já reflowa quando `width` muda a altura intrínseca).
+## Como funciona pro usuário
+1. No inspetor do mapa (ou num botão novo no header do editor), o usuário **anexa um arquivo de áudio** (mp3/wav/m4a/webm) — mesmo padrão do file picker de imagem/vídeo, salvo local (IndexedDB), sem subir pra Supabase.
+2. Aparece um mini-player pra ouvir e conferir.
+3. Ao entrar no modo **Gravar** com narração anexada:
+   - Countdown de 3s (como já existe).
+   - Ao gravar começa, a narração toca automaticamente.
+   - O microfone é **ignorado** (a trilha é a narração).
+   - O Sonic Avatar reage às ondas da narração (usa o analyser desse áudio em vez do mic).
+   - Barra de progresso da narração fica no HUD, com botão de pausar/retomar.
+   - Quando a narração acaba, aparece um aviso “Narração terminou — encerrar gravação?” (não para sozinho, pra dar folga pro usuário fechar bonito).
+4. No modo **Apresentar** (sem gravação), a narração também toca, útil pra ensaiar.
 
-## 2. Seleção múltipla + arrasto em grupo
+## Regra Pro
+- Anexar narração e usar o modo com narração são bloqueados por `useSubscription().isPro`.
+- Free vê o botão com cadeado e o `UpgradeDialog` já existente.
+- Enforcement no cliente é suficiente (feature de UX, não de dados sensíveis) — mesmo padrão do Sonic Avatar.
 
-- Store: trocar `selectedId: string | null` por `selectedIds: string[]` (mantém helper `selectedId` = primeiro item para compatibilidade com inspector). Novas ações: `setSelection(ids)`, `toggleSelection(id)`, `moveNodes(projectId, deltas)`.
-- `MindMapCanvas`: marquee de seleção com arrasto do fundo (retângulo tracejado). Ao soltar, seleciona todos os nós cujo centro cai dentro. Shift+clique num nó adiciona/remove da seleção. Clique simples num nó já selecionado no grupo mantém o grupo (para permitir arrasto conjunto); clique num nó fora zera e seleciona só ele.
-- `NodeCard` drag: se o nó pertence à seleção múltipla, o `onDragStart` move todos os nós selecionados aplicando o mesmo delta (via nova ação `moveNodes`). Se não, comportamento atual.
-- Reflow: arrasto manual em grupo **não** dispara reflow (comportamento de mapa manual — deltas do usuário são preservados). Reflow segue acionado só por criação/exclusão/mudança de pai/alteração de altura intrínseca.
-- Delete/color/etc no toolbar operam sobre toda a seleção quando `selectedIds.length > 1`.
+## Impacto técnico (arquivos)
+- `src/lib/types.ts`: `MindmapProject` ganha `narrationMediaId?: string` (referência no IndexedDB, igual imagens).
+- `src/lib/imageStorage.ts`: reaproveitar `pickMediaAndStore` — só ampliar filtro pra aceitar `audio/*`.
+- `src/lib/screenRecorder.ts`: aceitar `narrationEl?: HTMLAudioElement` em `startRecording`. Se presente, cria `MediaElementAudioSourceNode`, conecta ao `dest` e ao `audioAnalyser`, e **não** pede `getUserMedia` de mic.
+- `src/lib/micAnalyser.ts`: sem mudança; só não é ligado quando há narração.
+- `src/components/mindmap/Presentation.tsx`:
+  - Novo `<audio ref>` oculto com o blob da narração.
+  - Ao começar (após countdown), `audio.play()` + `startRecording({ narrationEl })`.
+  - Ao pausar/retomar recording, pausa/retoma o áudio.
+  - Ao sair, `audio.pause()` + revoga URL.
+- `src/components/mindmap/RecorderHUD.tsx`: barra de progresso + botão pausar narração quando aplicável.
+- `src/components/mindmap/MindMapEditor.tsx`: no inspetor, seção “Narração (Pro)” com anexar/remover/preview, gated por `isPro`.
+- `src/components/mindmap/SonicAvatarOverlay.tsx`: nenhuma mudança — já usa `getRecordingAnalyser()` primeiro, que passa a expor a narração automaticamente.
 
-## 3. Regra 40% para vídeo horizontal em foco
+## Limitações honestas
+- Só uma narração por projeto (uma trilha única). Multi-track / edição no meio fica fora do escopo.
+- Se o usuário passa dos nós fora do ritmo da narração, o vídeo mostra isso — não há “auto-sync”. É um editor ao vivo, como você descreveu.
+- Arquivos grandes (>50MB) podem pesar o IndexedDB do navegador. Vou avisar no anexo se passar disso e sugerir comprimir.
+- Áudio do sistema (aba) continua sendo capturado por padrão; posso silenciar durante narração pra não sobrepor — confirmar preferência (default: silenciar).
 
-- Em `NodeCard.tsx` (`NodeMedia` → `VideoPlayer`): medir aspect ratio no `onLoadedMetadata`. Considerar horizontal se `videoWidth / videoHeight >= 1.2`.
-- Passar `videoAspect` do `NodeMedia` para o card via callback (`onVideoMeta`) armazenado em state local do `NodeCard`.
-- Quando `presentation && active && videoHorizontal`:
-  - Altura do vídeo renderizado = `w / aspect` (já é natural — o vídeo ocupa a largura do card).
-  - Container do texto (`div.px-4.py-3`) ganha `maxHeight = videoHeight * 0.4`, `overflow: hidden`.
-  - Fonte do texto usa uma versão "fit" do `autoFontSize`: começa no tamanho normal e reduz iterativamente até caber via medição do `scrollHeight` (loop simples com `useLayoutEffect` refletindo em state `fittedFontPx`, chão em 9px).
-- Fora de `presentation && active`: comportamento atual (autoFontSize por tamanho de texto).
-- `nodeIntrinsicHeight` no store **não muda** — o encolhimento só afeta o frame de apresentação; o layout do editor continua respirando o texto inteiro.
+## Riscos de regressão
+Baixos. As mudanças no `screenRecorder` são aditivas (novo parâmetro opcional). O caminho sem narração fica idêntico ao atual. Sonic Avatar já tem fallback em cascata (recording → mic → nada), então continua funcionando nos três cenários.
 
-## Arquivos afetados
-
-- `src/lib/store.ts` — `selectedIds`, `setSelection`, `toggleSelection`, `moveNodes`. Manter `nodeEffectiveWidth`.
-- `src/components/mindmap/MindMapEditor.tsx` — consumir `selectedIds`; botão "Auto" de largura no painel direito; roteamento de delete/color em grupo; marquee handlers.
-- `src/components/mindmap/MindMapCanvas.tsx` — retângulo de marquee + hit-test.
-- `src/components/mindmap/NodeCard.tsx` — alça de resize (right edge), suporte a drag em grupo, medição de aspect do vídeo, fit-to-40% em presentation+active.
-
-## Detalhes técnicos
-
-- `moveNodes(projectId, [{id, dx, dy}])` aplica offsets sem reflow.
-- Marquee: registrar em `onBackgroundPointerDown` só se o alvo é o fundo do canvas; converter pixels em coord de mundo com o viewport atual.
-- Fit-font loop: no máximo 8 iterações binárias entre `[9, autoFontPx(text,isRoot)]`; roda quando `active/presentation/text/videoHeight` mudam.
-- `.width` persistido no JSONB do Supabase igual às demais props do nó (nenhuma migração necessária).
-
-Confirma que posso implementar os três pontos?
+## Fora do escopo (posso fazer depois se você quiser)
+- Gravar a narração dentro do próprio app (em vez de anexar arquivo).
+- Marcadores/cue points na waveform pra pular nós automaticamente.
+- Waveform visual do áudio anexado.
