@@ -181,6 +181,7 @@ export function useMindmapSync(userId: string | undefined) {
                     viewport: p.viewport,
                     sonicAvatar: p.sonicAvatar,
                     narrationRef: p.narrationRef,
+                    template: p.template ?? "mindmap",
                   } as any,
                 },
                 { onConflict: "id" },
