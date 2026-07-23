@@ -268,8 +268,17 @@ export function BracketPresentation({
                   className="absolute inset-0 flex items-center justify-center pointer-events-none"
                 >
                   <div className="flex flex-col items-center gap-3 max-w-[80%] rounded-2xl bg-neutral-950/85 border border-white/15 shadow-[0_20px_80px_rgba(0,0,0,0.6)] px-8 py-6">
-                    <div className="text-[11px] uppercase tracking-[0.35em] text-amber-200/90">
-                      {roundLabelFor(focusKey)}
+                    <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.35em] text-amber-200/90">
+                      <span>{roundLabelFor(focusKey)}</span>
+                      {(() => {
+                        const c = matchCounterFor(focusKey);
+                        return c ? (
+                          <>
+                            <span className="opacity-40">·</span>
+                            <span className="tabular-nums text-white/70">{c.current} de {c.total}</span>
+                          </>
+                        ) : null;
+                      })()}
                     </div>
                     <div className="flex items-stretch gap-6">
                       <motion.div
