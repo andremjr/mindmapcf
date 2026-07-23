@@ -147,24 +147,27 @@ function CompetitorCard({
       : state === "current"
         ? "border-amber-300 bg-amber-400/10 ring-2 ring-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.45)]"
         : state === "loser"
-          ? "border-white/10 bg-black/50 opacity-40 line-through"
+          ? "border-white/10 bg-black/50 opacity-40"
           : "border-white/20 bg-black/60";
+  const textCls =
+    state === "loser"
+      ? "line-through text-white/60"
+      : "text-white/95";
   return (
     <button
       disabled={!onClick}
       onClick={onClick}
-      className={`relative w-full rounded-md overflow-hidden border transition-all text-left ${cls} ${onClick ? "hover:border-white/70 cursor-pointer" : "cursor-default"}`}
-      style={{ minHeight: small ? 42 : 52 }}
+      className={`relative w-full rounded-md overflow-hidden border transition-all text-left flex flex-col ${cls} ${onClick ? "hover:border-white/70 cursor-pointer" : "cursor-default"}`}
     >
-      <div className="flex items-center gap-2 p-1.5">
-        <div className={`rounded bg-black/60 overflow-hidden shrink-0 grid place-items-center ${small ? "size-8" : "size-10"}`}>
-          {url ? <img src={url} alt="" className="size-full object-cover" /> : (
-            <span className="text-[10px] text-white/50">?</span>
-          )}
-        </div>
-        <div className={`font-medium leading-tight line-clamp-2 text-white/95 ${small ? "text-[11px]" : "text-xs"}`}>
-          {node.text || "—"}
-        </div>
+      <div className="w-full aspect-square bg-black/70 grid place-items-center overflow-hidden">
+        {url ? (
+          <img src={url} alt="" className="size-full object-contain" />
+        ) : (
+          <span className="text-[10px] text-white/40">sem imagem</span>
+        )}
+      </div>
+      <div className={`px-1.5 py-1.5 font-medium leading-tight line-clamp-3 text-center ${textCls} ${small ? "text-[11px]" : "text-xs"}`}>
+        {node.text || "—"}
       </div>
     </button>
   );
@@ -172,8 +175,8 @@ function CompetitorCard({
 
 function EmptySlot({ label = "?" }: { label?: string }) {
   return (
-    <div className="w-full rounded-md border border-dashed border-white/15 bg-black/30 grid place-items-center text-[11px] text-white/40" style={{ minHeight: 52 }}>
-      {label}
+    <div className="w-full rounded-md border border-dashed border-white/15 bg-black/30 grid place-items-center text-[11px] text-white/40 flex-col aspect-[3/4]">
+      <div className="flex-1 grid place-items-center w-full">{label}</div>
     </div>
   );
 }
@@ -252,7 +255,7 @@ function RoundColumn({
   const r = parseInt(round[0]?.key.match(/r(\d+)/)?.[1] ?? "0", 10);
   const spacing = 8 * Math.pow(2, r);
   return (
-    <div className="flex flex-col gap-2 w-[140px] sm:w-[170px] shrink-0" style={{ paddingTop: spacing, paddingBottom: spacing }}>
+    <div className="flex flex-col gap-2 w-[180px] sm:w-[210px] shrink-0" style={{ paddingTop: spacing, paddingBottom: spacing }}>
 
 
       <div className="text-[10px] uppercase tracking-widest text-white/40 text-center">{label}</div>
@@ -357,7 +360,7 @@ export function BracketBoard({
           ))}
 
           {/* Center: FINAL + Champion */}
-          <div className="flex flex-col items-center justify-center gap-4 w-[180px] sm:w-[220px] shrink-0 py-6">
+          <div className="flex flex-col items-center justify-center gap-4 w-[210px] sm:w-[240px] shrink-0 py-6">
             <div className="text-[10px] uppercase tracking-widest text-amber-300/80">Final</div>
             <div className="w-full">
 
@@ -370,7 +373,7 @@ export function BracketBoard({
                 side="F"
               />
             </div>
-            <div className="h-[110px] w-full grid place-items-center">
+            <div className="min-h-[110px] w-full grid place-items-center">
               <AnimatePresence>
                 {showChampion && data.champion && (
                   <motion.div
