@@ -91,7 +91,8 @@ function Spotlight({ node, onClose }: { node: MindNode; onClose: () => void }) {
 type Step =
   | { kind: "intro"; caption: string }
   | { kind: "axis"; axis: "x" | "y" | "grid" | "zones" | "rings"; caption: string }
-  | { kind: "reveal"; index: number; caption?: string };
+  | { kind: "reveal"; index: number }
+  | { kind: "focus"; index: number };
 
 function buildSteps(chart: ChartType, axis: AxisConfig, cards: MindNode[]): Step[] {
   const steps: Step[] = [];
@@ -117,9 +118,14 @@ function buildSteps(chart: ChartType, axis: AxisConfig, cards: MindNode[]): Step
     steps.push({ kind: "axis", axis: "rings", caption: axis.bullseyeLabel });
   }
 
-  // Reveal order per chart narrative
+  // For each card: land it on the chart (reveal) and immediately open the
+  // spotlight so the narrator can justify why it sits there (focus).
+  // A second click closes the spotlight and leaves the card highlighted in place.
   const order = revealOrder(chart, cards);
-  order.forEach((i) => steps.push({ kind: "reveal", index: i }));
+  order.forEach((i) => {
+    steps.push({ kind: "reveal", index: i });
+    steps.push({ kind: "focus",  index: i });
+  });
   return steps;
 }
 
