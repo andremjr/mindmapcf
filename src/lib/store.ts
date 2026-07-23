@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Folder, ImageRef, MindNode, Project, SonicAvatarEntry, SonicAvatarUsage } from "./types";
+import type { Folder, ImageRef, MindNode, Project, ProjectTemplate, SonicAvatarEntry, SonicAvatarUsage } from "./types";
 
 
 function uid(_prefix = "id") {
