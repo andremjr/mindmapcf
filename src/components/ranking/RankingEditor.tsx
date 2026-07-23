@@ -17,6 +17,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { launchRecording } from "@/lib/launchRecording";
 import type { RecordFormat } from "@/lib/recordFormats";
 import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
+import { visualInsertIndexVertical } from "@/components/shared/DropIndicator";
 
 /* ---------- image resolution ---------- */
 function useResolvedImage(node: MindNode | undefined) {
@@ -100,6 +101,7 @@ export function RankingEditor({ project }: { project: Project }) {
   const [titleDraft, setTitleDraft] = useState(project.title);
   const [recordOpen, setRecordOpen] = useState(false);
   const [drag, setDrag] = useState<DragPayload | null>(null);
+  const [callHover, setCallHover] = useState<{ idx: number; y: number } | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = selectedId ? itemsById.get(selectedId) ?? null : null;
 
@@ -284,7 +286,44 @@ export function RankingEditor({ project }: { project: Project }) {
                 </div>
               </button>
             ) : (
-              <div ref={callRows.ref} className="flex-1 min-h-0 p-2 grid gap-2" style={rowStyle(callRows)}>
+              <div
+                ref={callRows.ref}
+                className="flex-1 min-h-0 p-2 grid gap-2 relative"
+                style={rowStyle(callRows)}
+                onDragOver={(e) => {
+                  if (!drag || drag.from !== "call") return;
+                  e.preventDefault();
+                  const container = e.currentTarget as HTMLElement;
+                  const idx = visualInsertIndexVertical(container, e.clientY);
+                  const cards = Array.from(container.querySelectorAll<HTMLElement>("[data-item-id]"));
+                  const containerRect = container.getBoundingClientRect();
+                  let y = 4;
+                  if (idx === 0 && cards[0]) {
+                    y = cards[0].getBoundingClientRect().top - containerRect.top - 2;
+                  } else if (cards[idx - 1]) {
+                    const r = cards[idx - 1].getBoundingClientRect();
+                    y = r.bottom - containerRect.top + 1;
+                  } else if (cards.length) {
+                    const r = cards[cards.length - 1].getBoundingClientRect();
+                    y = r.bottom - containerRect.top + 1;
+                  }
+                  if (callHover?.idx !== idx) setCallHover({ idx, y });
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setCallHover(null);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (drag && drag.from === "call" && callHover) {
+                    const srcIdx = items.findIndex((n) => n.id === drag.id);
+                    let target = callHover.idx;
+                    if (srcIdx !== -1 && srcIdx < target) target -= 1;
+                    moveCall(drag.id, target);
+                  }
+                  setDrag(null);
+                  setCallHover(null);
+                }}
+              >
                 {items.map((it, i) => {
                   const placed = typeof it.rank === "number";
                   return (
@@ -298,14 +337,21 @@ export function RankingEditor({ project }: { project: Project }) {
                       isDropTarget={!!drag && drag.from === "call" && drag.id !== it.id}
                       onClick={() => setSelectedId(it.id)}
                       onDragStart={() => setDrag({ id: it.id, from: "call" })}
-                      onDragEnd={() => setDrag(null)}
+                      onDragEnd={() => { setDrag(null); setCallHover(null); }}
                       onDropOnCard={() => {
                         if (drag && drag.from === "call") moveCall(drag.id, i);
                         setDrag(null);
+                        setCallHover(null);
                       }}
                     />
                   );
                 })}
+                {drag?.from === "call" && callHover && (
+                  <div
+                    className="absolute left-2 right-2 h-[3px] rounded-full bg-primary shadow-[0_0_10px_2px_hsl(var(--primary)/0.75)] animate-pulse pointer-events-none z-10"
+                    style={{ top: callHover.y }}
+                  />
+                )}
               </div>
             )}
           </section>

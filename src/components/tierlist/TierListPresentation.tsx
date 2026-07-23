@@ -20,6 +20,7 @@ import { loadRecordFormat, defaultRecordFormat, type RecordFormat } from "@/lib/
 import { RecorderHUD } from "@/components/mindmap/RecorderHUD";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AvatarLayer } from "@/components/shared/AvatarLayer";
+import { DropIndicator, visualInsertIndex } from "@/components/shared/DropIndicator";
 
 function fmtDur(ms: number) {
   const s = Math.floor(ms / 1000);
@@ -252,6 +253,7 @@ export function TierListPresentation({
 
   /* ============ DRAG (manual mode) ============ */
   const [dragId, setDragId] = useState<string | null>(null);
+  const [hover, setHover] = useState<{ key: string; idx: number } | null>(null);
   const updateNode = useStore((s) => s.updateNode);
 
   /** Where the user drops is where the item stays: compute insertion index
@@ -299,12 +301,23 @@ export function TierListPresentation({
   const onTierDrop = (tierId: string) => (e: React.DragEvent) => {
     e.preventDefault();
     commitDrop(e.currentTarget as HTMLElement, e.clientX, e.clientY, tierId);
+    setHover(null);
   };
   const onPoolDrop = (e: React.DragEvent) => {
     e.preventDefault();
     commitDrop(e.currentTarget as HTMLElement, e.clientX, e.clientY, null);
+    setHover(null);
   };
   const allowDrop = (e: React.DragEvent) => { if (dragId) e.preventDefault(); };
+  const onHoverOver = (key: string) => (e: React.DragEvent) => {
+    if (!dragId) return;
+    e.preventDefault();
+    const idx = visualInsertIndex(e.currentTarget as HTMLElement, e.clientX, e.clientY);
+    if (hover?.key !== key || hover.idx !== idx) setHover({ key, idx });
+  };
+  const onHoverLeave = (e: React.DragEvent) => {
+    if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) setHover(null);
+  };
 
 
   async function stopAndDownload() {
@@ -394,7 +407,8 @@ export function TierListPresentation({
                     <div
                       key={tier.id}
                       data-tier-id={tier.id}
-                      onDragOver={allowDrop}
+                      onDragOver={manualMode ? onHoverOver(`tier:${tier.id}`) : allowDrop}
+                      onDragLeave={manualMode ? onHoverLeave : undefined}
                       onDrop={onTierDrop(tier.id)}
                       className={`flex items-stretch rounded-lg overflow-hidden border border-border transition-all duration-300 ${
                         manualMode
@@ -409,23 +423,25 @@ export function TierListPresentation({
                         {tier.text}
                       </div>
                       <div className="flex-1 min-h-[112px] bg-muted/30 p-3 flex flex-wrap gap-2 items-start">
-                        {items.map((it) => (
-                          <motion.div
-                            key={it.id}
-                            data-item-id={it.id}
-                            layoutId={`item-${it.id}`}
-                            transition={{ type: "spring", stiffness: 260, damping: 28 }}
-                          >
-
-                            <TierItem
-                              node={it}
-                              highlighted={!manualMode && currentItemId === it.id}
-                              draggable={manualMode}
-                              onDragStart={() => setDragId(it.id)}
-                              onDragEnd={() => setDragId(null)}
-                            />
-                          </motion.div>
+                        {items.map((it, i) => (
+                          <div key={it.id} className="contents">
+                            {manualMode && hover?.key === `tier:${tier.id}` && hover.idx === i && <DropIndicator />}
+                            <motion.div
+                              data-item-id={it.id}
+                              layoutId={`item-${it.id}`}
+                              transition={{ type: "spring", stiffness: 260, damping: 28 }}
+                            >
+                              <TierItem
+                                node={it}
+                                highlighted={!manualMode && currentItemId === it.id}
+                                draggable={manualMode}
+                                onDragStart={() => setDragId(it.id)}
+                                onDragEnd={() => { setDragId(null); setHover(null); }}
+                              />
+                            </motion.div>
+                          </div>
                         ))}
+                        {manualMode && dragId && hover?.key === `tier:${tier.id}` && hover.idx === items.length && <DropIndicator />}
                         {items.length === 0 && !isActive && (
                           <div className="text-xs opacity-40 italic self-center px-2">
                             {manualMode ? "solte aqui" : "— vazio —"}
@@ -439,7 +455,8 @@ export function TierListPresentation({
 
               {/* Pool of remaining items */}
               <div
-                onDragOver={allowDrop}
+                onDragOver={manualMode ? onHoverOver("pool") : allowDrop}
+                onDragLeave={manualMode ? onHoverLeave : undefined}
                 onDrop={onPoolDrop}
                 className="mt-3 rounded-lg border border-border bg-muted/40 px-3 py-2"
               >
@@ -458,23 +475,25 @@ export function TierListPresentation({
                     </div>
                   )}
                   {remaining.map((it, i) => (
-                    <motion.div
-                      key={it.id}
-                      data-item-id={it.id}
-                      layoutId={`item-${it.id}`}
-                      transition={{ type: "spring", stiffness: 260, damping: 28 }}
-                    >
-
-                      <TierItem
-                        node={it}
-                        size={72}
-                        highlighted={!manualMode && i === 0}
-                        draggable={manualMode}
-                        onDragStart={() => setDragId(it.id)}
-                        onDragEnd={() => setDragId(null)}
-                      />
-                    </motion.div>
+                    <div key={it.id} className="contents">
+                      {manualMode && hover?.key === "pool" && hover.idx === i && <DropIndicator />}
+                      <motion.div
+                        data-item-id={it.id}
+                        layoutId={`item-${it.id}`}
+                        transition={{ type: "spring", stiffness: 260, damping: 28 }}
+                      >
+                        <TierItem
+                          node={it}
+                          size={72}
+                          highlighted={!manualMode && i === 0}
+                          draggable={manualMode}
+                          onDragStart={() => setDragId(it.id)}
+                          onDragEnd={() => { setDragId(null); setHover(null); }}
+                        />
+                      </motion.div>
+                    </div>
                   ))}
+                  {manualMode && dragId && hover?.key === "pool" && hover.idx === remaining.length && <DropIndicator />}
                 </div>
               </div>
             </div>

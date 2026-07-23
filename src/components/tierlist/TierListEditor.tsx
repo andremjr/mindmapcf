@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
+import { DropIndicator, visualInsertIndex } from "@/components/shared/DropIndicator";
 
 const TIER_COLORS = [
   "#f43f5e", "#f97316", "#eab308", "#22c55e",
@@ -220,6 +221,7 @@ export function TierListEditor({ project }: { project: Project }) {
   }
 
   const [dragItemId, setDragItemId] = useState<string | null>(null);
+  const [hover, setHover] = useState<{ key: string; idx: number } | null>(null);
 
   /** Given a horizontal-wrap container and a pointer event, find the insertion
    * index by comparing pointer position to each child card's midpoint. */
@@ -341,35 +343,47 @@ export function TierListEditor({ project }: { project: Project }) {
               </div>
               <div
                 className="min-h-[120px] flex flex-wrap gap-2 p-2"
-                onDragOver={(e) => { if (dragItemId) e.preventDefault(); }}
+                onDragOver={(e) => {
+                  if (!dragItemId) return;
+                  e.preventDefault();
+                  const idx = visualInsertIndex(e.currentTarget, e.clientX, e.clientY);
+                  if (hover?.key !== "pool" || hover.idx !== idx) setHover({ key: "pool", idx });
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHover(null);
+                }}
                 onDrop={(e) => {
                   e.preventDefault();
                   if (!dragItemId) return;
                   const idx = computeInsertIndex(e.currentTarget, e.clientX, e.clientY, dragItemId);
                   moveItem(dragItemId, null, idx);
                   setDragItemId(null);
+                  setHover(null);
                 }}
               >
-                {poolItems.map((it) => (
-                  <div
-                    key={it.id}
-                    data-item-id={it.id}
-                    draggable
-                    onDragStart={() => setDragItemId(it.id)}
-                    onDragEnd={() => setDragItemId(null)}
-                    className="cursor-grab active:cursor-grabbing relative"
-                  >
-                    <div className="absolute -top-1.5 -left-1.5 z-10 size-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold grid place-items-center shadow">
-                      {(it.order ?? 0) + 1}
+                {poolItems.map((it, i) => (
+                  <div key={it.id} className="contents">
+                    {hover?.key === "pool" && hover.idx === i && <DropIndicator />}
+                    <div
+                      data-item-id={it.id}
+                      draggable
+                      onDragStart={() => setDragItemId(it.id)}
+                      onDragEnd={() => { setDragItemId(null); setHover(null); }}
+                      className="cursor-grab active:cursor-grabbing relative"
+                    >
+                      <div className="absolute -top-1.5 -left-1.5 z-10 size-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold grid place-items-center shadow">
+                        {(it.order ?? 0) + 1}
+                      </div>
+                      <ItemThumb
+                        node={it}
+                        selected={selectedId === it.id}
+                        onClick={() => { setSelectedId(it.id); setSelectedTierId(null); }}
+                        onRemove={() => deleteNode(project.id, it.id)}
+                      />
                     </div>
-                    <ItemThumb
-                      node={it}
-                      selected={selectedId === it.id}
-                      onClick={() => { setSelectedId(it.id); setSelectedTierId(null); }}
-                      onRemove={() => deleteNode(project.id, it.id)}
-                    />
                   </div>
                 ))}
+                {hover?.key === "pool" && hover.idx === poolItems.length && dragItemId && <DropIndicator />}
                 {poolItems.length === 0 && (
                   <div className="self-center text-xs text-muted-foreground italic px-2">
                     Nenhum item no pool.
@@ -404,35 +418,47 @@ export function TierListEditor({ project }: { project: Project }) {
                   </div>
                   <div
                     className="flex-1 min-h-[128px] bg-muted/30 p-2 flex flex-wrap gap-2 items-start"
-                    onDragOver={(e) => { if (dragItemId) e.preventDefault(); }}
+                    onDragOver={(e) => {
+                      if (!dragItemId) return;
+                      e.preventDefault();
+                      const idx = visualInsertIndex(e.currentTarget, e.clientX, e.clientY);
+                      if (hover?.key !== tier.id || hover.idx !== idx) setHover({ key: tier.id, idx });
+                    }}
+                    onDragLeave={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHover(null);
+                    }}
                     onDrop={(e) => {
                       e.preventDefault();
                       if (!dragItemId) return;
                       const idx = computeInsertIndex(e.currentTarget, e.clientX, e.clientY, dragItemId);
                       moveItem(dragItemId, tier.id, idx);
                       setDragItemId(null);
+                      setHover(null);
                     }}
                   >
-                    {items.map((it) => (
-                      <div
-                        key={it.id}
-                        data-item-id={it.id}
-                        draggable
-                        onDragStart={() => setDragItemId(it.id)}
-                        onDragEnd={() => setDragItemId(null)}
-                        className="cursor-grab active:cursor-grabbing relative"
-                      >
-                        <div className="absolute -top-1.5 -left-1.5 z-10 size-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold grid place-items-center shadow">
-                          {(it.order ?? 0) + 1}
+                    {items.map((it, i) => (
+                      <div key={it.id} className="contents">
+                        {hover?.key === tier.id && hover.idx === i && <DropIndicator />}
+                        <div
+                          data-item-id={it.id}
+                          draggable
+                          onDragStart={() => setDragItemId(it.id)}
+                          onDragEnd={() => { setDragItemId(null); setHover(null); }}
+                          className="cursor-grab active:cursor-grabbing relative"
+                        >
+                          <div className="absolute -top-1.5 -left-1.5 z-10 size-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold grid place-items-center shadow">
+                            {(it.order ?? 0) + 1}
+                          </div>
+                          <ItemThumb
+                            node={it}
+                            selected={selectedId === it.id}
+                            onClick={() => { setSelectedId(it.id); setSelectedTierId(null); }}
+                            onRemove={() => deleteNode(project.id, it.id)}
+                          />
                         </div>
-                        <ItemThumb
-                          node={it}
-                          selected={selectedId === it.id}
-                          onClick={() => { setSelectedId(it.id); setSelectedTierId(null); }}
-                          onRemove={() => deleteNode(project.id, it.id)}
-                        />
                       </div>
                     ))}
+                    {hover?.key === tier.id && hover.idx === items.length && dragItemId && <DropIndicator />}
                     {items.length === 0 && (
                       <div className="self-center text-xs text-muted-foreground italic px-2">Arraste itens aqui.</div>
                     )}
