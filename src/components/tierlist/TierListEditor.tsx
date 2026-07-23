@@ -418,35 +418,47 @@ export function TierListEditor({ project }: { project: Project }) {
                   </div>
                   <div
                     className="flex-1 min-h-[128px] bg-muted/30 p-2 flex flex-wrap gap-2 items-start"
-                    onDragOver={(e) => { if (dragItemId) e.preventDefault(); }}
+                    onDragOver={(e) => {
+                      if (!dragItemId) return;
+                      e.preventDefault();
+                      const idx = visualInsertIndex(e.currentTarget, e.clientX, e.clientY);
+                      if (hover?.key !== tier.id || hover.idx !== idx) setHover({ key: tier.id, idx });
+                    }}
+                    onDragLeave={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHover(null);
+                    }}
                     onDrop={(e) => {
                       e.preventDefault();
                       if (!dragItemId) return;
                       const idx = computeInsertIndex(e.currentTarget, e.clientX, e.clientY, dragItemId);
                       moveItem(dragItemId, tier.id, idx);
                       setDragItemId(null);
+                      setHover(null);
                     }}
                   >
-                    {items.map((it) => (
-                      <div
-                        key={it.id}
-                        data-item-id={it.id}
-                        draggable
-                        onDragStart={() => setDragItemId(it.id)}
-                        onDragEnd={() => setDragItemId(null)}
-                        className="cursor-grab active:cursor-grabbing relative"
-                      >
-                        <div className="absolute -top-1.5 -left-1.5 z-10 size-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold grid place-items-center shadow">
-                          {(it.order ?? 0) + 1}
+                    {items.map((it, i) => (
+                      <div key={it.id} className="contents">
+                        {hover?.key === tier.id && hover.idx === i && <DropIndicator />}
+                        <div
+                          data-item-id={it.id}
+                          draggable
+                          onDragStart={() => setDragItemId(it.id)}
+                          onDragEnd={() => { setDragItemId(null); setHover(null); }}
+                          className="cursor-grab active:cursor-grabbing relative"
+                        >
+                          <div className="absolute -top-1.5 -left-1.5 z-10 size-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold grid place-items-center shadow">
+                            {(it.order ?? 0) + 1}
+                          </div>
+                          <ItemThumb
+                            node={it}
+                            selected={selectedId === it.id}
+                            onClick={() => { setSelectedId(it.id); setSelectedTierId(null); }}
+                            onRemove={() => deleteNode(project.id, it.id)}
+                          />
                         </div>
-                        <ItemThumb
-                          node={it}
-                          selected={selectedId === it.id}
-                          onClick={() => { setSelectedId(it.id); setSelectedTierId(null); }}
-                          onRemove={() => deleteNode(project.id, it.id)}
-                        />
                       </div>
                     ))}
+                    {hover?.key === tier.id && hover.idx === items.length && dragItemId && <DropIndicator />}
                     {items.length === 0 && (
                       <div className="self-center text-xs text-muted-foreground italic px-2">Arraste itens aqui.</div>
                     )}
