@@ -281,17 +281,25 @@ export function MatrixEditor({ project }: { project: Project }) {
             </div>
           )}
           {chart === "line" && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <AxisInput label="Título do eixo" value={axis.lineLabel} onChange={(v) => setAxis({ lineLabel: v })} />
-              <AxisInput label="Início"  value={axis.xLow}  onChange={(v) => setAxis({ xLow: v })} />
-              <AxisInput label="Fim"     value={axis.xHigh} onChange={(v) => setAxis({ xHigh: v })} />
-            </div>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <AxisInput label="Título do eixo" value={axis.lineLabel} onChange={(v) => setAxis({ lineLabel: v })} />
+                <AxisInput label="Início"  value={axis.xLow}  onChange={(v) => setAxis({ xLow: v })} />
+                <AxisInput label="Fim"     value={axis.xHigh} onChange={(v) => setAxis({ xHigh: v })} />
+              </div>
+              <LinePointsEditor
+                points={axis.linePoints}
+                onChange={(linePoints) => setAxis({ linePoints })}
+              />
+            </>
           )}
           {chart === "bullseye" && (
-            <div className="grid grid-cols-1 md:grid-cols-1 gap-3">
-              <AxisInput label="Legenda" value={axis.bullseyeLabel} onChange={(v) => setAxis({ bullseyeLabel: v })} />
+            <div className="space-y-3">
+              <AxisInput label="Legenda geral" value={axis.bullseyeLabel} onChange={(v) => setAxis({ bullseyeLabel: v })} />
+              <RingsEditor rings={axis.rings} onChange={(rings) => setAxis({ rings })} />
             </div>
           )}
+
 
           {/* Plane */}
           <ChartPlane
