@@ -101,7 +101,7 @@ export function RankingEditor({ project }: { project: Project }) {
   const [titleDraft, setTitleDraft] = useState(project.title);
   const [recordOpen, setRecordOpen] = useState(false);
   const [drag, setDrag] = useState<DragPayload | null>(null);
-  const [callHoverIdx, setCallHoverIdx] = useState<number | null>(null);
+  const [callHover, setCallHover] = useState<{ idx: number; y: number } | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = selectedId ? itemsById.get(selectedId) ?? null : null;
 
