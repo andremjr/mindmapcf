@@ -332,9 +332,10 @@ export function BracketBoard({
           ))}
 
           {/* Center: FINAL + Champion */}
-          <div className="flex flex-col items-center justify-center gap-4 min-w-[220px] shrink-0 py-6">
+          <div className="flex flex-col items-center justify-center gap-4 w-[180px] sm:w-[220px] shrink-0 py-6">
             <div className="text-[10px] uppercase tracking-widest text-amber-300/80">Final</div>
-            <div className="w-[220px]">
+            <div className="w-full">
+
               <MatchBox
                 match={data.finalMatch}
                 mode={mode}
