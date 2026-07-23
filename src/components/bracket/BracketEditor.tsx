@@ -14,6 +14,8 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { RecordFormatMenu } from "@/components/RecordFormatMenu";
 import { launchRecording } from "@/lib/launchRecording";
 import type { RecordFormat } from "@/lib/recordFormats";
+import { BracketBoard, clearDownstreamWinners, type WinnersMap } from "./BracketBoard";
+
 
 function Thumb({ node }: { node: MindNode }) {
   const [url, setUrl] = useState<string | null>(node.image ?? null);
@@ -78,11 +80,22 @@ export function BracketEditor({ project }: { project: Project }) {
     } as Partial<MindNode>);
   }
 
+  const winners: WinnersMap = useMemo(() => {
+    try { return root?.body ? JSON.parse(root.body) : {}; } catch { return {}; }
+  }, [root?.body]);
+
+  function pickWinner(matchKey: string, id: string) {
+    if (!root) return;
+    const next = clearDownstreamWinners(competitors, { ...winners, [matchKey]: id }, matchKey);
+    updateNode(project.id, root.id, { body: JSON.stringify(next) } as Partial<MindNode>);
+  }
+
   function resetWinners() {
     if (!root) return;
     if (!confirm("Limpar todas as escolhas de vencedores?")) return;
     updateNode(project.id, root.id, { body: "{}" } as Partial<MindNode>);
   }
+
 
   async function onPickFormat(fmt: RecordFormat) {
     setRecordOpen(false);
@@ -125,7 +138,7 @@ export function BracketEditor({ project }: { project: Project }) {
       </header>
 
       <main className="flex-1 overflow-auto p-6">
-        <div className="mx-auto max-w-4xl space-y-4">
+        <div className="mx-auto max-w-6xl space-y-4">
           <div className="rounded-lg border border-border/60 bg-card p-4">
             <div className="flex items-center justify-between mb-3">
               <div>
@@ -163,7 +176,26 @@ export function BracketEditor({ project }: { project: Project }) {
               </div>
             )}
           </div>
+
+          {competitors.length >= 2 && (
+            <div className="rounded-lg border border-border/60 bg-neutral-950 text-white p-4">
+              <div className="mb-3">
+                <div className="text-sm font-semibold">Definir vencedores</div>
+                <div className="text-xs text-white/60">Clique no competidor vencedor de cada confronto. O vencedor avança automaticamente para a próxima rodada.</div>
+              </div>
+              <div className="min-h-[520px] rounded-md bg-gradient-to-br from-neutral-950 via-slate-900 to-neutral-950 p-3">
+                <BracketBoard
+                  competitors={competitors}
+                  winners={winners}
+                  currentStep={null}
+                  mode="edit"
+                  onPickWinner={pickWinner}
+                />
+              </div>
+            </div>
+          )}
         </div>
+
       </main>
 
       <RecordFormatMenu open={recordOpen} onClose={() => setRecordOpen(false)} onPick={onPickFormat} />
