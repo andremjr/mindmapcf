@@ -23,7 +23,7 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Crie mapas mentais, tier lists, icebergs, chaveamentos, matrizes e rankings. Apresente com câmera cinematográfica e grave em MP4 pronto para o YouTube.",
+          "Crie mapas mentais, tier lists, icebergs, chaveamentos, matrizes e rankings. Apresente com câmera cinematográfica e grave o vídeo pronto para o YouTube.",
       },
       { property: "og:title", content: "Canvas Narrativo — Formatos visuais para vídeos envolventes" },
       {
@@ -77,7 +77,7 @@ function LandingPage() {
             </h1>
             <p className="mt-6 text-lg text-muted-foreground">
               Escolha entre seis formatos — mapa mental, tier list, iceberg, chaveamento, matriz e
-              ranking — e apresente com câmera cinematográfica gravando MP4 pronto para publicar.
+              ranking — e apresente com câmera cinematográfica gravando o vídeo pronto para publicar.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/auth">
@@ -127,8 +127,8 @@ function LandingPage() {
             />
             <Feature
               icon={<Camera className="size-5 text-primary" />}
-              title="Gravação MP4 embutida"
-              text="Capture o quadro em 1080p, 4K ou vertical — sem OBS, sem edição."
+              title="Gravação embutida"
+              text="Capture o quadro em 720p, Full HD, 4K, quadrado ou vertical — sem OBS, sem edição."
             />
             <Feature
               icon={<Mic className="size-5 text-primary" />}

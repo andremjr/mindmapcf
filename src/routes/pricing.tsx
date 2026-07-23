@@ -52,7 +52,7 @@ const FEATURES = [
   "Todos os 6 formatos (mapa, tier list, iceberg, chaveamento, matriz, ranking)",
   "Imagens, vídeos e links embutidos nos nós",
   "Modo apresentação cinematográfico em todos os formatos",
-  "Gravação MP4 (1080p, 4K, vertical) integrada",
+  "Gravação integrada em 720p, Full HD, 4K, quadrado ou vertical",
   "Narração em áudio + avatar sonoro reativo",
   "Importação via IA (Markdown/JSON)",
   "Organização por pastas ilimitadas",
