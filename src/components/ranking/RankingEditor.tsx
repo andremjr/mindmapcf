@@ -211,14 +211,8 @@ export function RankingEditor({ project }: { project: Project }) {
     return { dupes, missing };
   }, [items]);
 
-  /* --- grid layouts (one per column, sized identically since N is the same) --- */
-  const callGrid = useAutoGrid(N || 1);
-  const rankGrid = useAutoGrid(N || 1);
-
-  const gridStyle = (g: { cols: number; rows: number }) => ({
-    gridTemplateColumns: `repeat(${g.cols}, minmax(0, 1fr))`,
-    gridTemplateRows: `repeat(${g.rows}, minmax(0, 1fr))`,
-  });
+  /* --- both columns use the same single-column stacked layout --- */
+  const stackClass = "flex-1 min-h-0 p-2 flex flex-col gap-2 overflow-y-auto";
 
   return (
     <div className="h-screen bg-background text-foreground flex flex-col overflow-hidden">
