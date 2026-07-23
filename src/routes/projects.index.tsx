@@ -138,6 +138,7 @@ function ProjectsDashboard() {
   const { isPro, loading: subscriptionLoading, subscription } = useSubscription(session?.user.id);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
+  const [template, setTemplate] = useState<"mindmap" | "tierlist" | "iceberg">("mindmap");
   const [importOpen, setImportOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [avatarsOpen, setAvatarsOpen] = useState(false);
@@ -196,14 +197,21 @@ function ProjectsDashboard() {
     if (!isPro && projects.length >= FREE_MAP_LIMIT) {
       setOpen(false);
       setUpgradeOpen(true);
-      toast.error("O plano grátis permite até 3 mapas mentais.");
+      toast.error("O plano grátis permite até 3 mapas.");
+      return;
+    }
+    if (!isPro && template !== "mindmap") {
+      setOpen(false);
+      setUpgradeOpen(true);
+      toast.error("Tier list e iceberg são recursos Pro.");
       return;
     }
     const folderId =
       activeFolder === ALL_FOLDERS || activeFolder === NO_FOLDER ? null : activeFolder;
-    const id = createProject(title, folderId);
+    const id = createProject(title, folderId, template);
     setOpen(false);
     setTitle("");
+    setTemplate("mindmap");
     navigate({ to: "/projects/$id", params: { id } });
   }
 
@@ -354,20 +362,57 @@ function ProjectsDashboard() {
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Criar mapa mental</DialogTitle>
+                  <DialogTitle>Criar novo projeto</DialogTitle>
                 </DialogHeader>
-                <Input
-                  autoFocus
-                  placeholder="Nome do mapa"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-                />
-                {activeFolder !== ALL_FOLDERS && activeFolder !== NO_FOLDER && (
-                  <p className="text-xs text-muted-foreground">
-                    Será criado na pasta <span className="text-foreground font-medium">{activeFolderLabel}</span>.
-                  </p>
-                )}
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-2 block">Formato</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {([
+                        { key: "mindmap", label: "Mapa mental", desc: "Nós conectados em árvore", pro: false },
+                        { key: "tierlist", label: "Tier List", desc: "S / A / B / C / D", pro: true },
+                        { key: "iceberg", label: "Iceberg", desc: "Níveis de profundidade", pro: true },
+                      ] as const).map((opt) => {
+                        const locked = opt.pro && !isPro;
+                        const active = template === opt.key;
+                        return (
+                          <button
+                            key={opt.key}
+                            type="button"
+                            onClick={() => setTemplate(opt.key)}
+                            className={`text-left rounded-lg border px-3 py-2 transition ${
+                              active
+                                ? "border-primary bg-primary/10"
+                                : "border-border/60 hover:border-border"
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-medium">{opt.label}</span>
+                              {opt.pro && (
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${locked ? "bg-amber-500/20 text-amber-500" : "bg-primary/20 text-primary"}`}>
+                                  PRO
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{opt.desc}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <Input
+                    autoFocus
+                    placeholder="Nome do projeto"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+                  />
+                  {activeFolder !== ALL_FOLDERS && activeFolder !== NO_FOLDER && (
+                    <p className="text-xs text-muted-foreground">
+                      Será criado na pasta <span className="text-foreground font-medium">{activeFolderLabel}</span>.
+                    </p>
+                  )}
+                </div>
                 <DialogFooter>
                   <Button variant="ghost" onClick={() => setOpen(false)}>Cancelar</Button>
                   <Button onClick={handleCreate}>Criar</Button>
