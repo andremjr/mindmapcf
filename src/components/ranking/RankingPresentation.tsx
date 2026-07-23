@@ -353,7 +353,7 @@ export function RankingPresentation({
                           key={n.id}
                           node={n}
                           called={placedIds.has(n.id)}
-                          highlighted={false}
+                          highlighted={highlightNode?.id === n.id}
                           w={pool.cellW - 8}
                           h={pool.cellH - 8}
                         />
