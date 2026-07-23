@@ -309,29 +309,141 @@ export function RankingPresentation({
     ? Math.max(38, Math.min(88, (rankColH - rowGap * (N - 1)) / N))
     : 60;
 
+  /* ============ MANUAL MODE ============ */
+  const updateNode = useStore((s) => s.updateNode);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const manualRanked = useMemo(
+    () => manualMode
+      ? [...callOrder].filter((n) => typeof n.rank === "number").sort((a, b) => a.rank! - b.rank!)
+      : [],
+    [manualMode, callOrder],
+  );
+  const manualPool = useMemo(
+    () => manualMode ? callOrder.filter((n) => typeof n.rank !== "number") : [],
+    [manualMode, callOrder],
+  );
+  function assignRankLive(itemId: string, targetRank: number) {
+    const item = callOrder.find((n) => n.id === itemId);
+    if (!item) return;
+    const prev = item.rank;
+    if (prev === targetRank) return;
+    const occupant = callOrder.find((n) => n.rank === targetRank && n.id !== itemId);
+    updateNode(project.id, itemId, { rank: targetRank } as Partial<MindNode>);
+    if (occupant) {
+      updateNode(project.id, occupant.id, { rank: prev } as Partial<MindNode>);
+    }
+  }
+
   return (
     <PresentationShell
       project={project}
       recording={recording}
-      navLabel={navLabel}
+      navLabel={manualMode ? `${manualRanked.length} / ${N}` : navLabel}
       onNext={goNext}
       onPrev={goPrev}
-      canNext={step < maxStep}
-      canPrev={step > 0}
+      canNext={!manualMode && step < maxStep}
+      canPrev={!manualMode && step > 0}
       frameBg="bg-background"
     >
       {({ size }) => (
         <div className="absolute inset-0 flex flex-col p-6 text-foreground">
           <AvatarLayer project={project} frameSize={size} />
-          <div className="text-2xl md:text-3xl font-bold text-center mb-3 opacity-95 shrink-0">
+          <div className="text-2xl md:text-3xl font-bold text-center mb-1 opacity-95 shrink-0">
             {project.title}
           </div>
+          {manualMode && (
+            <div className="text-center text-[11px] uppercase tracking-widest text-muted-foreground mb-2 shrink-0">
+              Modo manual — arraste os itens para o ranking
+            </div>
+          )}
 
           {N === 0 ? (
             <div className="flex-1 grid place-items-center text-muted-foreground">
               Adicione itens antes de apresentar.
             </div>
+          ) : manualMode ? (
+            /* ================ MANUAL LAYOUT ================ */
+            <div className="flex-1 min-h-0 grid grid-cols-[minmax(280px,42%)_1fr] gap-6">
+              {/* Ranking slots — accept drops from the pool */}
+              <div className="flex flex-col min-h-0">
+                <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-2 text-center shrink-0">
+                  Ranking
+                </div>
+                <div ref={rankColRef} className="flex-1 min-h-0">
+                  <div className="flex flex-col" style={{ gap: rowGap }}>
+                    {Array.from({ length: N }).map((_, i) => {
+                      const rank = i + 1;
+                      const node = manualRanked.find((n) => n.rank === rank);
+                      return (
+                        <div
+                          key={`slot-${rank}`}
+                          onDragOver={(e) => { if (dragId) e.preventDefault(); }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            if (dragId) assignRankLive(dragId, rank);
+                            setDragId(null);
+                          }}
+                          className={dragId ? "rounded-xl ring-2 ring-primary/40" : ""}
+                        >
+                          {node ? (
+                            <div
+                              draggable
+                              onDragStart={() => setDragId(node.id)}
+                              onDragEnd={() => setDragId(null)}
+                              className="cursor-grab active:cursor-grabbing"
+                            >
+                              <RankRow node={node} rank={rank} height={rowHeight} />
+                            </div>
+                          ) : (
+                            <EmptySlot rank={rank} height={rowHeight} />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Pool — draggable cards */}
+              <div className="flex flex-col min-h-0">
+                <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-2 text-center shrink-0">
+                  {manualPool.length > 0 ? "Arraste para o ranking" : "Todos posicionados"}
+                </div>
+                <div ref={pool.ref} className="flex-1 min-h-0 relative">
+                  <div
+                    className="absolute inset-0 grid content-center justify-center"
+                    style={{
+                      gridTemplateColumns: `repeat(${pool.cols}, ${pool.cellW - 8}px)`,
+                      gridAutoRows: `${pool.cellH - 8}px`,
+                      gap: 8,
+                    }}
+                  >
+                    {callOrder.map((n) => {
+                      const placed = typeof n.rank === "number";
+                      return (
+                        <div
+                          key={n.id}
+                          draggable={!placed}
+                          onDragStart={() => !placed && setDragId(n.id)}
+                          onDragEnd={() => setDragId(null)}
+                          className={!placed ? "cursor-grab active:cursor-grabbing" : ""}
+                        >
+                          <PoolCard
+                            node={n}
+                            called={placed}
+                            highlighted={false}
+                            w={pool.cellW - 8}
+                            h={pool.cellH - 8}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
           ) : (
+            /* ================ ANIMATED LAYOUT ================ */
             <div className="flex-1 min-h-0 grid grid-cols-[minmax(280px,42%)_1fr] gap-6">
               {/* -------- Ranking column (left) -------- */}
               <div className="flex flex-col min-h-0">
@@ -406,9 +518,9 @@ export function RankingPresentation({
             </div>
           )}
 
-          {/* -------- Spotlight overlay -------- */}
+          {/* -------- Spotlight overlay (animated mode only) -------- */}
           <AnimatePresence>
-            {spotlightNode && (
+            {!manualMode && spotlightNode && (
               <>
                 <motion.div
                   key="spot-bg"
@@ -436,3 +548,4 @@ export function RankingPresentation({
     </PresentationShell>
   );
 }
+
