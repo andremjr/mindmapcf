@@ -122,6 +122,8 @@ function AccountPage() {
             </Button>
           </div>
         </section>
+
+        <section className="rounded-xl border border-border bg-card p-6">
           <div className="flex items-center gap-3">
             <div className="grid size-10 place-items-center rounded-lg bg-primary text-primary-foreground">
               <Crown className="size-5" />
