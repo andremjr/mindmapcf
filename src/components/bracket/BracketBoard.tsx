@@ -315,7 +315,17 @@ export function BracketBoard({
   const showChampion = mode === "edit" ? !!data.champion : (isChampionStep && !!data.champion);
 
   const finalMidx = steps.indexOf("FINAL");
-  const finalRevealed = mode === "edit" || data.finalMatch.isBye || (finalMidx >= 0 && stepIdx >= finalMidx);
+  const finalRevealed =
+    mode === "edit"
+      ? true
+      : data.finalMatch.isBye
+        ? true
+        : currentStep === "pool"
+          ? false
+          : !!data.finalMatch.a && !!data.finalMatch.b
+            ? true
+            : finalMidx >= 0 && stepIdx >= finalMidx;
+
   const finalIsCurrent = currentStep === "FINAL";
 
   if (competitors.length < 2) {
