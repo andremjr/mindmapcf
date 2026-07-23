@@ -8,6 +8,7 @@ import {
 } from "@/lib/screenRecorder";
 import { loadRecordFormat, defaultRecordFormat, type RecordFormat } from "@/lib/recordFormats";
 import { RecorderHUD } from "@/components/mindmap/RecorderHUD";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 function fmtDur(ms: number) {
   const s = Math.floor(ms / 1000);
@@ -193,8 +194,9 @@ export function PresentationShell({
         </div>
       </div>
 
-      <div className="absolute top-4 right-4 z-10">
-        <button onClick={stopAndDownload} className="size-10 grid place-items-center rounded-full bg-black/70 backdrop-blur border border-white/20 hover:bg-black/90">
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        {!recording && <ThemeToggle />}
+        <button onClick={stopAndDownload} className="size-10 grid place-items-center rounded-full bg-black/70 backdrop-blur border border-white/20 hover:bg-black/90 text-white">
           <X className="size-4" />
         </button>
       </div>

@@ -146,6 +146,21 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
+  // Apply the persisted theme on every page load (even deep-links into editors
+  // / presentation routes) so the app-wide `.light` / `.dark` class on <html>
+  // matches the toggle state before any component renders.
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem("cn.theme");
+      const theme = stored === "light" ? "light" : "dark";
+      const root = document.documentElement;
+      root.classList.toggle("light", theme === "light");
+      root.classList.toggle("dark", theme === "dark");
+    } catch {
+      // ignore
+    }
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <PaymentTestModeBanner />
@@ -155,4 +170,5 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
+
 

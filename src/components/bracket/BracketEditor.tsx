@@ -12,6 +12,7 @@ import { pickMediaAndStore, resolveImage } from "@/lib/imageStorage";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { RecordFormatMenu } from "@/components/RecordFormatMenu";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { launchRecording } from "@/lib/launchRecording";
 import type { RecordFormat } from "@/lib/recordFormats";
 import { BracketBoard, clearDownstreamWinners, type WinnersMap } from "./BracketBoard";
@@ -131,6 +132,7 @@ export function BracketEditor({ project }: { project: Project }) {
         <Button variant="ghost" size="sm" onClick={resetWinners} className="gap-1.5" title="Limpar vencedores">
           <RotateCcw className="size-4" /> Resetar
         </Button>
+        <ThemeToggle />
         <Button variant="destructive" size="sm" onClick={() => setRecordOpen(true)} className="gap-1.5">
           <Circle className="size-3 fill-current" /> Gravar
         </Button>
