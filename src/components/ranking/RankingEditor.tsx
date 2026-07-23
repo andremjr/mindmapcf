@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  ChevronLeft, Plus, Trash2, Image as ImageIcon, Play, Circle, GripVertical, X,
+  ChevronLeft, Plus, Trash2, Image as ImageIcon, Play, Circle, X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import { RecordFormatMenu } from "@/components/RecordFormatMenu";
 import { launchRecording } from "@/lib/launchRecording";
 import type { RecordFormat } from "@/lib/recordFormats";
 
+/* ---------- image resolution ---------- */
 function useResolvedImage(node: MindNode | undefined) {
   const [url, setUrl] = useState<string | null>(null);
   const key = node?.imageRef?.id ?? node?.image ?? "";
@@ -31,21 +32,50 @@ function useResolvedImage(node: MindNode | undefined) {
   return url;
 }
 
-function Thumb({ node, size = 32 }: { node: MindNode; size?: number }) {
+function Thumb({ node }: { node: MindNode }) {
   const url = useResolvedImage(node);
-  if (!url) {
-    return (
-      <div
-        className="rounded bg-muted grid place-items-center text-[10px] text-muted-foreground shrink-0"
-        style={{ width: size, height: size }}
-      >—</div>
-    );
-  }
-  return <img src={url} alt="" className="rounded object-cover shrink-0" style={{ width: size, height: size }} />;
+  if (!url) return null;
+  return <img src={url} alt="" className="absolute inset-0 size-full object-cover" />;
 }
 
+/* ---------- auto-fit grid dimensions ---------- */
+/** Picks the (cols × rows) layout whose cells are closest to square. */
+function useAutoGrid(count: number) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [dims, setDims] = useState({ w: 0, h: 0 });
+  useLayoutEffect(() => {
+    if (!ref.current) return;
+    const el = ref.current;
+    const ro = new ResizeObserver(([e]) => {
+      const r = e.contentRect;
+      setDims({ w: r.width, h: r.height });
+    });
+    ro.observe(el);
+    setDims({ w: el.clientWidth, h: el.clientHeight });
+    return () => ro.disconnect();
+  }, []);
+  const layout = useMemo(() => {
+    const n = Math.max(1, count);
+    const { w, h } = dims;
+    if (!w || !h) return { cols: 1, rows: n };
+    let best = { cols: 1, rows: n, score: Infinity };
+    for (let c = 1; c <= n; c++) {
+      const r = Math.ceil(n / c);
+      const cw = w / c;
+      const ch = h / r;
+      // score = distance from square, prefer near-square cells
+      const score = Math.abs(Math.log(cw / ch));
+      if (score < best.score) best = { cols: c, rows: r, score };
+    }
+    return best;
+  }, [count, dims]);
+  return { ref, ...layout };
+}
+
+/* ---------- drag payload ---------- */
 type DragPayload = { id: string; from: "call" | "rank" };
 
+/* ---------- main component ---------- */
 export function RankingEditor({ project }: { project: Project }) {
   const addNode = useStore((s) => s.addNode);
   const updateNode = useStore((s) => s.updateNode);
@@ -78,11 +108,7 @@ export function RankingEditor({ project }: { project: Project }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = selectedId ? itemsById.get(selectedId) ?? null : null;
 
-  function nextRank(): number | undefined {
-    for (let i = 1; i <= N + 1; i++) if (!byRank.has(i)) return i;
-    return undefined;
-  }
-
+  /* --- actions --- */
   function addItem() {
     if (!root) return;
     const id = addNode(project.id, { parentId: root.id });
@@ -96,9 +122,8 @@ export function RankingEditor({ project }: { project: Project }) {
     setSelectedId(id);
   }
 
-
-  function reindexCallOrder(newList: MindNode[]) {
-    newList.forEach((n, i) => {
+  function reindexCallOrder(next: MindNode[]) {
+    next.forEach((n, i) => {
       if ((n.order ?? -1) !== i) updateNode(project.id, n.id, { order: i } as Partial<MindNode>);
     });
   }
@@ -119,15 +144,21 @@ export function RankingEditor({ project }: { project: Project }) {
     if (prev === targetRank) return;
     const occupant = byRank.get(targetRank);
     updateNode(project.id, itemId, { rank: targetRank } as Partial<MindNode>);
-    // Swap: the previous occupant takes this item's old rank (or clears).
     if (occupant && occupant.id !== itemId) {
       updateNode(project.id, occupant.id, { rank: prev } as Partial<MindNode>);
     }
   }
 
+  function clearRank(itemId: string) {
+    updateNode(project.id, itemId, { rank: undefined } as Partial<MindNode>);
+  }
+
   function removeItem(id: string) {
     if (selectedId === id) setSelectedId(null);
+    // Preserve rank/order consistency: after deletion we just re-index call order.
     deleteNode(project.id, id);
+    const remaining = items.filter((n) => n.id !== id);
+    reindexCallOrder(remaining);
   }
 
   async function setItemImage() {
@@ -179,9 +210,19 @@ export function RankingEditor({ project }: { project: Project }) {
     return { dupes, missing };
   }, [items]);
 
+  /* --- grid layouts (one per column, sized identically since N is the same) --- */
+  const callGrid = useAutoGrid(N || 1);
+  const rankGrid = useAutoGrid(N || 1);
+
+  const gridStyle = (g: { cols: number; rows: number }) => ({
+    gridTemplateColumns: `repeat(${g.cols}, minmax(0, 1fr))`,
+    gridTemplateRows: `repeat(${g.rows}, minmax(0, 1fr))`,
+  });
+
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <header className="border-b border-border/60 px-4 py-3 flex items-center gap-3">
+    <div className="h-screen bg-background text-foreground flex flex-col overflow-hidden">
+      {/* header */}
+      <header className="border-b border-border/60 px-4 py-3 flex items-center gap-3 shrink-0">
         <Button asChild variant="ghost" size="sm">
           <Link to="/projects"><ChevronLeft className="size-4" /> Voltar</Link>
         </Button>
@@ -202,215 +243,294 @@ export function RankingEditor({ project }: { project: Project }) {
         </Button>
       </header>
 
-      <main className="flex-1 overflow-hidden flex flex-col">
-        <div className="px-6 pt-4 pb-2 shrink-0">
-          <div className="mx-auto max-w-6xl rounded-lg border border-border/60 bg-muted/30 px-4 py-2.5 text-xs text-muted-foreground">
-            <span className="text-foreground font-medium">Como funciona: </span>
-            arraste na coluna <strong>Ordem de chamada</strong> para definir a sequência de revelação.
-            Arraste itens para as posições da coluna <strong>Ranking</strong> para definir onde cada um termina.
-            Clique num item para editar texto, descrição e imagem.
-            {(rankIssues.dupes.size > 0 || rankIssues.missing > 0) && (
-              <span className="ml-2 text-amber-600 dark:text-amber-400">
-                {rankIssues.missing > 0 && `${rankIssues.missing} sem posição. `}
-                {rankIssues.dupes.size > 0 && `Duplicadas: ${[...rankIssues.dupes].sort((a, b) => a - b).join(", ")}.`}
+      {/* main = two auto-fit grids side by side, no scroll */}
+      <main className="flex-1 min-h-0 flex flex-col p-4 gap-3">
+        {/* status bar */}
+        <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0 px-1">
+          <span><strong className="text-foreground">{N}</strong> {N === 1 ? "item" : "itens"}</span>
+          <span className="opacity-60">·</span>
+          <span>Faltam posicionar: <strong className="text-foreground">{N - byRank.size}</strong></span>
+          {rankIssues.dupes.size > 0 && (
+            <>
+              <span className="opacity-60">·</span>
+              <span className="text-amber-600 dark:text-amber-400">
+                Posições duplicadas: {[...rankIssues.dupes].sort((a, b) => a - b).join(", ")}
               </span>
-            )}
-          </div>
+            </>
+          )}
+          <span className="ml-auto opacity-70 hidden md:inline">
+            Arraste dentro de <strong>Chamada</strong> para reordenar · Arraste para <strong>Ranking</strong> para posicionar · Clique num item para editar
+          </span>
         </div>
 
-        <div className="flex-1 overflow-hidden px-6 pb-6">
-          <div className="mx-auto max-w-6xl h-full grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* ============= CALL ORDER COLUMN ============= */}
-            <section className="flex flex-col rounded-lg border border-border/60 bg-card/50 overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-border/60 flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-semibold">Ordem de chamada</div>
-                  <div className="text-[11px] text-muted-foreground">Sequência de revelação na apresentação.</div>
+        <div className="flex-1 min-h-0 grid grid-cols-2 gap-3">
+          {/* ================ CALL ORDER ================ */}
+          <section className="flex flex-col rounded-xl border border-border/60 bg-card/40 overflow-hidden">
+            <header className="px-3 py-2 border-b border-border/60 flex items-center justify-between shrink-0">
+              <div>
+                <div className="text-sm font-semibold">Ordem de chamada</div>
+                <div className="text-[11px] text-muted-foreground">Sequência de revelação</div>
+              </div>
+              <Button size="sm" variant="ghost" onClick={addItem} className="h-7 gap-1.5">
+                <Plus className="size-3.5" /> Item
+              </Button>
+            </header>
+
+            {N === 0 ? (
+              <button
+                onClick={addItem}
+                className="flex-1 grid place-items-center text-sm text-muted-foreground hover:text-foreground hover:bg-muted/40 transition"
+              >
+                <div className="flex flex-col items-center gap-2">
+                  <Plus className="size-8 opacity-50" />
+                  <span>Clique para adicionar o primeiro item</span>
                 </div>
-                <Button size="sm" variant="outline" onClick={addItem} className="gap-1.5 h-7">
-                  <Plus className="size-3.5" /> Item
-                </Button>
-              </div>
-              <div className="px-4 pt-2 pb-1 text-[11px] text-muted-foreground shrink-0">
-                {N > 0 && (
-                  <>Faltam posicionar: <span className="font-semibold text-foreground">{N - byRank.size}</span> de {N}</>
-                )}
-              </div>
-              <div className="flex-1 overflow-auto p-3 grid grid-cols-2 sm:grid-cols-3 gap-2 auto-rows-min content-start">
-                {items.length === 0 && (
-                  <div className="col-span-full text-center text-xs text-muted-foreground italic py-8">
-                    Adicione itens para começar.
-                  </div>
-                )}
+              </button>
+            ) : (
+              <div ref={callGrid.ref} className="flex-1 min-h-0 p-2 grid gap-2" style={gridStyle(callGrid)}>
                 {items.map((it, i) => {
                   const placed = typeof it.rank === "number";
                   return (
-                    <div
+                    <CallCard
                       key={it.id}
-                      draggable
-                      onDragStart={(e) => {
-                        setDrag({ id: it.id, from: "call" });
-                        e.dataTransfer.effectAllowed = "move";
-                      }}
+                      node={it}
+                      callIdx={i}
+                      placed={placed}
+                      selected={selectedId === it.id}
+                      dragging={drag?.id === it.id}
+                      isDropTarget={!!drag && drag.from === "call" && drag.id !== it.id}
+                      onClick={() => setSelectedId(it.id)}
+                      onDragStart={() => setDrag({ id: it.id, from: "call" })}
                       onDragEnd={() => setDrag(null)}
-                      onDragOver={(e) => {
-                        if (drag && drag.from === "call" && drag.id !== it.id) e.preventDefault();
-                      }}
-                      onDrop={(e) => {
-                        e.preventDefault();
+                      onDropOnCard={() => {
                         if (drag && drag.from === "call") moveCall(drag.id, i);
                         setDrag(null);
                       }}
-                      onClick={() => setSelectedId(it.id)}
-                      className={`group relative aspect-square flex flex-col rounded-lg border bg-background cursor-grab active:cursor-grabbing transition overflow-hidden ${
-                        selectedId === it.id ? "border-primary ring-2 ring-primary/40" : "border-border/60 hover:border-border"
-                      } ${drag?.id === it.id ? "opacity-40" : ""} ${placed ? "opacity-50 saturate-50" : ""}`}
-                    >
-                      <span className="absolute top-1 left-1 z-10 text-[10px] font-bold tabular-nums bg-background/80 backdrop-blur rounded px-1.5 py-0.5 text-muted-foreground">
-                        {i + 1}º
-                      </span>
-                      {placed && (
-                        <span className="absolute top-1 right-1 z-10 text-[10px] font-bold tabular-nums bg-primary/90 text-primary-foreground rounded px-1.5 py-0.5">
-                          #{it.rank}
-                        </span>
-                      )}
-                      <div className="flex-1 min-h-0 bg-muted grid place-items-center overflow-hidden">
-                        <Thumb node={it} size={64} />
-                      </div>
-                      <div className={`px-1.5 py-1 text-[11px] leading-tight text-center border-t border-border/40 bg-card ${placed ? "line-through" : ""}`}>
-                        <span className="line-clamp-2 break-words">
-                          {it.text || <span className="text-muted-foreground italic">sem título</span>}
-                        </span>
-                      </div>
-                    </div>
+                    />
                   );
                 })}
               </div>
-            </section>
+            )}
+          </section>
 
-            {/* ============= RANKING COLUMN ============= */}
-            <section className="flex flex-col rounded-lg border border-border/60 bg-card/50 overflow-hidden">
-              <div className="px-4 py-2.5 border-b border-border/60">
-                <div className="text-sm font-semibold">Ranking final</div>
-                <div className="text-[11px] text-muted-foreground">Arraste um item para a posição desejada. Solte sobre um slot ocupado para trocar.</div>
+          {/* ================ RANKING ================ */}
+          <section className="flex flex-col rounded-xl border border-border/60 bg-card/40 overflow-hidden">
+            <header className="px-3 py-2 border-b border-border/60 shrink-0">
+              <div className="text-sm font-semibold">Ranking final</div>
+              <div className="text-[11px] text-muted-foreground">Arraste um item aqui</div>
+            </header>
+
+            {N === 0 ? (
+              <div className="flex-1 grid place-items-center text-xs text-muted-foreground italic">
+                As posições aparecem quando você adicionar itens.
               </div>
-              <div className="px-4 pt-2 pb-1 text-[11px] text-muted-foreground shrink-0">
-                {N > 0 && (
-                  <>Posições vazias: <span className="font-semibold text-foreground">{N - byRank.size}</span> de {N}</>
-                )}
-              </div>
-              <div className="flex-1 overflow-auto p-3 flex flex-col gap-2">
-                {N === 0 && (
-                  <div className="text-center text-xs text-muted-foreground italic py-8">
-                    Sem itens ainda.
-                  </div>
-                )}
+            ) : (
+              <div ref={rankGrid.ref} className="flex-1 min-h-0 p-2 grid gap-2" style={gridStyle(rankGrid)}>
                 {Array.from({ length: N }, (_, i) => i + 1).map((rank) => {
                   const it = byRank.get(rank);
-                  const medal = rank === 1 ? "bg-amber-400 text-amber-950"
-                    : rank === 2 ? "bg-slate-300 text-slate-900"
-                    : rank === 3 ? "bg-amber-700 text-amber-50"
-                    : "bg-muted text-foreground";
-                  const isDropTarget = drag != null;
                   return (
-                    <div
+                    <RankSlot
                       key={rank}
-                      onDragOver={(e) => { if (drag) e.preventDefault(); }}
-                      onDrop={(e) => {
-                        e.preventDefault();
+                      rank={rank}
+                      node={it}
+                      selected={!!it && selectedId === it.id}
+                      dragging={!!it && drag?.id === it.id}
+                      dropActive={drag != null}
+                      onClickNode={() => it && setSelectedId(it.id)}
+                      onDragStart={() => it && setDrag({ id: it.id, from: "rank" })}
+                      onDragEnd={() => setDrag(null)}
+                      onDrop={() => {
                         if (drag) assignRank(drag.id, rank);
                         setDrag(null);
                       }}
-                      className={`relative aspect-square w-full rounded-lg overflow-hidden transition flex flex-col ${
-                        it
-                          ? "bg-background border-2 border-border/60"
-                          : `border-2 border-dashed ${isDropTarget ? "border-primary bg-primary/5" : "border-border bg-muted/40 dark:bg-muted/20"}`
-                      }`}
-                    >
-                      <span className={`absolute top-2 left-2 z-10 size-9 rounded-full grid place-items-center text-sm font-black tabular-nums shadow-sm ${medal}`}>
-                        {rank}
-                      </span>
-                      {it ? (
-                        <div
-                          draggable
-                          onDragStart={(e) => {
-                            setDrag({ id: it.id, from: "rank" });
-                            e.dataTransfer.effectAllowed = "move";
-                          }}
-                          onDragEnd={() => setDrag(null)}
-                          onClick={() => setSelectedId(it.id)}
-                          className={`flex-1 flex flex-col cursor-grab active:cursor-grabbing transition ${
-                            selectedId === it.id ? "ring-2 ring-primary/60 ring-inset" : ""
-                          } ${drag?.id === it.id ? "opacity-40" : ""}`}
-                        >
-                          <div className="flex-1 min-h-0 bg-muted grid place-items-center overflow-hidden">
-                            <Thumb node={it} size={96} />
-                          </div>
-                          <div className="px-2 py-1.5 text-xs leading-tight text-center border-t border-border/40 bg-card font-medium">
-                            <span className="line-clamp-2 break-words">
-                              {it.text || <span className="text-muted-foreground italic">sem título</span>}
-                            </span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex-1 grid place-items-center text-center px-3">
-                          <div>
-                            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vazio</div>
-                            <div className="text-[10px] text-muted-foreground/70 mt-0.5">Arraste um item</div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                      onClear={() => it && clearRank(it.id)}
+                    />
                   );
                 })}
               </div>
-            </section>
-
-          </div>
+            )}
+          </section>
         </div>
-
-        {/* ============= INSPECTOR (bottom sheet) ============= */}
-        {selected && (
-          <div className="border-t border-border/60 bg-card/80 backdrop-blur px-6 py-3 shrink-0">
-            <div className="mx-auto max-w-6xl flex items-start gap-3">
-              <div className="shrink-0"><Thumb node={selected} size={64} /></div>
-              <div className="flex-1 min-w-0 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={selected.text}
-                    onChange={(e) => updateNode(project.id, selected.id, { text: e.target.value })}
-                    placeholder="Título do item"
-                    className="h-8 text-sm"
-                  />
-                  <Button size="sm" variant="outline" onClick={setItemImage} className="gap-1.5 h-8 shrink-0">
-                    <ImageIcon className="size-3.5" /> {selected.imageRef || selected.image ? "Trocar" : "Imagem"}
-                  </Button>
-                  {(selected.imageRef || selected.image) && (
-                    <Button size="sm" variant="ghost" onClick={clearItemImage} className="h-8 shrink-0" aria-label="Remover imagem">
-                      <X className="size-3.5" />
-                    </Button>
-                  )}
-                  <Button size="sm" variant="ghost" onClick={() => removeItem(selected.id)}
-                    className="h-8 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5">
-                    <Trash2 className="size-3.5" /> Excluir
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setSelectedId(null)} className="h-8 shrink-0" aria-label="Fechar">
-                    <X className="size-4" />
-                  </Button>
-                </div>
-                <Textarea
-                  value={selected.body ?? ""}
-                  onChange={(e) => updateNode(project.id, selected.id, { body: e.target.value } as Partial<MindNode>)}
-                  placeholder="Descrição (opcional) — aparece no card expandido durante a chamada"
-                  className="text-sm min-h-[52px] resize-none"
-                />
-              </div>
-            </div>
-          </div>
-        )}
       </main>
 
+      {/* floating inspector */}
+      {selected && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[min(720px,calc(100vw-2rem))] rounded-xl border border-border bg-card/95 shadow-2xl backdrop-blur px-4 py-3">
+          <div className="flex items-start gap-3">
+            <div className="relative size-16 rounded-lg overflow-hidden bg-muted shrink-0 grid place-items-center text-[10px] text-muted-foreground">
+              <Thumb node={selected} />
+              {!selected.imageRef && !selected.image && <span>sem imagem</span>}
+            </div>
+            <div className="flex-1 min-w-0 space-y-2">
+              <div className="flex items-center gap-2">
+                <Input
+                  value={selected.text}
+                  onChange={(e) => updateNode(project.id, selected.id, { text: e.target.value })}
+                  placeholder="Título do item"
+                  className="h-8 text-sm"
+                />
+                <Button size="sm" variant="outline" onClick={setItemImage} className="gap-1.5 h-8 shrink-0">
+                  <ImageIcon className="size-3.5" /> {selected.imageRef || selected.image ? "Trocar" : "Imagem"}
+                </Button>
+                {(selected.imageRef || selected.image) && (
+                  <Button size="sm" variant="ghost" onClick={clearItemImage} className="h-8 shrink-0" aria-label="Remover imagem">
+                    <X className="size-3.5" />
+                  </Button>
+                )}
+                <Button size="sm" variant="ghost" onClick={() => removeItem(selected.id)}
+                  className="h-8 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5">
+                  <Trash2 className="size-3.5" /> Excluir
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setSelectedId(null)} className="h-8 shrink-0" aria-label="Fechar">
+                  <X className="size-4" />
+                </Button>
+              </div>
+              <Textarea
+                value={selected.body ?? ""}
+                onChange={(e) => updateNode(project.id, selected.id, { body: e.target.value } as Partial<MindNode>)}
+                placeholder="Descrição (opcional) — aparece no card expandido durante a chamada"
+                className="text-sm min-h-[48px] resize-none"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <RecordFormatMenu open={recordOpen} onClose={() => setRecordOpen(false)} onPick={onPickFormat} />
+    </div>
+  );
+}
+
+/* ---------- Call order card ---------- */
+function CallCard({
+  node, callIdx, placed, selected, dragging, isDropTarget,
+  onClick, onDragStart, onDragEnd, onDropOnCard,
+}: {
+  node: MindNode; callIdx: number; placed: boolean;
+  selected: boolean; dragging: boolean; isDropTarget: boolean;
+  onClick: () => void;
+  onDragStart: () => void; onDragEnd: () => void; onDropOnCard: () => void;
+}) {
+  return (
+    <div
+      draggable
+      onDragStart={(e) => { onDragStart(); e.dataTransfer.effectAllowed = "move"; }}
+      onDragEnd={onDragEnd}
+      onDragOver={(e) => { if (isDropTarget) e.preventDefault(); }}
+      onDrop={(e) => { e.preventDefault(); onDropOnCard(); }}
+      onClick={onClick}
+      className={[
+        "relative min-h-0 rounded-lg border-2 bg-background overflow-hidden",
+        "cursor-grab active:cursor-grabbing transition",
+        "flex flex-col",
+        selected ? "border-primary ring-2 ring-primary/40" : "border-border hover:border-muted-foreground/50",
+        dragging ? "opacity-30" : "",
+        placed ? "opacity-60" : "",
+        isDropTarget ? "ring-2 ring-primary/50" : "",
+      ].join(" ")}
+    >
+      {/* call index badge */}
+      <span className="absolute top-1 left-1 z-10 min-w-6 h-6 px-1.5 rounded-md bg-background/85 text-foreground text-[11px] font-bold tabular-nums grid place-items-center border border-border">
+        {callIdx + 1}
+      </span>
+      {/* rank badge if placed */}
+      {placed && (
+        <span className="absolute top-1 right-1 z-10 h-6 px-1.5 rounded-md bg-primary text-primary-foreground text-[11px] font-bold tabular-nums grid place-items-center">
+          #{node.rank}
+        </span>
+      )}
+      {/* thumbnail area */}
+      <div className="relative flex-1 min-h-0 bg-muted grid place-items-center overflow-hidden">
+        <Thumb node={node} />
+        {!node.imageRef && !node.image && (
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wider">sem imagem</span>
+        )}
+      </div>
+      {/* title strip */}
+      <div className={`px-1.5 py-1 text-[11px] leading-tight text-center border-t border-border/50 bg-card ${placed ? "line-through" : ""}`}>
+        <span className="line-clamp-2 break-words">
+          {node.text || <span className="text-muted-foreground italic">sem título</span>}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Ranking slot ---------- */
+function RankSlot({
+  rank, node, selected, dragging, dropActive,
+  onClickNode, onDragStart, onDragEnd, onDrop, onClear,
+}: {
+  rank: number; node: MindNode | undefined;
+  selected: boolean; dragging: boolean; dropActive: boolean;
+  onClickNode: () => void;
+  onDragStart: () => void; onDragEnd: () => void;
+  onDrop: () => void; onClear: () => void;
+}) {
+  const medal = rank === 1
+    ? "bg-amber-400 text-amber-950"
+    : rank === 2
+    ? "bg-slate-300 text-slate-900"
+    : rank === 3
+    ? "bg-amber-700 text-amber-50"
+    : "bg-muted text-foreground border border-border";
+
+  return (
+    <div
+      onDragOver={(e) => { if (dropActive) e.preventDefault(); }}
+      onDrop={(e) => { e.preventDefault(); onDrop(); }}
+      className={[
+        "relative min-h-0 rounded-lg overflow-hidden flex flex-col transition",
+        node
+          ? "bg-background border-2 border-border"
+          : `border-2 border-dashed ${dropActive ? "border-primary bg-primary/10" : "border-border bg-muted/40 dark:bg-muted/20"}`,
+        selected ? "ring-2 ring-primary/50" : "",
+        dragging ? "opacity-30" : "",
+      ].join(" ")}
+    >
+      {/* rank medal */}
+      <span className={`absolute top-1 left-1 z-10 size-7 rounded-full grid place-items-center text-[12px] font-black tabular-nums shadow-sm ${medal}`}>
+        {rank}
+      </span>
+
+      {node ? (
+        <>
+          <button
+            type="button"
+            onClick={onClear}
+            className="absolute top-1 right-1 z-10 size-6 rounded-md bg-background/80 hover:bg-destructive/20 hover:text-destructive text-muted-foreground grid place-items-center border border-border"
+            aria-label="Limpar posição"
+            title="Limpar posição"
+          >
+            <X className="size-3.5" />
+          </button>
+          <div
+            draggable
+            onDragStart={(e) => { onDragStart(); e.dataTransfer.effectAllowed = "move"; }}
+            onDragEnd={onDragEnd}
+            onClick={onClickNode}
+            className="flex-1 min-h-0 flex flex-col cursor-grab active:cursor-grabbing"
+          >
+            <div className="relative flex-1 min-h-0 bg-muted grid place-items-center overflow-hidden">
+              <Thumb node={node} />
+              {!node.imageRef && !node.image && (
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">sem imagem</span>
+              )}
+            </div>
+            <div className="px-1.5 py-1 text-[11px] leading-tight text-center border-t border-border/50 bg-card font-medium">
+              <span className="line-clamp-2 break-words">
+                {node.text || <span className="text-muted-foreground italic">sem título</span>}
+              </span>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="flex-1 grid place-items-center px-2">
+          <div className="text-center">
+            <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Vazio</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
