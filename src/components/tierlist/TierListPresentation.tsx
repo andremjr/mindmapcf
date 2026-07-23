@@ -301,12 +301,23 @@ export function TierListPresentation({
   const onTierDrop = (tierId: string) => (e: React.DragEvent) => {
     e.preventDefault();
     commitDrop(e.currentTarget as HTMLElement, e.clientX, e.clientY, tierId);
+    setHover(null);
   };
   const onPoolDrop = (e: React.DragEvent) => {
     e.preventDefault();
     commitDrop(e.currentTarget as HTMLElement, e.clientX, e.clientY, null);
+    setHover(null);
   };
   const allowDrop = (e: React.DragEvent) => { if (dragId) e.preventDefault(); };
+  const onHoverOver = (key: string) => (e: React.DragEvent) => {
+    if (!dragId) return;
+    e.preventDefault();
+    const idx = visualInsertIndex(e.currentTarget as HTMLElement, e.clientX, e.clientY);
+    if (hover?.key !== key || hover.idx !== idx) setHover({ key, idx });
+  };
+  const onHoverLeave = (e: React.DragEvent) => {
+    if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) setHover(null);
+  };
 
 
   async function stopAndDownload() {
