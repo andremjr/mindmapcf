@@ -1,51 +1,103 @@
-# Narração pré-gravada no modo Gravar (Pro)
+# Templates de Canvas: Tier List + Iceberg
 
-## A ideia faz sentido?
-Sim, tecnicamente é totalmente viável e encaixa bem no que o app já faz. Hoje o `screenRecorder` já mistura áudios via Web Audio (`MediaStreamDestination`) antes de mandar pro `MediaRecorder`. Basta trocar/adicionar uma fonte de áudio: em vez do microfone, plugamos um `<audio>` com o arquivo de narração. O vídeo final sai com a narração como trilha, e o usuário só opera os nós no tempo dele.
+Adicionar dois novos formatos ao lado do mapa mental, ambos **exclusivos Pro**, reaproveitando o mesmo grafo de nós (posição, mídia, texto, cor) que já sincroniza com Supabase, grava vídeo, toca narração e renderiza Sonic Avatar.
 
-Também não estraga o resto: é uma opção **por projeto**, opt-in, só aparece quando o usuário anexa uma narração. Sem narração anexada, tudo funciona exatamente como hoje (mic + áudio do sistema).
+## Modelo de dados (sem migração)
 
-## Como funciona pro usuário
-1. No inspetor do mapa (ou num botão novo no header do editor), o usuário **anexa um arquivo de áudio** (mp3/wav/m4a/webm) — mesmo padrão do file picker de imagem/vídeo, salvo local (IndexedDB), sem subir pra Supabase.
-2. Aparece um mini-player pra ouvir e conferir.
-3. Ao entrar no modo **Gravar** com narração anexada:
-   - Countdown de 3s (como já existe).
-   - Ao gravar começa, a narração toca automaticamente.
-   - O microfone é **ignorado** (a trilha é a narração).
-   - O Sonic Avatar reage às ondas da narração (usa o analyser desse áudio em vez do mic).
-   - Barra de progresso da narração fica no HUD, com botão de pausar/retomar.
-   - Quando a narração acaba, aparece um aviso “Narração terminou — encerrar gravação?” (não para sozinho, pra dar folga pro usuário fechar bonito).
-4. No modo **Apresentar** (sem gravação), a narração também toca, útil pra ensaiar.
+O campo `data` da tabela `mindmaps` já é `jsonb` livre. Adicionamos duas chaves:
 
-## Regra Pro
-- Anexar narração e usar o modo com narração são bloqueados por `useSubscription().isPro`.
-- Free vê o botão com cadeado e o `UpgradeDialog` já existente.
-- Enforcement no cliente é suficiente (feature de UX, não de dados sensíveis) — mesmo padrão do Sonic Avatar.
+- `data.template`: `"mindmap" | "tierlist" | "iceberg"` (default `"mindmap"`)
+- `data.templateConfig`: objeto específico por template (tiers, níveis, cores)
 
-## Impacto técnico (arquivos)
-- `src/lib/types.ts`: `MindmapProject` ganha `narrationMediaId?: string` (referência no IndexedDB, igual imagens).
-- `src/lib/imageStorage.ts`: reaproveitar `pickMediaAndStore` — só ampliar filtro pra aceitar `audio/*`.
-- `src/lib/screenRecorder.ts`: aceitar `narrationEl?: HTMLAudioElement` em `startRecording`. Se presente, cria `MediaElementAudioSourceNode`, conecta ao `dest` e ao `audioAnalyser`, e **não** pede `getUserMedia` de mic.
-- `src/lib/micAnalyser.ts`: sem mudança; só não é ligado quando há narração.
-- `src/components/mindmap/Presentation.tsx`:
-  - Novo `<audio ref>` oculto com o blob da narração.
-  - Ao começar (após countdown), `audio.play()` + `startRecording({ narrationEl })`.
-  - Ao pausar/retomar recording, pausa/retoma o áudio.
-  - Ao sair, `audio.pause()` + revoga URL.
-- `src/components/mindmap/RecorderHUD.tsx`: barra de progresso + botão pausar narração quando aplicável.
-- `src/components/mindmap/MindMapEditor.tsx`: no inspetor, seção “Narração (Pro)” com anexar/remover/preview, gated por `isPro`.
-- `src/components/mindmap/SonicAvatarOverlay.tsx`: nenhuma mudança — já usa `getRecordingAnalyser()` primeiro, que passa a expor a narração automaticamente.
+Nenhuma migração de schema. Projetos antigos abrem como `mindmap` normalmente.
 
-## Limitações honestas
-- Só uma narração por projeto (uma trilha única). Multi-track / edição no meio fica fora do escopo.
-- Se o usuário passa dos nós fora do ritmo da narração, o vídeo mostra isso — não há “auto-sync”. É um editor ao vivo, como você descreveu.
-- Arquivos grandes (>50MB) podem pesar o IndexedDB do navegador. Vou avisar no anexo se passar disso e sugerir comprimir.
-- Áudio do sistema (aba) continua sendo capturado por padrão; posso silenciar durante narração pra não sobrepor — confirmar preferência (default: silenciar).
+## Estrutura semântica dos nós
 
-## Riscos de regressão
-Baixos. As mudanças no `screenRecorder` são aditivas (novo parâmetro opcional). O caminho sem narração fica idêntico ao atual. Sonic Avatar já tem fallback em cascata (recording → mic → nada), então continua funcionando nos três cenários.
+Cada template usa um "papel" (`role`) opcional no nó, além dos campos atuais:
 
-## Fora do escopo (posso fazer depois se você quiser)
-- Gravar a narração dentro do próprio app (em vez de anexar arquivo).
-- Marcadores/cue points na waveform pra pular nós automaticamente.
-- Waveform visual do áudio anexado.
+```text
+Tier List
+├─ raiz (role: "board")
+├─ tier S (role: "tier", tierColor, ordem)
+│   ├─ item (role: "item", texto/imagem)
+│   └─ item
+├─ tier A ...
+
+Iceberg
+├─ raiz (role: "iceberg")
+├─ nível 1 (role: "level", depth: 0, cor)
+│   └─ item (role: "item", card expandido)
+├─ nível 2 (role: "level", depth: 1)
+└─ ...
+```
+
+Isso mantém compatibilidade total com o motor atual — o layout automático e o inspector apenas checam `role` para renderizar de forma diferente.
+
+## Seletor de template
+
+Novo botão no header do editor: **"Formato"** com três opções (Mapa mental / Tier List / Iceberg).
+
+- Só aparece quando o projeto está **vazio ou recém-criado** (evita destruir grafos existentes).
+- Ao trocar, o app popula um **template inicial** (raiz + estrutura mínima) e trava o `role` da raiz.
+- Free vê os formatos mas com selo "Pro" e CTA para upgrade — mesmo padrão do Sonic Avatar.
+
+## Tier List
+
+**Editor:**
+- Renderizador dedicado `TierListCanvas.tsx` (linhas horizontais fixas em vez do layout radial).
+- Cada tier: label editável inline + color picker (paleta 10 cores já existente) + botão "adicionar tier" no fim.
+- Itens: card compacto (nome opcional + imagem/emoji), arrastar entre tiers ou reordenar dentro do tier.
+- Atalhos: `Enter` novo item no tier atual, `Tab` novo tier, `Del` remove.
+- Padrão inicial: S / A / B / C / D com cores tier-list clássicas.
+
+**Apresentação/gravação:**
+- Câmera passeia tier por tier (topo → base) com o motor de câmera atual.
+- Setinha `→` avança para o próximo tier; segundo `→` entra em modo item-por-item se o tier tiver itens marcados como destaque.
+- Sonic Avatar e narração funcionam sem mudança.
+
+## Iceberg
+
+**Editor:**
+- Renderizador `IcebergCanvas.tsx`: fundo dividido em faixas (céu → superfície → águas rasas → profundo → abissal), 3 ou 4 níveis configuráveis.
+- Cada nível: label + cor de faixa (gradiente).
+- Itens: círculos/cards pequenos posicionados livremente dentro da faixa do nível.
+- Ao **clicar num item** no editor: abre um **modal de card expandido** para preencher título, texto longo, imagem, vídeo, link — reaproveita os componentes do inspector atual.
+- Padrão inicial: 4 níveis com nomes editáveis ("Conhecido", "Menos conhecido", "Obscuro", "Proibido").
+
+**Apresentação/gravação:**
+- Câmera começa no topo do iceberg, desce nível por nível (`→` avança).
+- Ao chegar num nível, `→` percorre itens; ao focar um item, faz **zoom cinematográfico** no card expandido (mesma animação que já usamos para nós grandes) e mostra o conteúdo em tela cheia — sem modal.
+- `←` volta um passo (item → nível → cima).
+
+## Gating Pro
+
+- Bloqueio no seletor de template: usuários Free só criam `mindmap`. Ao clicar em Tier List/Iceberg abre modal de upgrade (o já existente).
+- Enforcement no servidor: reforçamos a trigger `enforce_mindmap_freemium_limits` para rejeitar `data.template` diferente de `"mindmap"` quando o usuário não é Pro. Isso impede bypass via API.
+
+## Reaproveitamento (sem retrabalho)
+
+Continuam funcionando sem mudança:
+- Sync Supabase (`mindmapSync.ts`)
+- Gravação de tela (`screenRecorder.ts`) e regra 40% de vídeo
+- Narração pré-gravada + Sonic Avatar
+- Import/export JSON (adiciona `template` e `templateConfig` no payload)
+- Temas claro/escuro
+- Pastas em `projects.index.tsx`
+- Miniatura do projeto (usa primeira imagem do primeiro item do grafo)
+
+## Escopo desta entrega
+
+1. Campo `template` + `templateConfig` no store + tipos TS
+2. Seletor de formato no editor (com gate Pro)
+3. `TierListCanvas.tsx` + drag entre tiers + apresentação por tier
+4. `IcebergCanvas.tsx` + modal de card + zoom cinematográfico no item
+5. Trigger Supabase reforçada para bloquear templates Pro no Free
+6. Import/export atualizado
+
+## Fora de escopo (pode virar próximo passo)
+
+- Mais templates (fluxograma, timeline, matriz 2×2)
+- Templates prontos com conteúdo de exemplo por tema
+- Botão "converter mindmap existente em tier list"
+
+Posso implementar tudo isso na sequência?
