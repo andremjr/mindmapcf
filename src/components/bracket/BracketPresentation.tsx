@@ -88,9 +88,9 @@ export function BracketPresentation({
         const a = current[i]; const b = current[i + 1];
         const key = `r${r}i${i / 2}`;
         // Auto-advance BYE
-        let winnerId = winners[key] ?? null;
+        let winnerId: string | null = winners[key] ?? null;
         if (!winnerId && (a.id === null || b.id === null)) {
-          winnerId = a.id ?? b.id;
+          winnerId = a.id ?? b.id ?? null;
         }
         matches.push({ key, a, b, winnerId });
         const w = winnerId
