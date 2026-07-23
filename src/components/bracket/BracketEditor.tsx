@@ -181,20 +181,22 @@ export function BracketEditor({ project }: { project: Project }) {
             <div className="rounded-lg border border-border/60 bg-neutral-950 text-white p-4">
               <div className="mb-3">
                 <div className="text-sm font-semibold">Definir vencedores</div>
-                <div className="text-xs text-white/60">Clique no competidor vencedor de cada confronto. O vencedor avança automaticamente para a próxima rodada.</div>
+                <div className="text-xs text-white/60">Arraste para navegar · scroll para zoom · clique no vencedor de cada confronto.</div>
               </div>
-              <div className="h-[70vh] min-h-[420px] rounded-md bg-gradient-to-br from-neutral-950 via-slate-900 to-neutral-950 p-3 overflow-auto">
-                <BracketBoard
-                  competitors={competitors}
-                  winners={winners}
-                  currentStep={null}
-                  mode="edit"
-                  onPickWinner={pickWinner}
-                />
-              </div>
-
+              <PanZoom className="h-[75vh] min-h-[480px] rounded-md bg-gradient-to-br from-neutral-950 via-slate-900 to-neutral-950" initialScale={0.85}>
+                <div className="p-6" style={{ width: "max-content" }}>
+                  <BracketBoard
+                    competitors={competitors}
+                    winners={winners}
+                    currentStep={null}
+                    mode="edit"
+                    onPickWinner={pickWinner}
+                  />
+                </div>
+              </PanZoom>
             </div>
           )}
+
         </div>
 
       </main>
