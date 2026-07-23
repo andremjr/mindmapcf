@@ -354,7 +354,7 @@ export function BracketBoard({
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
                     transition={{ type: "spring", stiffness: 180, damping: 18 }}
-                    className="rounded-xl p-3 bg-gradient-to-br from-amber-400/30 to-amber-600/20 border border-amber-300/60 shadow-[0_0_60px_rgba(252,211,77,0.55)] w-[260px]"
+                    className="rounded-xl p-3 bg-gradient-to-br from-amber-400/30 to-amber-600/20 border border-amber-300/60 shadow-[0_0_60px_rgba(252,211,77,0.55)] w-full"
                   >
                     <div className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-amber-200 mb-1 justify-center">
                       <Trophy className="size-3" /> Campeão
