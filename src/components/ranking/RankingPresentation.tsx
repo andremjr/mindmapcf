@@ -231,6 +231,14 @@ export function RankingPresentation({
 
   const N = callOrder.length;
 
+  /** Manual mode: locked at mount. If no item has a rank pre-set, the author
+   *  wants to place items live on stage — skip the step machine and render
+   *  a pool + rank slots. */
+  const manualMode = useState<boolean>(() =>
+    callOrder.length > 0 && callOrder.every((n) => typeof n.rank !== "number"),
+  )[0];
+
+
   /* -----------------------------------------------------------
      Step machine — 3 steps per item:
         step = 0           → empty ranking, nothing shown
