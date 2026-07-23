@@ -403,13 +403,21 @@ function ChartPlane({
         <div
           ref={planeRef}
           className="relative rounded-lg border-2 border-border/70 bg-gradient-to-r from-muted/40 via-background to-muted/40 overflow-hidden"
-          style={{ height: 260 }}
+          style={{ height: 300 }}
         >
           <div className="absolute inset-y-0 left-0 right-0 flex items-center px-4 pointer-events-none">
             <div className="h-0.5 w-full bg-border" />
           </div>
           <div className="absolute top-1 left-3 text-[11px] text-muted-foreground">← {axis.xLow}</div>
           <div className="absolute top-1 right-3 text-[11px] text-muted-foreground">{axis.xHigh} →</div>
+          {axis.linePoints.map((p) => (
+            <div key={p.id} className="absolute pointer-events-none" style={{ left: `${p.pctX}%`, top: "50%", transform: "translate(-50%, -50%)" }}>
+              <div className="mx-auto size-2 rounded-full bg-primary" />
+              <div
+                className={`absolute left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground whitespace-nowrap ${p.side === "top" ? "bottom-4" : "top-4"}`}
+              >{p.label}</div>
+            </div>
+          ))}
           {cards.map((c) => (
             <div
               key={c.id}
@@ -437,12 +445,13 @@ function ChartPlane({
             style={{ width: 520, height: 520, maxWidth: "100%" }}
           >
             {[0.85, 0.6, 0.35, 0.15].map((r, i) => (
-              <div key={i} className="absolute rounded-full border border-border/50"
+              <div key={i} className="absolute rounded-full border border-border/60"
                 style={{
                   left: "50%", top: "50%",
                   width: `${r * 100}%`, height: `${r * 100}%`,
                   transform: "translate(-50%, -50%)",
-                  background: i % 2 === 0 ? "hsl(var(--muted) / 0.35)" : "transparent",
+                  background: `${axis.rings[i]?.color ?? "#94A3B8"}22`,
+                  borderColor: `${axis.rings[i]?.color ?? "#94A3B8"}88`,
                 }} />
             ))}
             {cards.map((c) => (
@@ -462,7 +471,9 @@ function ChartPlane({
             {empty && <EmptyMsg text={emptyMsg} />}
           </div>
         </div>
+        <RingLegend rings={axis.rings} className="mt-3" />
       </div>
+
     );
   }
 
