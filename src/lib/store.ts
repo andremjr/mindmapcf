@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Folder, MindNode, Project, SonicAvatarEntry, SonicAvatarUsage } from "./types";
+import type { Folder, ImageRef, MindNode, Project, SonicAvatarEntry, SonicAvatarUsage } from "./types";
 
 
 function uid(_prefix = "id") {
@@ -58,6 +58,7 @@ interface Actions {
 
   setViewport: (projectId: string, v: { x: number; y: number; zoom: number }) => void;
   setSonicAvatar: (projectId: string, patch: Partial<SonicAvatarUsage> | null) => void;
+  setNarration: (projectId: string, ref: ImageRef | null) => void;
 
   // Global user-scoped avatar library
   hydrateAvatars: (avatars: SonicAvatarEntry[]) => void;
@@ -625,6 +626,18 @@ export const useStore = create<State & Actions>()((set) => ({
           sonicAvatar: { ...base, ...patch },
           updatedAt: new Date().toISOString(),
         };
+      }),
+    })),
+
+  setNarration: (projectId, ref) =>
+    set((s) => ({
+      projects: s.projects.map((p) => {
+        if (p.id !== projectId) return p;
+        if (!ref) {
+          const { narrationRef: _n, ...rest } = p;
+          return { ...rest, updatedAt: new Date().toISOString() };
+        }
+        return { ...p, narrationRef: ref, updatedAt: new Date().toISOString() };
       }),
     })),
 

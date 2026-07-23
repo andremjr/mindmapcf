@@ -12,6 +12,7 @@ interface Row {
     nodes: Project["nodes"];
     viewport?: Project["viewport"];
     sonicAvatar?: Project["sonicAvatar"];
+    narrationRef?: Project["narrationRef"];
   };
   created_at: string;
   updated_at: string;
@@ -36,6 +37,7 @@ function toProject(r: Row): Project {
     nodes: r.data?.nodes ?? [],
     viewport: r.data?.viewport ?? { x: 0, y: 0, zoom: 1 },
     sonicAvatar: r.data?.sonicAvatar,
+    narrationRef: r.data?.narrationRef,
   };
 }
 
@@ -176,6 +178,7 @@ export function useMindmapSync(userId: string | undefined) {
                     nodes: stripInlineImages(p.nodes),
                     viewport: p.viewport,
                     sonicAvatar: p.sonicAvatar,
+                    narrationRef: p.narrationRef,
                   } as any,
                 },
                 { onConflict: "id" },

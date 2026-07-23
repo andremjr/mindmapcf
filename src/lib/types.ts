@@ -15,7 +15,7 @@ export interface ImageRef {
   lastModified: number;
   contentType?: string;
   /** Media kind. Missing = image (backwards compatible). */
-  kind?: "image" | "video";
+  kind?: "image" | "video" | "audio";
 }
 
 export interface MindNode {
@@ -83,6 +83,8 @@ export interface Project {
   viewport?: { x: number; y: number; zoom: number };
   /** Reference + placement for the sonic avatar shown during recording. */
   sonicAvatar?: SonicAvatarUsage;
+  /** Pre-recorded narration audio (Pro). Played as the recording soundtrack. */
+  narrationRef?: ImageRef;
   /** Optional folder to group projects. null/undefined = "sem pasta". */
   folderId?: string | null;
 }

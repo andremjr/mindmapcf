@@ -24,7 +24,7 @@ export interface ImageRef {
   lastModified: number;
   contentType?: string;
   /** Media kind. Missing = image (backwards compatible). */
-  kind?: "image" | "video";
+  kind?: "image" | "video" | "audio";
 }
 
 interface Entry extends ImageRef {
@@ -34,6 +34,7 @@ interface Entry extends ImageRef {
 
 const IMAGE_EXT = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif", ".svg"];
 const VIDEO_EXT = [".mp4", ".webm", ".mov", ".m4v", ".ogg", ".ogv", ".mkv"];
+const AUDIO_EXT = [".mp3", ".wav", ".m4a", ".aac", ".ogg", ".oga", ".webm", ".flac"];
 const urlCache = new Map<string, string>();
 
 function openDB(): Promise<IDBDatabase> {
@@ -225,13 +226,13 @@ export async function pickAvatarImageAndStore(): Promise<ImageRef | null> {
   return ref;
 }
 
-/** Pick a local node image/video. This never uploads to Supabase. */
-export async function pickMediaAndStore(kind: "image" | "video"): Promise<ImageRef | null> {
+/** Pick a local node image/video/audio. This never uploads to Supabase. */
+export async function pickMediaAndStore(kind: "image" | "video" | "audio"): Promise<ImageRef | null> {
   if (typeof window === "undefined" || typeof document === "undefined") return null;
   const id = crypto.randomUUID();
-  const description = kind === "image" ? "Imagens" : "Vídeos";
-  const mime = kind === "image" ? "image/*" : "video/*";
-  const exts = kind === "image" ? IMAGE_EXT : VIDEO_EXT;
+  const description = kind === "image" ? "Imagens" : kind === "video" ? "Vídeos" : "Áudios";
+  const mime = kind === "image" ? "image/*" : kind === "video" ? "video/*" : "audio/*";
+  const exts = kind === "image" ? IMAGE_EXT : kind === "video" ? VIDEO_EXT : AUDIO_EXT;
   if (hasFSAccess()) {
     try {
       const [handle] = await (window as any).showOpenFilePicker({
