@@ -160,7 +160,7 @@ function PoolCard({
 }
 
 /* ---------- spotlight ---------- */
-function SpotlightCard({ node, targetRank }: { node: MindNode; targetRank: number | undefined }) {
+function SpotlightCard({ node }: { node: MindNode }) {
   const url = useResolvedImage(node);
   const body = (node.body || "").trim();
   const hasImage = !!url;
@@ -172,9 +172,6 @@ function SpotlightCard({ node, targetRank }: { node: MindNode; targetRank: numbe
         </div>
       )}
       <div className="px-6 py-5 flex flex-col items-center gap-3 text-center overflow-hidden">
-        <div className="text-[11px] uppercase tracking-[0.35em] text-amber-200/90">
-          {typeof targetRank === "number" ? `Posição ${targetRank}` : "Chamada"}
-        </div>
         <div className={`font-bold leading-tight text-white ${hasImage ? "text-2xl" : "text-3xl"}`}>
           {node.text || "Item"}
         </div>
