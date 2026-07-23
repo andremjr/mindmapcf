@@ -175,7 +175,7 @@ export function MatrixPresentation({
     const s = new Set<number>();
     for (let i = 0; i <= step; i++) {
       const st = steps[i];
-      if (st?.kind === "reveal") s.add(st.index);
+      if (st?.kind === "reveal" || st?.kind === "focus") s.add(st.index);
     }
     return s;
   }, [steps, step]);
@@ -185,7 +185,7 @@ export function MatrixPresentation({
     for (let i = 0; i <= step; i++) {
       const st = steps[i];
       if (st?.kind === "axis") phase[st.axis] = true;
-      if (st?.kind === "reveal") {
+      if (st?.kind === "reveal" || st?.kind === "focus") {
         // once cards start revealing, all axis elements are visible
         phase.y = phase.x = phase.grid = phase.zones = phase.rings = true;
       }
