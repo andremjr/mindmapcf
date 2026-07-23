@@ -18,7 +18,7 @@ interface State {
 interface Actions {
   hydrate: (projects: Project[]) => void;
   reset: () => void;
-  createProject: (title: string, folderId?: string | null) => string;
+  createProject: (title: string, folderId?: string | null, template?: ProjectTemplate) => string;
   importProject: (project: Project) => string;
   replaceProjectNodes: (projectId: string, nodes: MindNode[], title?: string) => void;
   deleteProject: (id: string) => void;
@@ -329,7 +329,63 @@ function reflowTree(nodes: MindNode[]): MindNode[] {
 }
 
 
-export const useStore = create<State & Actions>()((set) => ({
+function defaultTitleForTemplate(t: ProjectTemplate): string {
+  if (t === "tierlist") return "Nova tier list";
+  if (t === "iceberg") return "Novo iceberg";
+  return "Novo mapa mental";
+}
+
+/** Seed nodes for a brand-new project of the given template. */
+export function seedNodesForTemplate(template: ProjectTemplate, title: string): MindNode[] {
+  const uid2 = () =>
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `n_${Math.random().toString(36).slice(2, 9)}`;
+
+  if (template === "tierlist") {
+    const boardId = uid2();
+    const tiers = ["S", "A", "B", "C", "D"];
+    const tierColors = ["#f43f5e", "#f97316", "#eab308", "#22c55e", "#3b82f6"];
+    return [
+      { id: boardId, text: title.trim() || "Tier list", x: 0, y: 0, width: 400, parentId: null, role: "board" },
+      ...tiers.map((t, i) => ({
+        id: uid2(),
+        text: t,
+        x: 0,
+        y: 0,
+        width: 200,
+        parentId: boardId,
+        role: "tier" as const,
+        color: tierColors[i],
+        order: i,
+      })),
+    ];
+  }
+
+  if (template === "iceberg") {
+    const rootId = uid2();
+    const levels = ["Conhecido", "Menos conhecido", "Obscuro", "Proibido"];
+    return [
+      { id: rootId, text: title.trim() || "Iceberg", x: 0, y: 0, width: 400, parentId: null, role: "iceberg" },
+      ...levels.map((label, i) => ({
+        id: uid2(),
+        text: label,
+        x: 0,
+        y: 0,
+        width: 400,
+        parentId: rootId,
+        role: "level" as const,
+        order: i,
+      })),
+    ];
+  }
+
+  // mindmap (default)
+  const rootId = uid2();
+  return [
+    { id: rootId, text: title.trim() || "Ideia central", x: 0, y: 0, width: 560, parentId: null },
+  ];
+}
   projects: [],
   avatars: [],
   folders: [],
@@ -337,26 +393,18 @@ export const useStore = create<State & Actions>()((set) => ({
   hydrate: (projects) => set({ projects }),
   reset: () => set({ projects: [], avatars: [], folders: [] }),
 
-  createProject: (title, folderId) => {
+  createProject: (title, folderId, template = "mindmap") => {
     const id = uid("prj");
     const now = new Date().toISOString();
-    const rootId = uid("n");
+    const nodes = seedNodesForTemplate(template, title);
     const project: Project = {
       id,
-      title: title.trim() || "Novo mapa mental",
+      title: title.trim() || defaultTitleForTemplate(template),
       createdAt: now,
       updatedAt: now,
       folderId: folderId ?? null,
-      nodes: [
-        {
-          id: rootId,
-          text: title.trim() || "Ideia central",
-          x: 0,
-          y: 0,
-          width: 560,
-          parentId: null,
-        },
-      ],
+      template,
+      nodes,
       viewport: { x: 0, y: 0, zoom: 1 },
     };
     set((s) => ({ projects: [project, ...s.projects] }));
