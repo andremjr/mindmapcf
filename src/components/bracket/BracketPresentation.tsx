@@ -100,7 +100,7 @@ export function BracketPresentation({
   const [transform, setTransform] = useState("translate(0px, 0px) scale(1)");
 
   const isFocusStep = currentStep.startsWith("focus:");
-  const zoomKey = isFocusStep ? focusKey : null;
+  const zoomKey = (isFocusStep || currentStep.startsWith("reveal:")) ? focusKey : null;
 
   useLayoutEffect(() => {
     function recalc() {
