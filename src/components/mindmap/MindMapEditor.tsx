@@ -1574,7 +1574,7 @@ function NarrationPlayer({
         const u = await resolveImage(narrationRef);
         if (!alive) return;
         setUrl(u);
-        if (u.startsWith("blob:")) revoke = u;
+        if (u && u.startsWith("blob:")) revoke = u;
       } catch (e) {
         console.error("[narration] resolve", e);
         setUrl(null);
