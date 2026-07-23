@@ -110,8 +110,8 @@ function EmptySlot({ rank, height }: { rank: number; height: number }) {
 
 /* ---------- pool card ---------- */
 function PoolCard({
-  node, called, highlighted, w, h,
-}: { node: MindNode; called: boolean; highlighted: boolean; w: number; h: number }) {
+  node, called, highlighted, badge, w, h,
+}: { node: MindNode; called: boolean; highlighted: boolean; badge?: string; w: number; h: number }) {
   const url = useResolvedImage(node);
   const titleSize = Math.max(9, Math.min(15, h * 0.11));
   return (
@@ -145,14 +145,15 @@ function PoolCard({
           {node.text || "—"}
         </div>
       )}
-      {highlighted && (
-        <div className="absolute top-1 left-1 rounded-full bg-amber-400 text-neutral-950 font-bold px-2 py-0.5 text-[10px] uppercase tracking-wider">
-          Próximo
+      {highlighted && badge && (
+        <div className="absolute top-1 left-1 rounded-full bg-amber-400 text-neutral-950 font-black px-2 py-0.5 text-xs tabular-nums shadow-lg">
+          {badge}
         </div>
       )}
     </motion.div>
   );
 }
+
 
 /* ---------- spotlight ---------- */
 function SpotlightCard({ node }: { node: MindNode }) {
@@ -348,16 +349,26 @@ export function RankingPresentation({
                         gap: 8,
                       }}
                     >
-                      {callOrder.map((n) => (
-                        <PoolCard
-                          key={n.id}
-                          node={n}
-                          called={placedIds.has(n.id)}
-                          highlighted={highlightNode?.id === n.id}
-                          w={pool.cellW - 8}
-                          h={pool.cellH - 8}
-                        />
-                      ))}
+                      {callOrder.map((n) => {
+                        const isNext = highlightNode?.id === n.id;
+                        let badge: string | undefined;
+                        if (isNext) {
+                          const myRank = rankOf.get(n.id) ?? 999;
+                          const pos = revealed.filter((r) => (rankOf.get(r.id) ?? 999) < myRank).length + 1;
+                          badge = `#${pos}`;
+                        }
+                        return (
+                          <PoolCard
+                            key={n.id}
+                            node={n}
+                            called={placedIds.has(n.id)}
+                            highlighted={isNext}
+                            badge={badge}
+                            w={pool.cellW - 8}
+                            h={pool.cellH - 8}
+                          />
+                        );
+                      })}
                     </div>
                   </LayoutGroup>
                 </div>
