@@ -271,6 +271,7 @@ export function TierListPresentation({
 
       <div className={recording ? "absolute inset-0 grid place-items-center" : "absolute inset-0"}>
         <div ref={frameRef} style={frameStyle} className="bg-background">
+          <AvatarLayer project={project} frameSize={size} />
           <LayoutGroup>
             <div className="absolute inset-0 flex flex-col p-6">
               <div className="text-2xl font-bold text-center mb-3 opacity-90">{project.title}</div>
