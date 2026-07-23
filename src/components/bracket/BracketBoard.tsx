@@ -250,7 +250,9 @@ function RoundColumn({
   const r = parseInt(round[0]?.key.match(/r(\d+)/)?.[1] ?? "0", 10);
   const spacing = 8 * Math.pow(2, r);
   return (
-    <div className="flex flex-col gap-2 min-w-[180px] shrink-0" style={{ paddingTop: spacing, paddingBottom: spacing }}>
+    <div className="flex flex-col gap-2 w-[140px] sm:w-[170px] shrink-0" style={{ paddingTop: spacing, paddingBottom: spacing }}>
+
+
       <div className="text-[10px] uppercase tracking-widest text-white/40 text-center">{label}</div>
       <div className="flex-1 flex flex-col justify-around gap-2">
         {round.map((m, i) => {
@@ -330,9 +332,10 @@ export function BracketBoard({
           ))}
 
           {/* Center: FINAL + Champion */}
-          <div className="flex flex-col items-center justify-center gap-4 min-w-[220px] shrink-0 py-6">
+          <div className="flex flex-col items-center justify-center gap-4 w-[180px] sm:w-[220px] shrink-0 py-6">
             <div className="text-[10px] uppercase tracking-widest text-amber-300/80">Final</div>
-            <div className="w-[220px]">
+            <div className="w-full">
+
               <MatchBox
                 match={data.finalMatch}
                 mode={mode}
@@ -351,7 +354,7 @@ export function BracketBoard({
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
                     transition={{ type: "spring", stiffness: 180, damping: 18 }}
-                    className="rounded-xl p-3 bg-gradient-to-br from-amber-400/30 to-amber-600/20 border border-amber-300/60 shadow-[0_0_60px_rgba(252,211,77,0.55)] w-[260px]"
+                    className="rounded-xl p-3 bg-gradient-to-br from-amber-400/30 to-amber-600/20 border border-amber-300/60 shadow-[0_0_60px_rgba(252,211,77,0.55)] w-full"
                   >
                     <div className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-amber-200 mb-1 justify-center">
                       <Trophy className="size-3" /> Campeão
