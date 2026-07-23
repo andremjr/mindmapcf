@@ -183,15 +183,22 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
 
 
 
+  const narrationEl = opts.narrationEl ?? null;
+  const hasNarration = !!narrationEl;
+
+  // When narration is provided, skip the mic entirely — the narration IS the
+  // recording's audio track. The user operates the map in sync with playback.
   let micStream: MediaStream | null = null;
-  try {
-    micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-  } catch (e) {
-    // Mic denied → continue with system audio only.
-    console.warn("[screenRecorder] mic denied", e);
+  if (!hasNarration) {
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    } catch (e) {
+      // Mic denied → continue with system audio only.
+      console.warn("[screenRecorder] mic denied", e);
+    }
   }
 
-  // Build a mixed stream: display video + mixed audio (system + mic).
+  // Build a mixed stream: display video + mixed audio (system + mic + narration).
   const mixed = new MediaStream();
   for (const track of displayStream.getVideoTracks()) mixed.addTrack(track);
 
@@ -199,26 +206,39 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
   let audioAnalyser: AnalyserNode | null = null;
   const hasDisplayAudio = displayStream.getAudioTracks().length > 0;
   const hasMic = !!micStream && micStream.getAudioTracks().length > 0;
-  if (hasDisplayAudio || hasMic) {
+  if (hasDisplayAudio || hasMic || hasNarration) {
     audioCtx = new AudioContext();
     const dest = audioCtx.createMediaStreamDestination();
     audioAnalyser = audioCtx.createAnalyser();
     audioAnalyser.fftSize = 1024;
     audioAnalyser.smoothingTimeConstant = 0.6;
-    if (hasDisplayAudio) {
+    // With narration active we don't wire the tab audio in — narration is the
+    // whole soundtrack, and mixing tab audio in would double any music the
+    // narration file already contains.
+    if (hasDisplayAudio && !hasNarration) {
       const src = audioCtx.createMediaStreamSource(
         new MediaStream(displayStream.getAudioTracks()),
       );
       src.connect(dest);
-      // Only route display audio to the meter when there's no mic — otherwise
-      // the meter tracks the presenter's voice (what the user actually cares
-      // about verifying while recording).
       if (!hasMic) src.connect(audioAnalyser);
     }
     if (hasMic && micStream) {
       const src = audioCtx.createMediaStreamSource(micStream);
       src.connect(dest);
       src.connect(audioAnalyser);
+    }
+    if (hasNarration && narrationEl) {
+      // Route narration to the recording AND to speakers so the presenter
+      // hears it while operating the nodes. Feed the analyser too, so the
+      // sonic-avatar bars react to the narration waveform.
+      try {
+        const src = audioCtx.createMediaElementSource(narrationEl);
+        src.connect(dest);
+        src.connect(audioCtx.destination);
+        src.connect(audioAnalyser);
+      } catch (e) {
+        console.error("[screenRecorder] narration source", e);
+      }
     }
     for (const t of dest.stream.getAudioTracks()) mixed.addTrack(t);
   }
@@ -292,6 +312,8 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
     audioCtx,
     audioAnalyser,
     hasMic,
+    hasNarration,
+    narrationEl,
     cropApplied: false,
     mimeType,
     startedAt: performance.now(),
