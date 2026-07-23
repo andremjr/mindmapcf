@@ -460,9 +460,11 @@ export function TierListPresentation({
                   {remaining.map((it, i) => (
                     <motion.div
                       key={it.id}
+                      data-item-id={it.id}
                       layoutId={`item-${it.id}`}
                       transition={{ type: "spring", stiffness: 260, damping: 28 }}
                     >
+
                       <TierItem
                         node={it}
                         size={72}
