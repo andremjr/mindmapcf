@@ -386,6 +386,8 @@ export function seedNodesForTemplate(template: ProjectTemplate, title: string): 
     { id: rootId, text: title.trim() || "Ideia central", x: 0, y: 0, width: 560, parentId: null },
   ];
 }
+
+export const useStore = create<State & Actions>()((set) => ({
   projects: [],
   avatars: [],
   folders: [],
