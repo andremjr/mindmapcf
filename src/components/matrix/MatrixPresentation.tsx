@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { MindNode, Project } from "@/lib/types";
 import { resolveImage } from "@/lib/imageStorage";
 import { PresentationShell } from "@/components/shared/PresentationShell";
-import { parseAxis, type AxisConfig, type ChartType } from "./MatrixEditor";
+import { parseAxis, RingLegend, type AxisConfig, type ChartType } from "./MatrixEditor";
+
 
 /* ---------- Card ---------- */
 function useResolvedImage(node: MindNode | undefined) {
