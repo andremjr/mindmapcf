@@ -92,6 +92,30 @@ export function BracketPresentation({
     return `Rodada ${r + 1}`;
   }
 
+  // Match counter within a round: e.g. Oitavas → "1 de 8", "2 de 8", ...
+  // Uses the presentation step order (L then R per match slot) so the numbering
+  // matches the sequence the viewer actually sees.
+  function matchCounterFor(key: string | null): { current: number; total: number } | null {
+    if (!key) return null;
+    if (key === "FINAL") return { current: 1, total: 1 };
+    const m = key.match(/^([LR])-r(\d+)i(\d+)$/);
+    if (!m) return null;
+    const r = parseInt(m[2], 10);
+    const roundKeys: string[] = [];
+    const li = fullData.L.rounds[r]?.length ?? 0;
+    const ri = fullData.R.rounds[r]?.length ?? 0;
+    const maxI = Math.max(li, ri);
+    for (let i = 0; i < maxI; i++) {
+      const lm = fullData.L.rounds[r]?.[i];
+      const rm = fullData.R.rounds[r]?.[i];
+      if (lm && !lm.isBye) roundKeys.push(lm.key);
+      if (rm && !rm.isBye) roundKeys.push(rm.key);
+    }
+    const idxInRound = roundKeys.indexOf(key);
+    if (idxInRound < 0) return null;
+    return { current: idxInRound + 1, total: roundKeys.length };
+  }
+
   const stepLabel = (() => {
     if (currentStep === "pool") return "Competidores";
     if (currentStep === "seat") return "Chaveamento inicial";
@@ -244,8 +268,17 @@ export function BracketPresentation({
                   className="absolute inset-0 flex items-center justify-center pointer-events-none"
                 >
                   <div className="flex flex-col items-center gap-3 max-w-[80%] rounded-2xl bg-neutral-950/85 border border-white/15 shadow-[0_20px_80px_rgba(0,0,0,0.6)] px-8 py-6">
-                    <div className="text-[11px] uppercase tracking-[0.35em] text-amber-200/90">
-                      {roundLabelFor(focusKey)}
+                    <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.35em] text-amber-200/90">
+                      <span>{roundLabelFor(focusKey)}</span>
+                      {(() => {
+                        const c = matchCounterFor(focusKey);
+                        return c ? (
+                          <>
+                            <span className="opacity-40">·</span>
+                            <span className="tabular-nums text-white/70">{c.current} de {c.total}</span>
+                          </>
+                        ) : null;
+                      })()}
                     </div>
                     <div className="flex items-stretch gap-6">
                       <motion.div
