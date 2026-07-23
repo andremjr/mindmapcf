@@ -133,12 +133,14 @@ function useResolvedImage(node: MindNode | null | undefined) {
 }
 
 function CompetitorCard({
-  node, state, onClick, small = false,
+  node, state, onClick, small = false, expanded = false,
 }: {
   node: MindNode;
   state: "idle" | "current" | "winner" | "loser";
   onClick?: () => void;
   small?: boolean;
+  /** Big vertical layout used when a match is focused in present mode. */
+  expanded?: boolean;
 }) {
   const url = useResolvedImage(node);
   const cls =
@@ -149,34 +151,59 @@ function CompetitorCard({
         : state === "loser"
           ? "border-white/10 bg-black/50 opacity-40"
           : "border-white/20 bg-black/60";
-  const textCls =
-    state === "loser"
-      ? "line-through text-white/60"
-      : "text-white/95";
+  const textCls = state === "loser" ? "line-through text-white/60" : "text-white/95";
+
+  if (expanded) {
+    return (
+      <div
+        className={`relative w-full rounded-lg overflow-hidden border transition-all flex flex-col ${cls}`}
+      >
+        <div className="w-full aspect-square bg-black/70 grid place-items-center overflow-hidden">
+          {url ? (
+            <img src={url} alt="" className="size-full object-contain" />
+          ) : (
+            <span className="text-[11px] text-white/40">sem imagem</span>
+          )}
+        </div>
+        <div className={`px-2 py-2 font-semibold leading-tight line-clamp-3 text-center text-sm ${textCls}`}>
+          {node.text || "—"}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <button
       disabled={!onClick}
       onClick={onClick}
-      className={`relative w-full rounded-md overflow-hidden border transition-all text-left flex flex-col ${cls} ${onClick ? "hover:border-white/70 cursor-pointer" : "cursor-default"}`}
+      className={`relative w-full rounded-md overflow-hidden border transition-all text-left ${cls} ${onClick ? "hover:border-white/70 cursor-pointer" : "cursor-default"}`}
+      style={{ minHeight: small ? 42 : 52 }}
     >
-      <div className="w-full aspect-square bg-black/70 grid place-items-center overflow-hidden">
-        {url ? (
-          <img src={url} alt="" className="size-full object-contain" />
-        ) : (
-          <span className="text-[10px] text-white/40">sem imagem</span>
-        )}
-      </div>
-      <div className={`px-1.5 py-1.5 font-medium leading-tight line-clamp-3 text-center ${textCls} ${small ? "text-[11px]" : "text-xs"}`}>
-        {node.text || "—"}
+      <div className="flex items-center gap-2 p-1.5">
+        <div className={`rounded bg-black/60 overflow-hidden shrink-0 grid place-items-center ${small ? "size-8" : "size-10"}`}>
+          {url ? <img src={url} alt="" className="size-full object-cover" /> : (
+            <span className="text-[10px] text-white/50">?</span>
+          )}
+        </div>
+        <div className={`font-medium leading-tight line-clamp-2 ${textCls} ${small ? "text-[11px]" : "text-xs"}`}>
+          {node.text || "—"}
+        </div>
       </div>
     </button>
   );
 }
 
-function EmptySlot({ label = "?" }: { label?: string }) {
+function EmptySlot({ label = "?", expanded = false }: { label?: string; expanded?: boolean }) {
+  if (expanded) {
+    return (
+      <div className="w-full rounded-lg border border-dashed border-white/15 bg-black/30 grid place-items-center text-xs text-white/40 aspect-[3/4]">
+        {label}
+      </div>
+    );
+  }
   return (
-    <div className="w-full rounded-md border border-dashed border-white/15 bg-black/30 grid place-items-center text-[11px] text-white/40 flex-col aspect-[3/4]">
-      <div className="flex-1 grid place-items-center w-full">{label}</div>
+    <div className="w-full rounded-md border border-dashed border-white/15 bg-black/30 grid place-items-center text-[11px] text-white/40" style={{ minHeight: 52 }}>
+      {label}
     </div>
   );
 }
