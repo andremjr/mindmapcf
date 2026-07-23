@@ -235,43 +235,60 @@ export function RankingEditor({ project }: { project: Project }) {
                   <Plus className="size-3.5" /> Item
                 </Button>
               </div>
-              <div className="flex-1 overflow-auto p-3 space-y-1.5">
+              <div className="px-4 pt-2 pb-1 text-[11px] text-muted-foreground shrink-0">
+                {N > 0 && (
+                  <>Faltam posicionar: <span className="font-semibold text-foreground">{N - byRank.size}</span> de {N}</>
+                )}
+              </div>
+              <div className="flex-1 overflow-auto p-3 grid grid-cols-2 sm:grid-cols-3 gap-2 auto-rows-min content-start">
                 {items.length === 0 && (
-                  <div className="text-center text-xs text-muted-foreground italic py-8">
+                  <div className="col-span-full text-center text-xs text-muted-foreground italic py-8">
                     Adicione itens para começar.
                   </div>
                 )}
-                {items.map((it, i) => (
-                  <div
-                    key={it.id}
-                    draggable
-                    onDragStart={(e) => {
-                      setDrag({ id: it.id, from: "call" });
-                      e.dataTransfer.effectAllowed = "move";
-                    }}
-                    onDragEnd={() => setDrag(null)}
-                    onDragOver={(e) => {
-                      if (drag && drag.from === "call" && drag.id !== it.id) e.preventDefault();
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      if (drag && drag.from === "call") moveCall(drag.id, i);
-                      setDrag(null);
-                    }}
-                    onClick={() => setSelectedId(it.id)}
-                    className={`group flex items-center gap-2 rounded-md border px-2 py-1.5 bg-background cursor-grab active:cursor-grabbing transition ${
-                      selectedId === it.id ? "border-primary ring-1 ring-primary/40" : "border-border/60 hover:border-border"
-                    } ${drag?.id === it.id ? "opacity-40" : ""}`}
-                  >
-                    <GripVertical className="size-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-xs font-bold tabular-nums w-6 text-muted-foreground shrink-0">{i + 1}º</span>
-                    <Thumb node={it} size={28} />
-                    <span className="flex-1 text-sm truncate">{it.text || <span className="text-muted-foreground italic">sem título</span>}</span>
-                    {typeof it.rank === "number" && (
-                      <span className="text-[10px] font-semibold tabular-nums text-muted-foreground shrink-0">#{it.rank}</span>
-                    )}
-                  </div>
-                ))}
+                {items.map((it, i) => {
+                  const placed = typeof it.rank === "number";
+                  return (
+                    <div
+                      key={it.id}
+                      draggable
+                      onDragStart={(e) => {
+                        setDrag({ id: it.id, from: "call" });
+                        e.dataTransfer.effectAllowed = "move";
+                      }}
+                      onDragEnd={() => setDrag(null)}
+                      onDragOver={(e) => {
+                        if (drag && drag.from === "call" && drag.id !== it.id) e.preventDefault();
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (drag && drag.from === "call") moveCall(drag.id, i);
+                        setDrag(null);
+                      }}
+                      onClick={() => setSelectedId(it.id)}
+                      className={`group relative aspect-square flex flex-col rounded-lg border bg-background cursor-grab active:cursor-grabbing transition overflow-hidden ${
+                        selectedId === it.id ? "border-primary ring-2 ring-primary/40" : "border-border/60 hover:border-border"
+                      } ${drag?.id === it.id ? "opacity-40" : ""} ${placed ? "opacity-50 saturate-50" : ""}`}
+                    >
+                      <span className="absolute top-1 left-1 z-10 text-[10px] font-bold tabular-nums bg-background/80 backdrop-blur rounded px-1.5 py-0.5 text-muted-foreground">
+                        {i + 1}º
+                      </span>
+                      {placed && (
+                        <span className="absolute top-1 right-1 z-10 text-[10px] font-bold tabular-nums bg-primary/90 text-primary-foreground rounded px-1.5 py-0.5">
+                          #{it.rank}
+                        </span>
+                      )}
+                      <div className="flex-1 min-h-0 bg-muted grid place-items-center overflow-hidden">
+                        <Thumb node={it} size={64} />
+                      </div>
+                      <div className={`px-1.5 py-1 text-[11px] leading-tight text-center border-t border-border/40 bg-card ${placed ? "line-through" : ""}`}>
+                        <span className="line-clamp-2 break-words">
+                          {it.text || <span className="text-muted-foreground italic">sem título</span>}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </section>
 
