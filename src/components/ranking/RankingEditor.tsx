@@ -213,12 +213,14 @@ export function RankingEditor({ project }: { project: Project }) {
     return { dupes, missing };
   }, [items]);
 
-  /* --- auto-fit grid: no scroll, everything fits in the frame --- */
+  /* --- auto-fit grid: no scroll, square cards fit inside the frame --- */
   const callGrid = useAutoGrid(N || 1);
   const rankGrid = useAutoGrid(N || 1);
-  const gridStyle = (g: { cols: number; rows: number }) => ({
-    gridTemplateColumns: `repeat(${g.cols}, minmax(0, 1fr))`,
-    gridTemplateRows: `repeat(${g.rows}, minmax(0, 1fr))`,
+  const gridStyle = (g: { cols: number; cell: number }) => ({
+    gridTemplateColumns: `repeat(${g.cols}, ${g.cell}px)`,
+    gridAutoRows: `${g.cell}px`,
+    justifyContent: "center" as const,
+    alignContent: "center" as const,
   });
 
   return (
