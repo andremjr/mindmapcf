@@ -87,19 +87,15 @@ export function RankingEditor({ project }: { project: Project }) {
     if (!root) return;
     const id = addNode(project.id, { parentId: root.id });
     if (!id) return;
-    const rank = (() => {
-      for (let i = 1; i <= N + 1; i++) if (!byRank.has(i)) return i;
-      return N + 1;
-    })();
     updateNode(project.id, id, {
       text: `Item ${N + 1}`,
       role: "item",
       order: N,
-      rank,
       width: 300,
     } as Partial<MindNode>);
     setSelectedId(id);
   }
+
 
   function reindexCallOrder(newList: MindNode[]) {
     newList.forEach((n, i) => {
