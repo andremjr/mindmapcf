@@ -92,6 +92,30 @@ export function BracketPresentation({
     return `Rodada ${r + 1}`;
   }
 
+  // Match counter within a round: e.g. Oitavas → "1 de 8", "2 de 8", ...
+  // Uses the presentation step order (L then R per match slot) so the numbering
+  // matches the sequence the viewer actually sees.
+  function matchCounterFor(key: string | null): { current: number; total: number } | null {
+    if (!key) return null;
+    if (key === "FINAL") return { current: 1, total: 1 };
+    const m = key.match(/^([LR])-r(\d+)i(\d+)$/);
+    if (!m) return null;
+    const r = parseInt(m[2], 10);
+    const roundKeys: string[] = [];
+    const li = fullData.L.rounds[r]?.length ?? 0;
+    const ri = fullData.R.rounds[r]?.length ?? 0;
+    const maxI = Math.max(li, ri);
+    for (let i = 0; i < maxI; i++) {
+      const lm = fullData.L.rounds[r]?.[i];
+      const rm = fullData.R.rounds[r]?.[i];
+      if (lm && !lm.isBye) roundKeys.push(lm.key);
+      if (rm && !rm.isBye) roundKeys.push(rm.key);
+    }
+    const idxInRound = roundKeys.indexOf(key);
+    if (idxInRound < 0) return null;
+    return { current: idxInRound + 1, total: roundKeys.length };
+  }
+
   const stepLabel = (() => {
     if (currentStep === "pool") return "Competidores";
     if (currentStep === "seat") return "Chaveamento inicial";
