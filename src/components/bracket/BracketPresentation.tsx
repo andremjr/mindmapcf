@@ -80,8 +80,9 @@ export function BracketPresentation({
   const stepLabel = (() => {
     if (currentStep === "pool") return "Competidores";
     if (currentStep === "seat") return "Chaveamento inicial";
-    if (focusKey === "FINAL") return "Final";
     if (currentStep === "CHAMPION") return "Campeão";
+    if (currentStep.startsWith("overview:")) return "Visão geral";
+    if (focusKey === "FINAL") return "Final";
     const m = focusKey?.match(/^([LR])-r(\d+)i(\d+)$/);
     if (m) {
       const side = m[1] === "L" ? "Esquerda" : "Direita";
