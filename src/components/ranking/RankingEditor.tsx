@@ -539,8 +539,8 @@ function RankSlot({
         </>
       ) : (
         <div className="flex-1 grid place-items-center px-2">
-          <div className="text-center">
-            <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Vazio</div>
+          <div className="text-[10px] font-medium text-rose-500/80 dark:text-rose-400/80 uppercase tracking-wider">
+            aguardando
           </div>
         </div>
       )}
