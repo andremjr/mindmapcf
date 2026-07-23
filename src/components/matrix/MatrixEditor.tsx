@@ -327,6 +327,11 @@ export function MatrixEditor({ project }: { project: Project }) {
               )}
             </div>
 
+            <NodeColorPicker
+              value={editingCard.color}
+              onChange={(c) => updateNode(project.id, editingCard.id, { color: c } as Partial<MindNode>)}
+            />
+
             <div className="flex justify-end">
               <Button onClick={() => setEditingId(null)}>Concluir</Button>
             </div>
