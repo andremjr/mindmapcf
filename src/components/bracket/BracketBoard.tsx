@@ -204,10 +204,12 @@ function MatchBox({
 
   return (
     <div
+      data-match-key={match.key}
       className={`rounded-lg p-1.5 space-y-1 transition-all ${
         isCurrent ? "bg-white/5 ring-1 ring-amber-300/40" : ""
       }`}
     >
+
       {showContents && match.a ? (
         <motion.div layoutId={`comp-${match.a.id}-at-${match.key}-a`} initial={{ opacity: 0, y: side === "L" ? -6 : side === "R" ? -6 : -6 }} animate={{ opacity: 1, y: 0 }}>
           <CompetitorCard
