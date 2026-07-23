@@ -131,6 +131,7 @@ export function BracketEditor({ project }: { project: Project }) {
         <Button variant="ghost" size="sm" onClick={resetWinners} className="gap-1.5" title="Limpar vencedores">
           <RotateCcw className="size-4" /> Resetar
         </Button>
+        <ThemeToggle />
         <Button variant="destructive" size="sm" onClick={() => setRecordOpen(true)} className="gap-1.5">
           <Circle className="size-3 fill-current" /> Gravar
         </Button>
