@@ -312,20 +312,33 @@ export function IcebergPresentation({
                     >
                       {lvl.text}
                     </div>
-                    <div className="relative z-10 flex-1 grid gap-5 place-items-center content-center"
-                         style={{ gridTemplateColumns: `repeat(${Math.min(Math.max(items.length, 1), 5)}, minmax(0, 1fr))` }}>
-                      {items.map((it) => (
-                        <ItemTile
-                          key={it.id}
-                          node={it}
-                          active={activeItem?.id === it.id}
-                          onClick={() => {
-                            const j = nav.findIndex((x) => x.itemId === it.id);
-                            if (j >= 0) setIdx(j);
-                          }}
-                        />
-                      ))}
+                    <div className="relative z-10 flex-1 w-full" style={{ minHeight: levelHeight - 140 }}>
+                      {items.map((it, k) => {
+                        const rx = seeded(it.id + "x");
+                        const ry = seeded(it.id + "y");
+                        const rr = seeded(it.id + "r");
+                        const rs = seeded(it.id + "s");
+                        // Spread horizontally in bands so they don't overlap too much
+                        const band = items.length > 0 ? (k + 0.5) / items.length : 0.5;
+                        const leftPct = 8 + band * 84 + (rx - 0.5) * 14;
+                        const topPct = 15 + ry * 70;
+                        const rotate = (rr - 0.5) * 18;
+                        const size = 96 + Math.round(rs * 32);
+                        return (
+                          <ItemTile
+                            key={it.id}
+                            node={it}
+                            active={activeItem?.id === it.id}
+                            onClick={() => {
+                              const j = nav.findIndex((x) => x.itemId === it.id);
+                              if (j >= 0) setIdx(j);
+                            }}
+                            scatter={{ left: `${leftPct}%`, top: `${topPct}%`, rotate, size }}
+                          />
+                        );
+                      })}
                     </div>
+
                   </div>
                 );
               })}
