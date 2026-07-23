@@ -185,12 +185,68 @@ export function TierListEditor({ project }: { project: Project }) {
     } as Partial<MindNode>);
   }
 
-  function moveItem(itemId: string, targetTierId: string | null) {
-    if (targetTierId) setParent(project.id, itemId, targetTierId);
-    else if (board) setParent(project.id, itemId, board.id);
+  /**
+   * Move `itemId` into `targetTierId` (or pool if null), inserted at
+   * `insertIndex` within the destination. Rewrites `placementOrder` for
+   * the destination bucket so drop position is preserved. When dropping
+   * into the pool, also rewrites `order` (call order) so pool reordering
+   * changes the reveal queue.
+   */
+  function moveItem(itemId: string, targetTierId: string | null, insertIndex?: number) {
+    const dest = targetTierId
+      ? (itemsByTier.get(targetTierId) ?? []).filter((n) => n.id !== itemId)
+      : poolItems.filter((n) => n.id !== itemId);
+    const item = allItems.find((n) => n.id === itemId);
+    if (!item) return;
+    const idx = insertIndex == null ? dest.length : Math.max(0, Math.min(insertIndex, dest.length));
+    const nextParent = targetTierId ?? (board ? board.id : null);
+    if (nextParent && item.parentId !== nextParent) {
+      setParent(project.id, itemId, nextParent);
+    }
+    const arr = [...dest.slice(0, idx), item, ...dest.slice(idx)];
+    if (targetTierId) {
+      arr.forEach((n, i) => {
+        if ((n.placementOrder ?? -1) !== i) {
+          updateNode(project.id, n.id, { placementOrder: i } as Partial<MindNode>);
+        }
+      });
+    } else {
+      arr.forEach((n, i) => {
+        if ((n.order ?? -1) !== i) {
+          updateNode(project.id, n.id, { order: i } as Partial<MindNode>);
+        }
+      });
+    }
   }
 
   const [dragItemId, setDragItemId] = useState<string | null>(null);
+
+  /** Given a horizontal-wrap container and a pointer event, find the insertion
+   * index by comparing pointer position to each child card's midpoint. */
+  function computeInsertIndex(
+    container: HTMLElement,
+    clientX: number,
+    clientY: number,
+    draggedId: string | null,
+  ): number {
+    const cards = Array.from(container.querySelectorAll<HTMLElement>("[data-item-id]"));
+    let idx = cards.length;
+    for (let i = 0; i < cards.length; i++) {
+      const el = cards[i];
+      if (draggedId && el.dataset.itemId === draggedId) continue;
+      const r = el.getBoundingClientRect();
+      // Row-aware: only cards vertically overlapping the pointer count.
+      if (clientY < r.top || clientY > r.bottom) continue;
+      if (clientX < r.left + r.width / 2) { idx = i; break; }
+    }
+    // Adjust when dragged card comes before the target within the same list.
+    if (draggedId) {
+      const draggedIdx = cards.findIndex((el) => el.dataset.itemId === draggedId);
+      if (draggedIdx !== -1 && draggedIdx < idx) idx -= 1;
+    }
+    return idx;
+  }
+
 
   /**
    * Enforce all-or-none placement: either every item is inside a tier
