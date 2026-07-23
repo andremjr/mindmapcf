@@ -47,7 +47,7 @@ function ItemTile({ node, active, onClick }: { node: MindNode; active: boolean; 
           ? "ring-2 ring-white/90 scale-105 shadow-[0_0_30px_rgba(255,255,255,0.4)] border-white/70"
           : "border-white/30 hover:border-white/60"
       }`}
-      style={{ width: 72, height: 72, background: "rgba(0,0,0,0.5)" }}
+      style={{ width: 104, height: 104, background: "rgba(0,0,0,0.5)" }}
     >
       {url ? (
         <img src={url} alt="" className="absolute inset-0 size-full object-cover" />
