@@ -19,13 +19,26 @@ import type { RecordFormat } from "@/lib/recordFormats";
 import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
 
 export type ChartType = "quadrants" | "scatter" | "line" | "bullseye";
+export interface RingConfig { color: string; label: string }
+export interface LinePoint { id: string; pctX: number; label: string; side: "top" | "bottom" }
 export interface AxisConfig {
   chartType: ChartType;
   xLow: string; xHigh: string; yLow: string; yHigh: string;
   xLabel: string; yLabel: string;
   lineLabel: string;
   bullseyeLabel: string;
+  /** 4 rings ordered outer → inner. */
+  rings: RingConfig[];
+  /** Optional milestones drawn on the timeline. */
+  linePoints: LinePoint[];
 }
+
+export const DEFAULT_RINGS: RingConfig[] = [
+  { color: "#94A3B8", label: "Descartar" },
+  { color: "#EAB308", label: "Considerar" },
+  { color: "#F97316", label: "Alta prioridade" },
+  { color: "#EF4444", label: "Alvo" },
+];
 
 const DEFAULT_AXIS: AxisConfig = {
   chartType: "quadrants",
@@ -34,14 +47,20 @@ const DEFAULT_AXIS: AxisConfig = {
   xLabel: "Eixo X", yLabel: "Eixo Y",
   lineLabel: "Linha do tempo",
   bullseyeLabel: "Prioridade (centro = topo)",
+  rings: DEFAULT_RINGS,
+  linePoints: [],
 };
 
 export function parseAxis(body: string | undefined): AxisConfig {
   try {
     const p = body ? JSON.parse(body) : {};
-    return { ...DEFAULT_AXIS, ...p };
+    const merged: AxisConfig = { ...DEFAULT_AXIS, ...p };
+    if (!Array.isArray(merged.rings) || merged.rings.length !== 4) merged.rings = DEFAULT_RINGS;
+    if (!Array.isArray(merged.linePoints)) merged.linePoints = [];
+    return merged;
   } catch { return DEFAULT_AXIS; }
 }
+
 
 const CHART_TYPES: { id: ChartType; label: string; hint: string; Icon: any }[] = [
   { id: "quadrants", label: "Quadrantes", hint: "2 eixos, 4 zonas", Icon: Grid2x2 },
@@ -262,17 +281,25 @@ export function MatrixEditor({ project }: { project: Project }) {
             </div>
           )}
           {chart === "line" && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <AxisInput label="Título do eixo" value={axis.lineLabel} onChange={(v) => setAxis({ lineLabel: v })} />
-              <AxisInput label="Início"  value={axis.xLow}  onChange={(v) => setAxis({ xLow: v })} />
-              <AxisInput label="Fim"     value={axis.xHigh} onChange={(v) => setAxis({ xHigh: v })} />
-            </div>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <AxisInput label="Título do eixo" value={axis.lineLabel} onChange={(v) => setAxis({ lineLabel: v })} />
+                <AxisInput label="Início"  value={axis.xLow}  onChange={(v) => setAxis({ xLow: v })} />
+                <AxisInput label="Fim"     value={axis.xHigh} onChange={(v) => setAxis({ xHigh: v })} />
+              </div>
+              <LinePointsEditor
+                points={axis.linePoints}
+                onChange={(linePoints) => setAxis({ linePoints })}
+              />
+            </>
           )}
           {chart === "bullseye" && (
-            <div className="grid grid-cols-1 md:grid-cols-1 gap-3">
-              <AxisInput label="Legenda" value={axis.bullseyeLabel} onChange={(v) => setAxis({ bullseyeLabel: v })} />
+            <div className="space-y-3">
+              <AxisInput label="Legenda geral" value={axis.bullseyeLabel} onChange={(v) => setAxis({ bullseyeLabel: v })} />
+              <RingsEditor rings={axis.rings} onChange={(rings) => setAxis({ rings })} />
             </div>
           )}
+
 
           {/* Plane */}
           <ChartPlane
@@ -376,13 +403,21 @@ function ChartPlane({
         <div
           ref={planeRef}
           className="relative rounded-lg border-2 border-border/70 bg-gradient-to-r from-muted/40 via-background to-muted/40 overflow-hidden"
-          style={{ height: 260 }}
+          style={{ height: 300 }}
         >
           <div className="absolute inset-y-0 left-0 right-0 flex items-center px-4 pointer-events-none">
             <div className="h-0.5 w-full bg-border" />
           </div>
           <div className="absolute top-1 left-3 text-[11px] text-muted-foreground">← {axis.xLow}</div>
           <div className="absolute top-1 right-3 text-[11px] text-muted-foreground">{axis.xHigh} →</div>
+          {axis.linePoints.map((p) => (
+            <div key={p.id} className="absolute pointer-events-none" style={{ left: `${p.pctX}%`, top: "50%", transform: "translate(-50%, -50%)" }}>
+              <div className="mx-auto size-2 rounded-full bg-primary" />
+              <div
+                className={`absolute left-1/2 -translate-x-1/2 text-[10px] text-muted-foreground whitespace-nowrap ${p.side === "top" ? "bottom-4" : "top-4"}`}
+              >{p.label}</div>
+            </div>
+          ))}
           {cards.map((c) => (
             <div
               key={c.id}
@@ -410,12 +445,13 @@ function ChartPlane({
             style={{ width: 520, height: 520, maxWidth: "100%" }}
           >
             {[0.85, 0.6, 0.35, 0.15].map((r, i) => (
-              <div key={i} className="absolute rounded-full border border-border/50"
+              <div key={i} className="absolute rounded-full border border-border/60"
                 style={{
                   left: "50%", top: "50%",
                   width: `${r * 100}%`, height: `${r * 100}%`,
                   transform: "translate(-50%, -50%)",
-                  background: i % 2 === 0 ? "hsl(var(--muted) / 0.35)" : "transparent",
+                  background: `${axis.rings[i]?.color ?? "#94A3B8"}22`,
+                  borderColor: `${axis.rings[i]?.color ?? "#94A3B8"}88`,
                 }} />
             ))}
             {cards.map((c) => (
@@ -435,7 +471,9 @@ function ChartPlane({
             {empty && <EmptyMsg text={emptyMsg} />}
           </div>
         </div>
+        <RingLegend rings={axis.rings} className="mt-3" />
       </div>
+
     );
   }
 
@@ -513,3 +551,105 @@ function EmptyMsg({ text }: { text: string }) {
     </div>
   );
 }
+
+/* ---------- Bullseye ring editor + legend ---------- */
+export function RingLegend({ rings, className = "" }: { rings: RingConfig[]; className?: string }) {
+  return (
+    <div className={`flex flex-wrap justify-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground ${className}`}>
+      {rings.map((r, i) => (
+        <div key={i} className="flex items-center gap-1.5">
+          <span className="inline-block size-2.5 rounded-full border border-border/60" style={{ background: r.color }} />
+          <span>{r.label || `Anel ${i + 1}`}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function RingsEditor({ rings, onChange }: { rings: RingConfig[]; onChange: (r: RingConfig[]) => void }) {
+  const patch = (i: number, p: Partial<RingConfig>) => {
+    const next = rings.slice();
+    next[i] = { ...next[i], ...p };
+    onChange(next);
+  };
+  const labels = ["Anel externo", "Anel 2", "Anel 3", "Centro (alvo)"];
+  return (
+    <div className="rounded-lg border border-border/60 p-3 space-y-2">
+      <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Anéis do alvo</div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {rings.map((r, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <span className="text-[11px] text-muted-foreground w-24 shrink-0">{labels[i]}</span>
+            <input
+              type="color"
+              value={r.color}
+              onChange={(e) => patch(i, { color: e.target.value })}
+              className="size-8 rounded border border-border/60 bg-transparent cursor-pointer"
+            />
+            <Input
+              value={r.label}
+              onChange={(e) => patch(i, { label: e.target.value })}
+              placeholder="Significado deste anel"
+              className="h-8 text-sm flex-1"
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Timeline milestone editor ---------- */
+function LinePointsEditor({ points, onChange }: { points: LinePoint[]; onChange: (p: LinePoint[]) => void }) {
+  const add = () => {
+    const id = (typeof crypto !== "undefined" && "randomUUID" in crypto)
+      ? crypto.randomUUID() : `pt-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    onChange([...points, { id, pctX: 50, label: "Marco", side: "bottom" }]);
+  };
+  const patch = (id: string, p: Partial<LinePoint>) =>
+    onChange(points.map((x) => (x.id === id ? { ...x, ...p } : x)));
+  const remove = (id: string) => onChange(points.filter((x) => x.id !== id));
+  return (
+    <div className="rounded-lg border border-border/60 p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Marcos da linha do tempo</div>
+        <Button size="sm" variant="outline" onClick={add} className="gap-1.5 h-7">
+          <Plus className="size-3" /> Marco
+        </Button>
+      </div>
+      {points.length === 0 ? (
+        <div className="text-xs text-muted-foreground">Sem marcos. Adicione datas, eventos ou fases da narrativa.</div>
+      ) : (
+        <div className="space-y-2">
+          {points.map((p) => (
+            <div key={p.id} className="flex items-center gap-2">
+              <Input value={p.label} onChange={(e) => patch(p.id, { label: e.target.value })}
+                placeholder="Rótulo (ex.: 2020, Fase 1…)" className="h-8 text-sm flex-1" />
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] text-muted-foreground">%</span>
+                <Input
+                  type="number" min={0} max={100}
+                  value={Math.round(p.pctX)}
+                  onChange={(e) => patch(p.id, { pctX: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })}
+                  className="h-8 w-16 text-sm"
+                />
+              </div>
+              <select
+                value={p.side}
+                onChange={(e) => patch(p.id, { side: e.target.value as "top" | "bottom" })}
+                className="h-8 text-xs bg-background border border-border/60 rounded-md px-2"
+              >
+                <option value="top">Acima</option>
+                <option value="bottom">Abaixo</option>
+              </select>
+              <Button size="sm" variant="ghost" onClick={() => remove(p.id)} className="size-8 p-0">
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+

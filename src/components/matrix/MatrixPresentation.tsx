@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import type { MindNode, Project } from "@/lib/types";
 import { resolveImage } from "@/lib/imageStorage";
 import { PresentationShell } from "@/components/shared/PresentationShell";
-import { parseAxis, type AxisConfig, type ChartType } from "./MatrixEditor";
+import { parseAxis, RingLegend, type AxisConfig, type ChartType } from "./MatrixEditor";
+
 
 /* ---------- Card ---------- */
 function useResolvedImage(node: MindNode | undefined) {
@@ -131,9 +132,6 @@ function buildSteps(chart: ChartType, axis: AxisConfig, cards: MindNode[]): Step
 
 function revealOrder(chart: ChartType, cards: MindNode[]): number[] {
   const idxs = cards.map((_, i) => i);
-  if (chart === "line") {
-    return idxs.sort((a, b) => (cards[a].pctX ?? 50) - (cards[b].pctX ?? 50));
-  }
   if (chart === "bullseye") {
     // outer → inner (distance from center descending)
     const dist = (c: MindNode) => {
@@ -150,9 +148,10 @@ function revealOrder(chart: ChartType, cards: MindNode[]): number[] {
       return (cards[b].pctY ?? 50) - (cards[a].pctY ?? 50);
     });
   }
-  // quadrants: keep author order
+  // quadrants and line: keep author order
   return idxs;
 }
+
 
 /* ---------- Main ---------- */
 export function MatrixPresentation({
@@ -266,8 +265,11 @@ function ChartView({
   revealed: Set<number>;
   axisPhase: { y: boolean; x: boolean; grid: boolean; zones: boolean; rings: boolean };
 }) {
+  // For the line/timeline chart the user wants every card visible from the
+  // start of the video — steps only highlight/spotlight in author order.
+  const alwaysShown = chart === "line";
   const renderCard = (c: MindNode, i: number, style: React.CSSProperties) => {
-    const shown = revealed.has(i);
+    const shown = alwaysShown || revealed.has(i);
     const active = i === activeIdx;
     return (
       <div
@@ -301,6 +303,25 @@ function ChartView({
           </div>
           <div className={`absolute top-2 left-3 text-[11px] text-muted-foreground transition-opacity duration-500 ${axisPhase.x ? "opacity-100" : "opacity-0"}`}>← {axis.xLow}</div>
           <div className={`absolute top-2 right-3 text-[11px] text-muted-foreground transition-opacity duration-500 delay-300 ${axisPhase.x ? "opacity-100" : "opacity-0"}`}>{axis.xHigh} →</div>
+          {/* milestones */}
+          {axis.linePoints.map((p, i) => (
+            <div
+              key={p.id}
+              className="absolute pointer-events-none transition-opacity duration-500"
+              style={{
+                left: `${p.pctX}%`,
+                top: "50%",
+                transform: "translate(-50%, -50%)",
+                opacity: axisPhase.x ? 1 : 0,
+                transitionDelay: `${400 + i * 80}ms`,
+              }}
+            >
+              <div className="mx-auto size-2.5 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.6)]" />
+              <div
+                className={`absolute left-1/2 -translate-x-1/2 text-[11px] font-medium text-muted-foreground whitespace-nowrap ${p.side === "top" ? "bottom-5" : "top-5"}`}
+              >{p.label}</div>
+            </div>
+          ))}
           {cards.map((c, i) =>
             renderCard(c, i, {
               left: `${c.pctX ?? 50}%`,
@@ -319,20 +340,24 @@ function ChartView({
           {axis.bullseyeLabel}
         </div>
         <div className="relative rounded-full border-2 border-border/40 bg-muted/10 overflow-hidden"
-          style={{ width: "min(70vh, 90%)", aspectRatio: "1 / 1" }}>
-          {[0.85, 0.6, 0.35, 0.15].map((r, i) => (
-            <div key={i}
-              className="absolute rounded-full border border-border/50 transition-all duration-700 ease-out"
-              style={{
-                left: "50%", top: "50%",
-                width: axisPhase.rings ? `${r * 100}%` : "0%",
-                height: axisPhase.rings ? `${r * 100}%` : "0%",
-                transform: "translate(-50%, -50%)",
-                background: i % 2 === 0 ? "hsl(var(--muted) / 0.25)" : "transparent",
-                transitionDelay: `${i * 150}ms`,
-                opacity: axisPhase.rings ? 1 : 0,
-              }} />
-          ))}
+          style={{ width: "min(62vh, 82%)", aspectRatio: "1 / 1" }}>
+          {[0.85, 0.6, 0.35, 0.15].map((r, i) => {
+            const ring = axis.rings[i];
+            return (
+              <div key={i}
+                className="absolute rounded-full border transition-all duration-700 ease-out"
+                style={{
+                  left: "50%", top: "50%",
+                  width: axisPhase.rings ? `${r * 100}%` : "0%",
+                  height: axisPhase.rings ? `${r * 100}%` : "0%",
+                  transform: "translate(-50%, -50%)",
+                  background: `${ring?.color ?? "#94A3B8"}22`,
+                  borderColor: `${ring?.color ?? "#94A3B8"}88`,
+                  transitionDelay: `${i * 150}ms`,
+                  opacity: axisPhase.rings ? 1 : 0,
+                }} />
+            );
+          })}
           {cards.map((c, i) =>
             renderCard(c, i, {
               left: `${c.pctX ?? 50}%`,
@@ -340,9 +365,12 @@ function ChartView({
               transform: "translate(-50%, -50%)",
             }))}
         </div>
+        <RingLegend rings={axis.rings} className={`mt-3 transition-opacity duration-500 ${axisPhase.rings ? "opacity-100" : "opacity-0"}`} />
       </div>
     );
   }
+
+
 
   const isScatter = chart === "scatter";
   const yTop    = isScatter ? axis.yLabel : `↑ ${axis.yHigh}`;
