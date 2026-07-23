@@ -16,6 +16,7 @@ import { RecordFormatMenu } from "@/components/RecordFormatMenu";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { launchRecording } from "@/lib/launchRecording";
 import type { RecordFormat } from "@/lib/recordFormats";
+import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
 
 /* ---------- image resolution ---------- */
 function useResolvedImage(node: MindNode | undefined) {
@@ -386,6 +387,10 @@ export function RankingEditor({ project }: { project: Project }) {
                 onChange={(e) => updateNode(project.id, selected.id, { body: e.target.value } as Partial<MindNode>)}
                 placeholder="Descrição (opcional) — aparece no card expandido durante a chamada"
                 className="text-sm min-h-[48px] resize-none"
+              />
+              <NodeColorPicker
+                value={selected.color}
+                onChange={(c) => updateNode(project.id, selected.id, { color: c } as Partial<MindNode>)}
               />
             </div>
           </div>

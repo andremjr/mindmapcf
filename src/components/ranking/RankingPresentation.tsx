@@ -113,20 +113,31 @@ function PoolCard({
   node, called, highlighted, badge, w, h,
 }: { node: MindNode; called: boolean; highlighted: boolean; badge?: string; w: number; h: number }) {
   const url = useResolvedImage(node);
+  const accent = node.color ?? "#f59e0b"; // amber default
   const titleSize = Math.max(9, Math.min(15, h * 0.11));
   return (
     <motion.div
       layout
       animate={{ scale: highlighted ? 1.08 : 1 }}
       transition={{ type: "spring", stiffness: 260, damping: 22 }}
-      className={`relative rounded-xl border overflow-hidden flex flex-col ${
+      className={`relative rounded-xl border-2 overflow-hidden flex flex-col ${
         highlighted
-          ? "border-amber-400 bg-amber-500/10 shadow-[0_0_40px_rgba(252,211,77,0.55)] z-10"
+          ? "z-10"
           : called
             ? "border-border bg-muted/30 opacity-30 grayscale"
             : "border-border bg-card/60"
       }`}
-      style={{ width: w, height: h }}
+      style={{
+        width: w,
+        height: h,
+        ...(highlighted
+          ? {
+              borderColor: accent,
+              background: `${accent}1a`,
+              boxShadow: `0 0 40px ${accent}88`,
+            }
+          : undefined),
+      }}
     >
       <div className="flex-1 min-h-0 bg-muted grid place-items-center overflow-hidden">
         {url ? (
@@ -146,7 +157,10 @@ function PoolCard({
         </div>
       )}
       {highlighted && badge && (
-        <div className="absolute top-1 left-1 rounded-full bg-amber-400 text-neutral-950 font-black px-2 py-0.5 text-xs tabular-nums shadow-lg">
+        <div
+          className="absolute top-1 left-1 rounded-full font-black px-2 py-0.5 text-xs tabular-nums shadow-lg"
+          style={{ background: accent, color: "#0a0a0a" }}
+        >
           {badge}
         </div>
       )}
@@ -160,8 +174,12 @@ function SpotlightCard({ node }: { node: MindNode }) {
   const url = useResolvedImage(node);
   const body = (node.body || "").trim();
   const hasImage = !!url;
+  const accent = node.color ?? "#f59e0b";
   return (
-    <div className="w-[min(560px,78vw)] max-h-[80vh] rounded-2xl overflow-hidden border border-amber-400/60 bg-card shadow-[0_20px_80px_rgba(252,211,77,0.35)] flex flex-col">
+    <div
+      className="w-[min(560px,78vw)] max-h-[80vh] rounded-2xl overflow-hidden border-2 bg-card flex flex-col"
+      style={{ borderColor: `${accent}99`, boxShadow: `0 20px 80px ${accent}55` }}
+    >
       {hasImage && (
         <div className="w-full aspect-[16/10] bg-muted grid place-items-center overflow-hidden shrink-0">
           <img src={url!} alt="" className="size-full object-contain" />

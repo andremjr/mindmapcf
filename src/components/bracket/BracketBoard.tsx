@@ -146,6 +146,7 @@ export function CompetitorCard({
   expanded?: boolean;
 }) {
   const url = useResolvedImage(node);
+  const accent = node.color;
   const cls =
     state === "winner"
       ? "border-emerald-300 bg-emerald-500/20 shadow-[0_0_18px_rgba(52,211,153,0.4)]"
@@ -153,15 +154,21 @@ export function CompetitorCard({
         ? "border-amber-300 bg-amber-400/10 ring-2 ring-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.45)]"
         : state === "loser"
           ? "border-white/10 bg-black/50 opacity-40"
-          : "border-white/20 bg-black/60";
+          : "bg-black/60";
   const textCls = state === "loser" ? "line-through text-white/60" : "text-white/95";
+  // For idle state, use the node's own color as border tint; other states keep
+  // their meaningful accent (winner=green, current=amber, loser=grey).
+  const idleBorder = state === "idle"
+    ? { borderColor: accent ?? "rgba(255,255,255,0.2)", boxShadow: accent ? `inset 0 0 0 1px ${accent}22` : undefined }
+    : undefined;
 
   if (expanded) {
     const hasImage = !!url;
     const body = (node.body || "").trim();
     return (
       <div
-        className={`relative w-full rounded-xl overflow-hidden border transition-all duration-500 flex flex-col ${cls}`}
+        className={`relative w-full rounded-xl overflow-hidden border-2 transition-all duration-500 flex flex-col ${cls}`}
+        style={idleBorder}
       >
         {hasImage ? (
           <>
@@ -192,8 +199,8 @@ export function CompetitorCard({
     <button
       disabled={!onClick}
       onClick={onClick}
-      className={`relative w-full rounded-md overflow-hidden border transition-all text-left ${cls} ${onClick ? "hover:border-white/70 cursor-pointer" : "cursor-default"}`}
-      style={{ minHeight: small ? 42 : 52 }}
+      className={`relative w-full rounded-md overflow-hidden border-2 transition-all text-left ${cls} ${onClick ? "hover:brightness-110 cursor-pointer" : "cursor-default"}`}
+      style={{ minHeight: small ? 42 : 52, ...idleBorder }}
     >
       <div className="flex items-center gap-2 p-1.5">
         {url ? (

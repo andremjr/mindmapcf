@@ -22,14 +22,23 @@ function useResolvedImage(node: MindNode | undefined) {
 
 function Card({ node, active }: { node: MindNode; active: boolean }) {
   const url = useResolvedImage(node);
+  const accent = node.color;
+  const activeStyle: React.CSSProperties = active
+    ? {
+        borderColor: accent ?? "hsl(var(--primary))",
+        boxShadow: `0 0 30px ${accent ? `${accent}88` : "hsl(var(--primary) / 0.55)"}`,
+      }
+    : { borderColor: accent ?? "hsl(var(--border) / 0.6)" };
   return (
     <div
-      className={`rounded-lg overflow-hidden border shadow-lg transition-all duration-500 ${
-        active
-          ? "ring-2 ring-amber-300 border-amber-300 shadow-[0_0_30px_rgba(252,211,77,0.55)]"
-          : "border-border/60 bg-card"
+      className={`rounded-lg overflow-hidden border-2 shadow-lg transition-all duration-500 bg-card ${
+        active ? "ring-2 ring-offset-1 ring-offset-background" : ""
       }`}
-      style={{ width: 118 }}
+      style={{
+        width: 118,
+        ...activeStyle,
+        ...(active && accent ? ({ ["--tw-ring-color" as any]: accent } as React.CSSProperties) : {}),
+      }}
     >
       {url && (
         <div className="aspect-square bg-muted">
@@ -43,11 +52,47 @@ function Card({ node, active }: { node: MindNode; active: boolean }) {
   );
 }
 
+/* ---------- Spotlight modal (justification focus) ---------- */
+function Spotlight({ node, onClose }: { node: MindNode; onClose: () => void }) {
+  const url = useResolvedImage(node);
+  const accent = node.color ?? "hsl(var(--primary))";
+  const body = (node.body || "").trim();
+  return (
+    <div
+      className="absolute inset-0 z-30 grid place-items-center bg-background/80 backdrop-blur-sm animate-fade-in"
+      onClick={onClose}
+    >
+      <div
+        className="w-[min(620px,82vw)] max-h-[82vh] rounded-2xl overflow-hidden border-2 bg-card shadow-2xl flex flex-col animate-scale-in"
+        style={{ borderColor: accent, boxShadow: `0 20px 80px ${accent}55` }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {url && (
+          <div className="w-full aspect-[16/10] bg-muted grid place-items-center overflow-hidden shrink-0">
+            <img src={url} alt="" className="size-full object-contain" />
+          </div>
+        )}
+        <div className="px-6 py-5 flex flex-col items-center gap-3 text-center overflow-hidden">
+          <div className={`font-bold leading-tight text-foreground ${url ? "text-2xl" : "text-3xl"}`}>
+            {node.text || "Card"}
+          </div>
+          {body && (
+            <p className="text-sm leading-relaxed text-muted-foreground max-w-[52ch] whitespace-pre-wrap line-clamp-8">
+              {body}
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- Narrative step machine ---------- */
 type Step =
   | { kind: "intro"; caption: string }
   | { kind: "axis"; axis: "x" | "y" | "grid" | "zones" | "rings"; caption: string }
-  | { kind: "reveal"; index: number; caption?: string };
+  | { kind: "reveal"; index: number }
+  | { kind: "focus"; index: number };
 
 function buildSteps(chart: ChartType, axis: AxisConfig, cards: MindNode[]): Step[] {
   const steps: Step[] = [];
@@ -73,9 +118,14 @@ function buildSteps(chart: ChartType, axis: AxisConfig, cards: MindNode[]): Step
     steps.push({ kind: "axis", axis: "rings", caption: axis.bullseyeLabel });
   }
 
-  // Reveal order per chart narrative
+  // For each card: land it on the chart (reveal) and immediately open the
+  // spotlight so the narrator can justify why it sits there (focus).
+  // A second click closes the spotlight and leaves the card highlighted in place.
   const order = revealOrder(chart, cards);
-  order.forEach((i) => steps.push({ kind: "reveal", index: i }));
+  order.forEach((i) => {
+    steps.push({ kind: "reveal", index: i });
+    steps.push({ kind: "focus",  index: i });
+  });
   return steps;
 }
 
@@ -125,7 +175,7 @@ export function MatrixPresentation({
     const s = new Set<number>();
     for (let i = 0; i <= step; i++) {
       const st = steps[i];
-      if (st?.kind === "reveal") s.add(st.index);
+      if (st?.kind === "reveal" || st?.kind === "focus") s.add(st.index);
     }
     return s;
   }, [steps, step]);
@@ -135,7 +185,7 @@ export function MatrixPresentation({
     for (let i = 0; i <= step; i++) {
       const st = steps[i];
       if (st?.kind === "axis") phase[st.axis] = true;
-      if (st?.kind === "reveal") {
+      if (st?.kind === "reveal" || st?.kind === "focus") {
         // once cards start revealing, all axis elements are visible
         phase.y = phase.x = phase.grid = phase.zones = phase.rings = true;
       }
@@ -144,13 +194,18 @@ export function MatrixPresentation({
   }, [steps, step]);
 
   const activeIdx =
-    current?.kind === "reveal" ? current.index : -1;
+    current?.kind === "reveal" || current?.kind === "focus" ? current.index : -1;
+
+  const spotlightCard =
+    current?.kind === "focus" && activeIdx >= 0 ? cards[activeIdx] : null;
 
   const activeCard = activeIdx >= 0 ? cards[activeIdx] : null;
   const caption =
-    (current?.kind === "reveal"
-      ? activeCard?.body
-      : current?.caption) || "";
+    current?.kind === "intro" || current?.kind === "axis"
+      ? current.caption
+      : current?.kind === "reveal"
+        ? activeCard?.body || activeCard?.text || ""
+        : "";
 
   const navLabel = `${step + 1} / ${steps.length}`;
 
@@ -186,6 +241,13 @@ export function MatrixPresentation({
                 </div>
               )}
             </div>
+          )}
+
+          {spotlightCard && (
+            <Spotlight
+              node={spotlightCard}
+              onClose={() => setStep((s) => Math.min(steps.length - 1, s + 1))}
+            />
           )}
         </div>
       )}

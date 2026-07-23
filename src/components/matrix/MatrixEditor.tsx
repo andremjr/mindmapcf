@@ -16,6 +16,7 @@ import { RecordFormatMenu } from "@/components/RecordFormatMenu";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { launchRecording } from "@/lib/launchRecording";
 import type { RecordFormat } from "@/lib/recordFormats";
+import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
 
 export type ChartType = "quadrants" | "scatter" | "line" | "bullseye";
 export interface AxisConfig {
@@ -69,8 +70,12 @@ function MatrixCard({
 }: { node: MindNode; onDelete: () => void; onEdit: () => void; compact?: boolean }) {
   const url = useResolvedImage(node);
   const width = compact ? 96 : 132;
+  const accent = node.color;
   return (
-    <div className="relative rounded-lg bg-card border border-border/70 shadow-md overflow-hidden hover:border-primary/60 transition group" style={{ width }}>
+    <div
+      className="relative rounded-lg bg-card border-2 shadow-md overflow-hidden hover:brightness-105 transition group"
+      style={{ width, borderColor: accent ?? "hsl(var(--border))" }}
+    >
       {url && (
         <div className="aspect-square bg-muted">
           <img src={url} alt="" className="size-full object-cover" />
@@ -321,6 +326,11 @@ export function MatrixEditor({ project }: { project: Project }) {
                 </div>
               )}
             </div>
+
+            <NodeColorPicker
+              value={editingCard.color}
+              onChange={(c) => updateNode(project.id, editingCard.id, { color: c } as Partial<MindNode>)}
+            />
 
             <div className="flex justify-end">
               <Button onClick={() => setEditingId(null)}>Concluir</Button>

@@ -17,6 +17,7 @@ import { launchRecording } from "@/lib/launchRecording";
 import type { RecordFormat } from "@/lib/recordFormats";
 import { BracketBoard, clearDownstreamWinners, type WinnersMap } from "./BracketBoard";
 import { PanZoom } from "@/components/ui/PanZoom";
+import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
 
 
 
@@ -163,12 +164,21 @@ export function BracketEditor({ project }: { project: Project }) {
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {competitors.map((c, i) => (
-                  <div key={c.id} className="rounded-lg border border-border/60 bg-background overflow-hidden group relative">
+                  <div key={c.id} className="rounded-lg border-2 bg-background overflow-hidden group relative"
+                    style={{ borderColor: c.color ?? "hsl(var(--border) / 0.6)" }}>
                     <div className="aspect-video bg-muted"><Thumb node={c} /></div>
-                    <div className="p-2 flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground tabular-nums shrink-0">#{i + 1}</span>
-                      <Input value={c.text} onChange={(e) => updateNode(project.id, c.id, { text: e.target.value })}
-                        className="h-8 text-sm" />
+                    <div className="p-2 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground tabular-nums shrink-0">#{i + 1}</span>
+                        <Input value={c.text} onChange={(e) => updateNode(project.id, c.id, { text: e.target.value })}
+                          className="h-8 text-sm" />
+                      </div>
+                      <NodeColorPicker
+                        value={c.color}
+                        onChange={(col) => updateNode(project.id, c.id, { color: col } as Partial<MindNode>)}
+                        label=""
+                        size={16}
+                      />
                     </div>
                     <button onClick={() => deleteNode(project.id, c.id)}
                       className="absolute top-1 right-1 size-6 rounded-full bg-black/60 text-white grid place-items-center opacity-0 group-hover:opacity-100 transition"
