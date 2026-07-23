@@ -47,7 +47,7 @@ function ItemTile({ node, active, onClick }: { node: MindNode; active: boolean; 
           ? "ring-2 ring-white/90 scale-105 shadow-[0_0_30px_rgba(255,255,255,0.4)] border-white/70"
           : "border-white/30 hover:border-white/60"
       }`}
-      style={{ width: 72, height: 72, background: "rgba(0,0,0,0.5)" }}
+      style={{ width: 104, height: 104, background: "rgba(0,0,0,0.5)" }}
     >
       {url ? (
         <img src={url} alt="" className="absolute inset-0 size-full object-cover" />
@@ -261,47 +261,54 @@ export function IcebergPresentation({
 
       <div className={recording ? "absolute inset-0 grid place-items-center" : "absolute inset-0"}>
         <div ref={frameRef} style={frameStyle} className="bg-black">
-          {/* Iceberg background art */}
-          <IcebergArt levels={Math.max(1, levels.length)} />
-
-          {/* Scrollable levels stack */}
+          {/* Scrollable stack — background art scrolls together with the levels */}
           <div ref={scrollRef} className="absolute inset-0 overflow-y-auto scroll-smooth">
-            {levels.map((lvl, i) => {
-              const grad = GRADS[Math.min(i, GRADS.length - 1)];
-              const items = itemsByLevel.get(lvl.id) ?? [];
-              const isActive = current?.levelId === lvl.id;
-              return (
-                <div
-                  key={lvl.id}
-                  data-level-id={lvl.id}
-                  className={`relative px-8 py-10 flex flex-col gap-4 transition-all duration-500 ${
-                    isActive ? "opacity-100" : "opacity-45"
-                  }`}
-                  style={{
-                    background: `linear-gradient(180deg, ${grad.from} 0%, ${grad.to} 100%)`,
-                    color: grad.text,
-                    minHeight: Math.max(240, size.h * 0.55),
-                  }}
-                >
-                  <div className="font-bold text-3xl relative z-10" style={{ textShadow: "0 2px 12px rgba(0,0,0,0.5)" }}>
-                    {lvl.text}
+            <div className="relative w-full">
+              {/* Full-height iceberg art behind the levels */}
+              <IcebergArt levels={Math.max(1, levels.length)} />
+
+              {levels.map((lvl, i) => {
+                const grad = GRADS[Math.min(i, GRADS.length - 1)];
+                const items = itemsByLevel.get(lvl.id) ?? [];
+                const isActive = current?.levelId === lvl.id;
+                const levelHeight = Math.max(320, size.h * 0.9);
+                return (
+                  <div
+                    key={lvl.id}
+                    data-level-id={lvl.id}
+                    className={`relative px-10 py-10 flex flex-col gap-6 transition-opacity duration-500 ${
+                      isActive ? "opacity-100" : "opacity-40"
+                    }`}
+                    style={{
+                      background: `linear-gradient(180deg, ${grad.from}cc 0%, ${grad.to}cc 100%)`,
+                      color: grad.text,
+                      minHeight: levelHeight,
+                    }}
+                  >
+                    <div
+                      className="font-bold text-3xl md:text-4xl relative z-10 text-center"
+                      style={{ textShadow: "0 2px 12px rgba(0,0,0,0.55)" }}
+                    >
+                      {lvl.text}
+                    </div>
+                    <div className="relative z-10 flex-1 grid gap-5 place-items-center content-center"
+                         style={{ gridTemplateColumns: `repeat(${Math.min(Math.max(items.length, 1), 5)}, minmax(0, 1fr))` }}>
+                      {items.map((it) => (
+                        <ItemTile
+                          key={it.id}
+                          node={it}
+                          active={activeItem?.id === it.id}
+                          onClick={() => {
+                            const j = nav.findIndex((x) => x.itemId === it.id);
+                            if (j >= 0) setIdx(j);
+                          }}
+                        />
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-3 relative z-10">
-                    {items.map((it) => (
-                      <ItemTile
-                        key={it.id}
-                        node={it}
-                        active={activeItem?.id === it.id}
-                        onClick={() => {
-                          const j = nav.findIndex((x) => x.itemId === it.id);
-                          if (j >= 0) setIdx(j);
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
 
           {/* Item card overlay */}
