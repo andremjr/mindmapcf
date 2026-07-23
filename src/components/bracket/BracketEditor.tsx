@@ -14,6 +14,8 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { RecordFormatMenu } from "@/components/RecordFormatMenu";
 import { launchRecording } from "@/lib/launchRecording";
 import type { RecordFormat } from "@/lib/recordFormats";
+import { BracketBoard, clearDownstreamWinners, type WinnersMap } from "./BracketBoard";
+
 
 function Thumb({ node }: { node: MindNode }) {
   const [url, setUrl] = useState<string | null>(node.image ?? null);
