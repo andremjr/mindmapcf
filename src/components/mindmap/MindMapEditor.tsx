@@ -655,6 +655,8 @@ export function MindMapEditor({ project }: { project: Project }) {
         filenameBase: project.title || "apresentacao",
         armed: true,
         narrationEl,
+        targetWidth: fmt.width,
+        targetHeight: fmt.height,
       });
     } catch (e: any) {
       console.error("[mindmap] recording start", e);

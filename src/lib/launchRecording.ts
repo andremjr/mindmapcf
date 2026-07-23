@@ -32,5 +32,7 @@ export async function launchRecording(
     filenameBase: project.title || "apresentacao",
     armed: true,
     narrationEl,
+    targetWidth: fmt.width,
+    targetHeight: fmt.height,
   });
 }
