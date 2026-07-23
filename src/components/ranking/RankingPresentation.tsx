@@ -126,9 +126,11 @@ export function RankingPresentation({
   const [idx, setIdx] = useState(0);
   useEffect(() => { setIdx(0); }, [project.id]);
 
-  // Spotlight: the just-called item is shown big for a moment, then joins
-  // the ranked list. Duration matches the layout animation window.
-  const SPOTLIGHT_MS = 1600;
+  // Two-phase reveal per arrow press:
+  //   1. item slides into its ranked position (viewer sees the leapfrog)
+  //   2. after SETTLE_MS, the expanded spotlight card opens over the scene
+  // Pressing → again closes the spotlight AND advances to the next item.
+  const SETTLE_MS = 1400;
   const [spotlightId, setSpotlightId] = useState<string | null>(null);
   const spotlightTimer = useRef<number | null>(null);
 
@@ -137,22 +139,27 @@ export function RankingPresentation({
   }, []);
 
   function goNext() {
-    if (idx >= callOrder.length) return;
+    // At the end: allow closing the last spotlight, then no-op.
+    if (idx >= callOrder.length) {
+      if (spotlightId) setSpotlightId(null);
+      return;
+    }
     const next = callOrder[idx];
     setIdx(idx + 1);
+    setSpotlightId(null); // hide any current spotlight so the settle is visible
+    if (spotlightTimer.current) window.clearTimeout(spotlightTimer.current);
     if (next) {
-      setSpotlightId(next.id);
-      if (spotlightTimer.current) window.clearTimeout(spotlightTimer.current);
-      spotlightTimer.current = window.setTimeout(() => setSpotlightId(null), SPOTLIGHT_MS);
+      spotlightTimer.current = window.setTimeout(() => setSpotlightId(next.id), SETTLE_MS);
     }
   }
 
   function goPrev() {
+    if (spotlightTimer.current) window.clearTimeout(spotlightTimer.current);
+    setSpotlightId(null);
     if (idx <= 0) return;
     setIdx(idx - 1);
-    setSpotlightId(null);
-    if (spotlightTimer.current) window.clearTimeout(spotlightTimer.current);
   }
+
 
   const calledSet = useMemo(() => new Set(callOrder.slice(0, idx).map((n) => n.id)), [callOrder, idx]);
   // Revealed items sorted by their absolute rank — this drives the leapfrog effect.
