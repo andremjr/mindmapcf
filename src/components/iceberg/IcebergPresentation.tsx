@@ -16,6 +16,7 @@ import {
 } from "@/lib/screenRecorder";
 import { loadRecordFormat, defaultRecordFormat, type RecordFormat } from "@/lib/recordFormats";
 import { RecorderHUD } from "@/components/mindmap/RecorderHUD";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { resolveEmbed } from "@/lib/embedUrl";
 
 function fmtDur(ms: number) {
@@ -57,15 +58,15 @@ function ItemTile({ node, active, onClick, scatter }: { node: MindNode; active: 
       onClick={onClick}
       className={`rounded-md border overflow-hidden shrink-0 transition-all duration-300 ${
         active
-          ? "ring-2 ring-white/90 shadow-[0_0_30px_rgba(255,255,255,0.4)] border-white/70"
-          : "border-white/30 hover:border-white/60"
+          ? "ring-2 ring-primary/80 shadow-[0_0_30px_hsl(var(--primary)/0.35)] border-primary/60"
+          : "border-foreground/30 hover:border-foreground/60"
       }`}
       style={style}
     >
       {url ? (
         <img src={url} alt="" className="absolute inset-0 size-full object-cover" />
       ) : (
-        <div className="absolute inset-0 grid place-items-center text-[10px] text-center px-1 leading-tight text-white/90">
+        <div className="absolute inset-0 grid place-items-center text-[10px] text-center px-1 leading-tight text-foreground/90">
           {node.text || "Item"}
         </div>
       )}
@@ -273,7 +274,7 @@ export function IcebergPresentation({
   ];
 
   return (
-    <div className="fixed inset-0 bg-black text-white overflow-hidden">
+    <div className="fixed inset-0 bg-background text-foreground overflow-hidden">
       {recording && recState?.state === "recording" && recState.startedAt != null && (
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3">
           <RecorderHUD startedAt={recState.startedAt} onStop={stopAndDownload} cropped={cropOk} />
@@ -281,7 +282,7 @@ export function IcebergPresentation({
       )}
 
       <div className={recording ? "absolute inset-0 grid place-items-center" : "absolute inset-0"}>
-        <div ref={frameRef} style={frameStyle} className="bg-black">
+        <div ref={frameRef} style={frameStyle} className="bg-background">
           {/* Scrollable stack — background art scrolls together with the levels */}
           <div ref={scrollRef} className="absolute inset-0 overflow-y-auto scroll-smooth">
             <div className="relative w-full">
@@ -362,7 +363,7 @@ export function IcebergPresentation({
             <div className="absolute inset-0 grid place-items-center pointer-events-none z-30">
               <div
                 key={countdown}
-                className="animate-scale-in text-white/90 font-semibold tabular-nums"
+                className="animate-scale-in text-foreground/90 font-semibold tabular-nums"
                 style={{ fontSize: Math.round(Math.min(size.w, size.h) * 0.35), textShadow: "0 8px 40px rgba(0,0,0,0.6)", lineHeight: 1 }}
               >{countdown}</div>
             </div>
@@ -370,48 +371,49 @@ export function IcebergPresentation({
         </div>
       </div>
 
-      <div className="absolute top-4 right-4 z-10">
-        <button onClick={stopAndDownload} className="size-10 grid place-items-center rounded-full bg-black/70 backdrop-blur border border-white/20 hover:bg-black/90">
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        {!recording && <ThemeToggle />}
+        <button onClick={stopAndDownload} className="size-10 grid place-items-center rounded-full bg-foreground/10 backdrop-blur border border-border hover:bg-foreground/20 text-foreground">
           <X className="size-4" />
         </button>
       </div>
 
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-black/70 backdrop-blur border border-white/20 px-2 py-2">
-        <button onClick={prev} disabled={idx === 0} className="size-9 grid place-items-center rounded-full hover:bg-white/10 disabled:opacity-40">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-foreground/10 backdrop-blur border border-border text-foreground px-2 py-2">
+        <button onClick={prev} disabled={idx === 0} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
           <ChevronLeft className="size-5" />
         </button>
         <span className="px-3 text-sm font-mono tabular-nums min-w-[70px] text-center">
           {nav.length > 0 ? `${idx + 1} / ${nav.length}` : "0 / 0"}
         </span>
-        <button onClick={next} disabled={idx >= nav.length - 1} className="size-9 grid place-items-center rounded-full hover:bg-white/10 disabled:opacity-40">
+        <button onClick={next} disabled={idx >= nav.length - 1} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
           <ChevronRight className="size-5" />
         </button>
       </div>
 
       {nav.length === 0 && (
         <div className="absolute inset-0 grid place-items-center">
-          <p className="text-white/60">Adicione níveis e itens antes de apresentar.</p>
+          <p className="text-muted-foreground">Adicione níveis e itens antes de apresentar.</p>
         </div>
       )}
 
       {result && (
-        <div className="absolute inset-0 z-30 bg-black/90 backdrop-blur grid place-items-center p-6">
-          <div className="w-full max-w-2xl rounded-2xl border border-white/20 bg-neutral-900 shadow-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
+        <div className="absolute inset-0 z-30 bg-background/95 backdrop-blur grid place-items-center p-6">
+          <div className="w-full max-w-2xl rounded-2xl border border-border bg-card text-card-foreground shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold">Gravação finalizada</h2>
-                <p className="text-xs text-white/60 mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {result.mimeType} · {fmtDur(result.durationMs)} · {(result.blob.size / 1024 / 1024).toFixed(1)} MB
                 </p>
               </div>
-              <button onClick={closeResult} className="size-8 grid place-items-center rounded-full hover:bg-white/10">
+              <button onClick={closeResult} className="size-8 grid place-items-center rounded-full hover:bg-foreground/10">
                 <X className="size-4" />
               </button>
             </div>
             <video src={result.url} controls className="w-full aspect-video bg-black" />
             <div className="px-6 py-4 flex items-center justify-end gap-2">
-              <button onClick={closeResult} className="px-3 py-2 text-sm rounded-md hover:bg-white/10">Fechar</button>
-              <a href={result.url} download={result.filename} className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md bg-white text-black hover:opacity-90">
+              <button onClick={closeResult} className="px-3 py-2 text-sm rounded-md hover:bg-foreground/10">Fechar</button>
+              <a href={result.url} download={result.filename} className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:opacity-90">
                 <Download className="size-4" /> Baixar novamente
               </a>
             </div>
@@ -428,8 +430,8 @@ function ItemCard({ node, onClose }: { node: MindNode; onClose: () => void }) {
   const embed = node.url ? resolveEmbed(node.url) : null;
   return (
     <div className="absolute inset-0 z-20 grid place-items-center p-6 pointer-events-none">
-      <div className="pointer-events-auto max-w-3xl w-auto max-h-[85%] rounded-xl border border-white/25 bg-black/85 backdrop-blur-md shadow-2xl overflow-hidden animate-scale-in flex flex-col">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
+      <div className="pointer-events-auto max-w-3xl w-auto max-h-[85%] rounded-xl border border-border bg-card/95 text-card-foreground backdrop-blur-md shadow-2xl overflow-hidden animate-scale-in flex flex-col">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
           <div className="text-lg font-semibold truncate">{node.text || "Item"}</div>
           <button onClick={onClose} className="size-8 grid place-items-center rounded-full hover:bg-white/10 shrink-0">
             <X className="size-4" />
@@ -451,10 +453,10 @@ function ItemCard({ node, onClose }: { node: MindNode; onClose: () => void }) {
           </div>
         )}
         {node.body && (
-          <div className="p-4 text-sm leading-relaxed whitespace-pre-wrap text-white/90 overflow-auto">{node.body}</div>
+          <div className="p-4 text-sm leading-relaxed whitespace-pre-wrap text-foreground/90 overflow-auto">{node.body}</div>
         )}
         {!node.body && !url && !embed && (
-          <div className="p-6 text-sm text-white/60 italic">Sem conteúdo. Edite o item para adicionar texto ou imagem.</div>
+          <div className="p-6 text-sm text-muted-foreground italic">Sem conteúdo. Edite o item para adicionar texto ou imagem.</div>
         )}
       </div>
     </div>

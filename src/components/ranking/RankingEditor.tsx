@@ -211,8 +211,13 @@ export function RankingEditor({ project }: { project: Project }) {
     return { dupes, missing };
   }, [items]);
 
-  /* --- both columns use the same single-column stacked layout --- */
-  const stackClass = "flex-1 min-h-0 p-2 flex flex-col gap-2 overflow-y-auto";
+  /* --- auto-fit grid: no scroll, everything fits in the frame --- */
+  const callGrid = useAutoGrid(N || 1);
+  const rankGrid = useAutoGrid(N || 1);
+  const gridStyle = (g: { cols: number; rows: number }) => ({
+    gridTemplateColumns: `repeat(${g.cols}, minmax(0, 1fr))`,
+    gridTemplateRows: `repeat(${g.rows}, minmax(0, 1fr))`,
+  });
 
   return (
     <div className="h-screen bg-background text-foreground flex flex-col overflow-hidden">
@@ -283,7 +288,7 @@ export function RankingEditor({ project }: { project: Project }) {
                 </div>
               </button>
             ) : (
-              <div className={stackClass}>
+              <div ref={callGrid.ref} className="flex-1 min-h-0 p-2 grid gap-2" style={gridStyle(callGrid)}>
                 {items.map((it, i) => {
                   const placed = typeof it.rank === "number";
                   return (
@@ -321,7 +326,7 @@ export function RankingEditor({ project }: { project: Project }) {
                 As posições aparecem quando você adicionar itens.
               </div>
             ) : (
-              <div className={stackClass}>
+              <div ref={rankGrid.ref} className="flex-1 min-h-0 p-2 grid gap-2" style={gridStyle(rankGrid)}>
                 {Array.from({ length: N }, (_, i) => i + 1).map((rank) => {
                   const it = byRank.get(rank);
                   return (
@@ -416,14 +421,14 @@ function CallCard({
       onDrop={(e) => { e.preventDefault(); onDropOnCard(); }}
       onClick={onClick}
       className={[
-        "relative shrink-0 h-20 rounded-lg border-2 bg-background overflow-hidden",
+        "relative min-h-0 rounded-lg border-2 bg-background overflow-hidden",
         "cursor-grab active:cursor-grabbing transition",
         "flex flex-col",
         selected
           ? "border-primary ring-2 ring-primary/40"
           : placed
             ? "border-emerald-500/70 hover:border-emerald-500"
-            : "border-rose-400/70 hover:border-rose-500 dark:border-rose-500/60",
+            : "border-border/60 hover:border-border",
         dragging ? "opacity-30" : "",
         placed ? "opacity-70" : "",
         isDropTarget ? "ring-2 ring-primary/50" : "",
@@ -433,14 +438,10 @@ function CallCard({
       <span className="absolute top-1 left-1 z-10 min-w-6 h-6 px-1.5 rounded-md bg-background/85 text-foreground text-[11px] font-bold tabular-nums grid place-items-center border border-border">
         {callIdx + 1}
       </span>
-      {/* status badge: rank if placed, else "falta" */}
-      {placed ? (
+      {/* status badge: rank if placed */}
+      {placed && (
         <span className="absolute top-1 right-1 z-10 h-6 px-1.5 rounded-md bg-emerald-500 text-white text-[11px] font-bold tabular-nums grid place-items-center shadow-sm">
           #{node.rank}
-        </span>
-      ) : (
-        <span className="absolute top-1 right-1 z-10 h-6 px-1.5 rounded-md bg-rose-500 text-white text-[10px] font-bold uppercase tracking-wider grid place-items-center shadow-sm">
-          Falta
         </span>
       )}
       {/* thumbnail area */}
@@ -484,10 +485,10 @@ function RankSlot({
       onDragOver={(e) => { if (dropActive) e.preventDefault(); }}
       onDrop={(e) => { e.preventDefault(); onDrop(); }}
       className={[
-        "relative shrink-0 h-20 rounded-lg overflow-hidden flex flex-col transition",
+        "relative min-h-0 rounded-lg overflow-hidden flex flex-col transition",
         node
           ? "bg-background border-2 border-emerald-500/70"
-          : `border-2 border-dashed ${dropActive ? "border-primary bg-primary/10" : "border-rose-400/70 dark:border-rose-500/50 bg-rose-500/5"}`,
+          : `border-2 border-dashed ${dropActive ? "border-primary bg-primary/10" : "border-border/60 bg-muted/20"}`,
         selected ? "ring-2 ring-primary/50" : "",
         dragging ? "opacity-30" : "",
       ].join(" ")}
@@ -496,11 +497,6 @@ function RankSlot({
       <span className={`absolute top-1 left-1 z-10 size-7 rounded-full grid place-items-center text-[12px] font-black tabular-nums shadow-sm ${medal}`}>
         {rank}
       </span>
-      {!node && (
-        <span className="absolute top-1 right-1 z-10 h-6 px-1.5 rounded-md bg-rose-500 text-white text-[10px] font-bold uppercase tracking-wider grid place-items-center shadow-sm">
-          Vazio
-        </span>
-      )}
 
       {node ? (
         <>
@@ -535,8 +531,8 @@ function RankSlot({
         </>
       ) : (
         <div className="flex-1 grid place-items-center px-2">
-          <div className="text-[10px] font-medium text-rose-500/80 dark:text-rose-400/80 uppercase tracking-wider">
-            aguardando
+          <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+            vazio
           </div>
         </div>
       )}

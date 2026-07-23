@@ -17,6 +17,7 @@ import {
 } from "@/lib/screenRecorder";
 import { loadRecordFormat, defaultRecordFormat, type RecordFormat } from "@/lib/recordFormats";
 import { RecorderHUD } from "@/components/mindmap/RecorderHUD";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 function fmtDur(ms: number) {
   const s = Math.floor(ms / 1000);
@@ -260,7 +261,7 @@ export function TierListPresentation({
     : { position: "absolute", inset: 0 };
 
   return (
-    <div className="fixed inset-0 bg-neutral-950 text-white overflow-hidden">
+    <div className="fixed inset-0 bg-background text-foreground overflow-hidden">
       {recording && recState?.state === "recording" && recState.startedAt != null && (
         <div className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3">
           <RecorderHUD startedAt={recState.startedAt} onStop={stopAndDownload} cropped={cropOk} />
@@ -268,7 +269,7 @@ export function TierListPresentation({
       )}
 
       <div className={recording ? "absolute inset-0 grid place-items-center" : "absolute inset-0"}>
-        <div ref={frameRef} style={frameStyle} className="bg-neutral-950">
+        <div ref={frameRef} style={frameStyle} className="bg-background">
           <LayoutGroup>
             <div className="absolute inset-0 flex flex-col p-6">
               <div className="text-2xl font-bold text-center mb-3 opacity-90">{project.title}</div>
@@ -282,17 +283,17 @@ export function TierListPresentation({
                     <div
                       key={tier.id}
                       data-tier-id={tier.id}
-                      className={`flex items-stretch rounded-lg overflow-hidden border border-white/10 transition-all duration-300 ${
+                      className={`flex items-stretch rounded-lg overflow-hidden border border-border transition-all duration-300 ${
                         isActive ? "opacity-100 scale-100" : "opacity-45 scale-[0.98]"
                       }`}
                     >
                       <div
-                        className="min-w-[8rem] max-w-[14rem] shrink-0 grid place-items-center px-3 py-3 font-black text-xl text-white text-center uppercase tracking-wider break-words"
+                        className="min-w-[8rem] max-w-[14rem] shrink-0 grid place-items-center px-3 py-3 font-black text-xl text-foreground text-center uppercase tracking-wider break-words"
                         style={{ background: tier.color || "#334155" }}
                       >
                         {tier.text}
                       </div>
-                      <div className="flex-1 min-h-[112px] bg-black/30 p-3 flex flex-wrap gap-2 items-start">
+                      <div className="flex-1 min-h-[112px] bg-muted/30 p-3 flex flex-wrap gap-2 items-start">
                         {items.map((it) => (
                           <motion.div
                             key={it.id}
@@ -312,7 +313,7 @@ export function TierListPresentation({
               </div>
 
               {/* Pool of remaining items */}
-              <div className="mt-3 rounded-lg border border-white/10 bg-black/40 px-3 py-2">
+              <div className="mt-3 rounded-lg border border-border bg-muted/40 px-3 py-2">
                 <div className="flex items-center justify-between mb-1">
                   <div className="text-[11px] uppercase tracking-widest opacity-60">
                     A classificar
@@ -353,48 +354,49 @@ export function TierListPresentation({
         </div>
       </div>
 
-      <div className="absolute top-4 right-4 z-10">
-        <button onClick={stopAndDownload} className="size-10 grid place-items-center rounded-full bg-black/70 backdrop-blur border border-white/20 hover:bg-black/90">
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        {!recording && <ThemeToggle />}
+        <button onClick={stopAndDownload} className="size-10 grid place-items-center rounded-full bg-foreground/10 backdrop-blur border border-border hover:bg-foreground/20 text-foreground">
           <X className="size-4" />
         </button>
       </div>
 
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-black/70 backdrop-blur border border-white/20 px-2 py-2">
-        <button onClick={prev} disabled={idx === 0} className="size-9 grid place-items-center rounded-full hover:bg-white/10 disabled:opacity-40">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-foreground/10 backdrop-blur border border-border text-foreground px-2 py-2">
+        <button onClick={prev} disabled={idx === 0} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
           <ChevronLeft className="size-5" />
         </button>
         <span className="px-3 text-sm font-mono tabular-nums min-w-[70px] text-center">
           {`${idx} / ${queue.length}`}
         </span>
-        <button onClick={next} disabled={idx >= queue.length} className="size-9 grid place-items-center rounded-full hover:bg-white/10 disabled:opacity-40">
+        <button onClick={next} disabled={idx >= queue.length} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
           <ChevronRight className="size-5" />
         </button>
       </div>
 
       {totalSteps === 1 && (
         <div className="absolute inset-0 grid place-items-center pointer-events-none">
-          <p className="text-white/60">Adicione tiers e itens antes de apresentar.</p>
+          <p className="text-muted-foreground">Adicione tiers e itens antes de apresentar.</p>
         </div>
       )}
 
       {result && (
-        <div className="absolute inset-0 z-30 bg-black/90 backdrop-blur grid place-items-center p-6">
-          <div className="w-full max-w-2xl rounded-2xl border border-white/20 bg-neutral-900 shadow-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
+        <div className="absolute inset-0 z-30 bg-background/95 backdrop-blur grid place-items-center p-6">
+          <div className="w-full max-w-2xl rounded-2xl border border-border bg-card text-card-foreground shadow-2xl overflow-hidden">
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold">Gravação finalizada</h2>
-                <p className="text-xs text-white/60 mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {result.mimeType} · {fmtDur(result.durationMs)} · {(result.blob.size / 1024 / 1024).toFixed(1)} MB
                 </p>
               </div>
-              <button onClick={closeResult} className="size-8 grid place-items-center rounded-full hover:bg-white/10">
+              <button onClick={closeResult} className="size-8 grid place-items-center rounded-full hover:bg-foreground/10">
                 <X className="size-4" />
               </button>
             </div>
             <video src={result.url} controls className="w-full aspect-video bg-black" />
             <div className="px-6 py-4 flex items-center justify-end gap-2">
-              <button onClick={closeResult} className="px-3 py-2 text-sm rounded-md hover:bg-white/10">Fechar</button>
-              <a href={result.url} download={result.filename} className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md bg-white text-black hover:opacity-90">
+              <button onClick={closeResult} className="px-3 py-2 text-sm rounded-md hover:bg-foreground/10">Fechar</button>
+              <a href={result.url} download={result.filename} className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:opacity-90">
                 <Download className="size-4" /> Baixar novamente
               </a>
             </div>

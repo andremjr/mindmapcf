@@ -303,7 +303,7 @@ export function RankingPresentation({
       onPrev={goPrev}
       canNext={step < maxStep}
       canPrev={step > 0}
-      frameBg="bg-gradient-to-b from-slate-950 via-neutral-950 to-black"
+      frameBg="bg-background"
     >
       {() => (
         <div className="absolute inset-0 flex flex-col p-6">
