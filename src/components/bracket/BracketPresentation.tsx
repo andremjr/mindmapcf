@@ -243,34 +243,39 @@ export function BracketPresentation({
                   transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                   className="absolute inset-0 flex items-center justify-center pointer-events-none"
                 >
-                  <div className="flex items-stretch gap-6 max-w-[80%] rounded-2xl bg-neutral-950/85 border border-white/15 shadow-[0_20px_80px_rgba(0,0,0,0.6)] px-8 py-6">
-                    <motion.div
-                      className="w-[280px]"
-                      animate={
-                        stateFor(focusedMatch.a.id) === "winner"
-                          ? { scale: [1, 1.08, 1.04], filter: ["drop-shadow(0 0 0 rgba(52,211,153,0))", "drop-shadow(0 0 24px rgba(52,211,153,0.9))", "drop-shadow(0 0 14px rgba(52,211,153,0.55))"] }
-                          : stateFor(focusedMatch.a.id) === "loser"
-                            ? { scale: 0.94, opacity: 0.55 }
-                            : { scale: 1, opacity: 1 }
-                      }
-                      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-                    >
-                      <CompetitorCard node={focusedMatch.a} state={stateFor(focusedMatch.a.id)} expanded />
-                    </motion.div>
-                    <div className="self-center text-2xl font-bold uppercase tracking-widest text-amber-300/90">vs</div>
-                    <motion.div
-                      className="w-[280px]"
-                      animate={
-                        stateFor(focusedMatch.b.id) === "winner"
-                          ? { scale: [1, 1.08, 1.04], filter: ["drop-shadow(0 0 0 rgba(52,211,153,0))", "drop-shadow(0 0 24px rgba(52,211,153,0.9))", "drop-shadow(0 0 14px rgba(52,211,153,0.55))"] }
-                          : stateFor(focusedMatch.b.id) === "loser"
-                            ? { scale: 0.94, opacity: 0.55 }
-                            : { scale: 1, opacity: 1 }
-                      }
-                      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-                    >
-                      <CompetitorCard node={focusedMatch.b} state={stateFor(focusedMatch.b.id)} expanded />
-                    </motion.div>
+                  <div className="flex flex-col items-center gap-3 max-w-[80%] rounded-2xl bg-neutral-950/85 border border-white/15 shadow-[0_20px_80px_rgba(0,0,0,0.6)] px-8 py-6">
+                    <div className="text-[11px] uppercase tracking-[0.35em] text-amber-200/90">
+                      {roundLabelFor(focusKey)}
+                    </div>
+                    <div className="flex items-stretch gap-6">
+                      <motion.div
+                        className="w-[280px]"
+                        animate={
+                          stateFor(focusedMatch.a.id) === "winner"
+                            ? { scale: [1, 1.08, 1.04], filter: ["drop-shadow(0 0 0 rgba(52,211,153,0))", "drop-shadow(0 0 24px rgba(52,211,153,0.9))", "drop-shadow(0 0 14px rgba(52,211,153,0.55))"] }
+                            : stateFor(focusedMatch.a.id) === "loser"
+                              ? { scale: 0.94, opacity: 0.55 }
+                              : { scale: 1, opacity: 1 }
+                        }
+                        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                      >
+                        <CompetitorCard node={focusedMatch.a} state={stateFor(focusedMatch.a.id)} expanded />
+                      </motion.div>
+                      <div className="self-center text-2xl font-bold uppercase tracking-widest text-amber-300/90">vs</div>
+                      <motion.div
+                        className="w-[280px]"
+                        animate={
+                          stateFor(focusedMatch.b.id) === "winner"
+                            ? { scale: [1, 1.08, 1.04], filter: ["drop-shadow(0 0 0 rgba(52,211,153,0))", "drop-shadow(0 0 24px rgba(52,211,153,0.9))", "drop-shadow(0 0 14px rgba(52,211,153,0.55))"] }
+                            : stateFor(focusedMatch.b.id) === "loser"
+                              ? { scale: 0.94, opacity: 0.55 }
+                              : { scale: 1, opacity: 1 }
+                        }
+                        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                      >
+                        <CompetitorCard node={focusedMatch.b} state={stateFor(focusedMatch.b.id)} expanded />
+                      </motion.div>
+                    </div>
                   </div>
                 </motion.div>
               )}
