@@ -20,7 +20,7 @@ function useResolvedImage(node: MindNode | undefined) {
   return url;
 }
 
-/* ---------- auto-fit grid: pick cols × rows so all items fit without scroll ---------- */
+/* ---------- auto-fit grid ---------- */
 function useAutoGrid(count: number, aspect = 1) {
   const ref = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ w: 0, h: 0 });
@@ -44,7 +44,6 @@ function useAutoGrid(count: number, aspect = 1) {
       const r = Math.ceil(n / c);
       const cwMax = w / c;
       const chMax = h / r;
-      // Fit cell keeping aspect
       let cw = cwMax, ch = cwMax / aspect;
       if (ch > chMax) { ch = chMax; cw = ch * aspect; }
       const area = cw * ch;
@@ -55,10 +54,10 @@ function useAutoGrid(count: number, aspect = 1) {
   return { ref, ...layout };
 }
 
-/* ---------- ranked row: shows position + item ---------- */
+/* ---------- ranked row ---------- */
 function RankRow({
-  node, rank, height, isSpotlight,
-}: { node: MindNode; rank: number; height: number; isSpotlight: boolean }) {
+  node, rank, height,
+}: { node: MindNode; rank: number; height: number }) {
   const url = useResolvedImage(node);
   const goldish = rank === 1;
   const pad = Math.max(6, Math.min(14, height * 0.14));
@@ -67,26 +66,22 @@ function RankRow({
   const thumb = Math.max(28, height - pad * 2);
   return (
     <div
-      className={`flex items-center gap-3 rounded-xl border backdrop-blur transition-colors duration-500 ${
-        isSpotlight
-          ? "border-amber-300 bg-amber-500/15 shadow-[0_0_30px_rgba(252,211,77,0.35)]"
-          : "border-white/15 bg-white/[0.05]"
-      }`}
+      className="flex items-center gap-3 rounded-xl border border-border bg-card/60 backdrop-blur transition-colors duration-500"
       style={{ height, padding: pad }}
     >
       <div
-        className={`font-black tabular-nums text-center ${goldish ? "text-amber-300" : "text-white/85"}`}
+        className={`font-black tabular-nums text-center ${goldish ? "text-amber-500 dark:text-amber-300" : "text-foreground/80"}`}
         style={{ width: rankSize * 1.4, fontSize: rankSize, lineHeight: 1 }}
       >
         {rank}
       </div>
       {url ? (
-        <div className="rounded-lg overflow-hidden bg-black/50 shrink-0" style={{ width: thumb, height: thumb }}>
+        <div className="rounded-lg overflow-hidden bg-muted shrink-0" style={{ width: thumb, height: thumb }}>
           <img src={url} alt="" className="size-full object-cover" />
         </div>
       ) : null}
       <div
-        className="font-medium text-white/95 flex-1 leading-tight line-clamp-2"
+        className="font-medium text-foreground flex-1 leading-tight line-clamp-2"
         style={{ fontSize: titleSize }}
       >
         {node.text || "Item"}
@@ -95,16 +90,16 @@ function RankRow({
   );
 }
 
-/* ---------- empty ranking slot (keeps list full-height from the start) ---------- */
+/* ---------- empty slot ---------- */
 function EmptySlot({ rank, height }: { rank: number; height: number }) {
   const rankSize = Math.max(16, Math.min(34, height * 0.5));
   return (
     <div
-      className="rounded-xl border border-dashed border-white/12 bg-white/[0.02] flex items-center"
+      className="rounded-xl border border-dashed border-border bg-muted/30 flex items-center"
       style={{ height, padding: Math.max(6, height * 0.14) }}
     >
       <div
-        className="font-black tabular-nums text-center text-white/25"
+        className="font-black tabular-nums text-center text-muted-foreground/40"
         style={{ width: rankSize * 1.4, fontSize: rankSize, lineHeight: 1 }}
       >
         {rank}
@@ -113,7 +108,7 @@ function EmptySlot({ rank, height }: { rank: number; height: number }) {
   );
 }
 
-/* ---------- pool card: auto-sized so every item stays visible ---------- */
+/* ---------- pool card ---------- */
 function PoolCard({
   node, called, highlighted, w, h,
 }: { node: MindNode; called: boolean; highlighted: boolean; w: number; h: number }) {
@@ -126,25 +121,25 @@ function PoolCard({
       transition={{ type: "spring", stiffness: 260, damping: 22 }}
       className={`relative rounded-xl border overflow-hidden flex flex-col ${
         highlighted
-          ? "border-amber-300 bg-amber-500/10 shadow-[0_0_40px_rgba(252,211,77,0.55)] z-10"
+          ? "border-amber-400 bg-amber-500/10 shadow-[0_0_40px_rgba(252,211,77,0.55)] z-10"
           : called
-            ? "border-white/10 bg-white/[0.02] opacity-25 grayscale"
-            : "border-white/20 bg-white/[0.05]"
+            ? "border-border bg-muted/30 opacity-30 grayscale"
+            : "border-border bg-card/60"
       }`}
       style={{ width: w, height: h }}
     >
-      <div className="flex-1 min-h-0 bg-black/40 grid place-items-center overflow-hidden">
+      <div className="flex-1 min-h-0 bg-muted grid place-items-center overflow-hidden">
         {url ? (
           <img src={url} alt="" className="size-full object-cover" />
         ) : (
-          <span className="text-white/55 px-2 text-center line-clamp-3" style={{ fontSize: titleSize }}>
+          <span className="text-muted-foreground px-2 text-center line-clamp-3" style={{ fontSize: titleSize }}>
             {node.text}
           </span>
         )}
       </div>
       {url && (
         <div
-          className="px-2 py-1 text-white/90 text-center line-clamp-2 leading-tight bg-black/40"
+          className="px-2 py-1 text-foreground text-center line-clamp-2 leading-tight bg-card/80"
           style={{ fontSize: titleSize }}
         >
           {node.text || "—"}
@@ -165,18 +160,18 @@ function SpotlightCard({ node }: { node: MindNode }) {
   const body = (node.body || "").trim();
   const hasImage = !!url;
   return (
-    <div className="w-[min(560px,78vw)] max-h-[80vh] rounded-2xl overflow-hidden border border-amber-300/60 bg-neutral-950/95 shadow-[0_20px_80px_rgba(252,211,77,0.35)] flex flex-col">
+    <div className="w-[min(560px,78vw)] max-h-[80vh] rounded-2xl overflow-hidden border border-amber-400/60 bg-card shadow-[0_20px_80px_rgba(252,211,77,0.35)] flex flex-col">
       {hasImage && (
-        <div className="w-full aspect-[16/10] bg-black/70 grid place-items-center overflow-hidden shrink-0">
+        <div className="w-full aspect-[16/10] bg-muted grid place-items-center overflow-hidden shrink-0">
           <img src={url!} alt="" className="size-full object-contain" />
         </div>
       )}
       <div className="px-6 py-5 flex flex-col items-center gap-3 text-center overflow-hidden">
-        <div className={`font-bold leading-tight text-white ${hasImage ? "text-2xl" : "text-3xl"}`}>
+        <div className={`font-bold leading-tight text-foreground ${hasImage ? "text-2xl" : "text-3xl"}`}>
           {node.text || "Item"}
         </div>
         {body && (
-          <p className="text-sm leading-relaxed text-white/75 max-w-[46ch] whitespace-pre-wrap line-clamp-6">
+          <p className="text-sm leading-relaxed text-muted-foreground max-w-[46ch] whitespace-pre-wrap line-clamp-6">
             {body}
           </p>
         )}
@@ -215,12 +210,13 @@ export function RankingPresentation({
   const N = callOrder.length;
 
   /* -----------------------------------------------------------
-     Step machine — 2 slots per item:
+     Step machine — 2 steps per item:
         step = 0           → nothing highlighted, empty ranking
-        step = 2k + 1      → highlight item k in the pool (speaker talks)
-        step = 2k + 2      → item k placed into ranking + spotlight opens
-     Pressing next from a "placed+spotlight" step closes the spotlight AND
-     highlights the next item in the same keypress.
+        step = 2k + 1      → highlight item k in pool + spotlight OPEN
+                             (speaker introduces the item)
+        step = 2k + 2      → spotlight CLOSED, item placed into ranking
+                             (speaker compares & rearranges)
+     Pressing next again advances to next item's spotlight.
   ----------------------------------------------------------- */
   const [step, setStep] = useState(0);
   useEffect(() => { setStep(0); }, [project.id]);
@@ -229,36 +225,25 @@ export function RankingPresentation({
   const goNext = () => setStep((s) => Math.min(s + 1, maxStep));
   const goPrev = () => setStep((s) => Math.max(s - 1, 0));
 
+  // Which item is "currently being talked about" (highlighted + spotlight)
+  const activeIndex = (() => {
+    if (step === 0) return -1;
+    if (step % 2 === 1) {
+      const k = (step - 1) / 2;
+      return k < N ? k : -1;
+    }
+    return -1;
+  })();
+  // Which items are already placed in the ranking list
   const placedCount = Math.floor(step / 2);
-  const highlightIndex = (() => {
-    if (step === 0 || step % 2 === 0) return -1;
-    const k = (step - 1) / 2;
-    return k < N ? k : -1;
-  })();
-  const spotlightBaseIndex = (() => {
-    if (step === 0 || step % 2 !== 0) return -1;
-    const k = step / 2 - 1;
-    return k < N ? k : -1;
-  })();
-  const SPOTLIGHT_DELAY_MS = 1400;
-  const [spotlightIndex, setSpotlightIndex] = useState(-1);
-  useEffect(() => {
-    if (spotlightBaseIndex < 0) { setSpotlightIndex(-1); return; }
-    setSpotlightIndex(-1);
-    const t = window.setTimeout(() => setSpotlightIndex(spotlightBaseIndex), SPOTLIGHT_DELAY_MS);
-    return () => window.clearTimeout(t);
-  }, [spotlightBaseIndex]);
 
-  const highlightNode = highlightIndex >= 0 ? callOrder[highlightIndex] : null;
-  const spotlightNode = spotlightIndex >= 0 ? callOrder[spotlightIndex] : null;
+  const activeNode = activeIndex >= 0 ? callOrder[activeIndex] : null;
+  const spotlightNode = activeNode; // spotlight opens together with highlight
 
   const placedIds = useMemo(
     () => new Set(callOrder.slice(0, placedCount).map((n) => n.id)),
     [callOrder, placedCount],
   );
-  // Ranking list shows ONLY revealed items, sorted by final rank. Positions
-  // are sequential (1..revealed.length) so we never spoil the final rank —
-  // as more items reveal, positions shift.
   const revealed = useMemo(
     () => callOrder
       .filter((n) => placedIds.has(n.id))
@@ -268,10 +253,8 @@ export function RankingPresentation({
 
   const navLabel = N > 0 ? `${placedCount} / ${N}` : "0 / 0";
 
-  // Auto-fit grid for the pool column (always shows ALL items).
   const pool = useAutoGrid(Math.max(1, N), 1);
 
-  // Ranking list: compute row height so N rows fit the available column height.
   const rankColRef = useRef<HTMLDivElement>(null);
   const [rankColH, setRankColH] = useState(0);
   useLayoutEffect(() => {
@@ -299,20 +282,20 @@ export function RankingPresentation({
       frameBg="bg-background"
     >
       {() => (
-        <div className="absolute inset-0 flex flex-col p-6">
+        <div className="absolute inset-0 flex flex-col p-6 text-foreground">
           <div className="text-2xl md:text-3xl font-bold text-center mb-3 opacity-95 shrink-0">
             {project.title}
           </div>
 
           {N === 0 ? (
-            <div className="flex-1 grid place-items-center text-white/60">
+            <div className="flex-1 grid place-items-center text-muted-foreground">
               Adicione itens antes de apresentar.
             </div>
           ) : (
             <div className="flex-1 min-h-0 grid grid-cols-[minmax(280px,42%)_1fr] gap-6">
               {/* -------- Ranking column (left) -------- */}
               <div className="flex flex-col min-h-0">
-                <div className="text-[11px] uppercase tracking-widest text-white/50 mb-2 text-center shrink-0">
+                <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-2 text-center shrink-0">
                   Ranking
                 </div>
                 <div ref={rankColRef} className="flex-1 min-h-0">
@@ -332,12 +315,7 @@ export function RankingPresentation({
                             animate={{ opacity: 1, scale: 1, x: 0 }}
                             transition={{ type: "spring", stiffness: 240, damping: 24 }}
                           >
-                            <RankRow
-                              node={node}
-                              rank={rank}
-                              height={rowHeight}
-                              isSpotlight={spotlightNode?.id === node.id}
-                            />
+                            <RankRow node={node} rank={rank} height={rowHeight} />
                           </motion.div>
                         );
                       })}
@@ -346,9 +324,9 @@ export function RankingPresentation({
                 </div>
               </div>
 
-              {/* -------- Pool column (right) — every item always visible -------- */}
+              {/* -------- Pool column (right) -------- */}
               <div className="flex flex-col min-h-0">
-                <div className="text-[11px] uppercase tracking-widest text-white/50 mb-2 text-center shrink-0">
+                <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-2 text-center shrink-0">
                   {placedCount < N ? "Competidores" : "Todos chamados"}
                 </div>
                 <div ref={pool.ref} className="flex-1 min-h-0 relative">
@@ -366,7 +344,7 @@ export function RankingPresentation({
                           key={n.id}
                           node={n}
                           called={placedIds.has(n.id)}
-                          highlighted={highlightNode?.id === n.id}
+                          highlighted={activeNode?.id === n.id}
                           w={pool.cellW - 8}
                           h={pool.cellH - 8}
                         />
@@ -388,7 +366,7 @@ export function RankingPresentation({
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.25 }}
-                  className="absolute inset-0 bg-neutral-950/70 backdrop-blur-sm pointer-events-none"
+                  className="absolute inset-0 bg-background/70 backdrop-blur-sm pointer-events-none"
                 />
                 <motion.div
                   key={`spot-${spotlightNode.id}`}
