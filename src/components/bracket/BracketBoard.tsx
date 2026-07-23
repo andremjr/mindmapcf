@@ -259,7 +259,20 @@ function RoundColumn({
       <div className="flex-1 flex flex-col justify-around gap-2">
         {round.map((m, i) => {
           const midx = steps.indexOf(m.key);
-          const revealed = mode === "edit" || m.isBye || (midx >= 0 && stepIdx >= midx);
+          // In present mode, participants appear as soon as both slots are filled
+          // (progressive disclosure is driven upstream by the winners map that
+          // the parent passes in). "pool" step hides everything for a clean intro.
+          const revealed =
+            mode === "edit"
+              ? true
+              : m.isBye
+                ? true
+                : currentStep === "pool"
+                  ? false
+                  : !!m.a && !!m.b
+                    ? true
+                    : midx >= 0 && stepIdx >= midx;
+
           const isCurrent = currentStep === m.key;
           return (
             <div key={m.key} style={{ marginTop: i > 0 ? spacing : 0 }}>
