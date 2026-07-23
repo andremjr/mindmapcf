@@ -373,7 +373,7 @@ export function BracketBoard({
                 side="F"
               />
             </div>
-            <div className="h-[110px] w-full grid place-items-center">
+            <div className="min-h-[110px] w-full grid place-items-center">
               <AnimatePresence>
                 {showChampion && data.champion && (
                   <motion.div
