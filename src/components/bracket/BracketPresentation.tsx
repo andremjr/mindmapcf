@@ -133,6 +133,8 @@ export function BracketPresentation({
 
   const focusWinnerId = focusKey ? effectiveWinners[focusKey] ?? null : null;
   const showOverlay = !!focusedMatch && !!focusedMatch.a && !!focusedMatch.b;
+  const isChampionStep = currentStep === "CHAMPION";
+  const showChampionOverlay = isChampionStep && !!fullData.champion;
 
   function stateFor(nodeId: string | undefined | null): "idle" | "current" | "winner" | "loser" {
     if (!nodeId) return "idle";
