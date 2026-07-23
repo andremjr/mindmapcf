@@ -1,9 +1,18 @@
 import { useMemo, useState, useRef, useEffect, useLayoutEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import type { Project } from "@/lib/types";
+import type { MindNode, Project } from "@/lib/types";
+import { useStore } from "@/lib/store";
 import { PresentationShell } from "@/components/shared/PresentationShell";
 import { AvatarLayer } from "@/components/shared/AvatarLayer";
-import { BracketBoard, buildBracket, CompetitorCard, type WinnersMap } from "./BracketBoard";
+import { PanZoom } from "@/components/ui/PanZoom";
+import {
+  BracketBoard,
+  buildBracket,
+  clearDownstreamWinners,
+  CompetitorCard,
+  type WinnersMap,
+} from "./BracketBoard";
+
 
 /**
  * Present-mode step model:
@@ -50,9 +59,25 @@ export function BracketPresentation({
     try { return root?.body ? JSON.parse(root.body) : {}; } catch { return {}; }
   }, [root?.body]);
 
+  /** Manual mode locked at mount: no winners pre-picked → author decides live. */
+  const manualMode = useState<boolean>(() => {
+    if (competitors.length < 2) return false;
+    try {
+      const w = root?.body ? JSON.parse(root.body) : {};
+      return Object.keys(w).length === 0;
+    } catch { return true; }
+  })[0];
+  const updateNode = useStore((s) => s.updateNode);
+  function pickWinnerLive(matchKey: string, id: string) {
+    if (!root) return;
+    const next = clearDownstreamWinners(competitors, { ...winners, [matchKey]: id }, matchKey);
+    updateNode(project.id, root.id, { body: JSON.stringify(next) } as Partial<MindNode>);
+  }
+
   // Full bracket used purely to enumerate the step order (all winners applied).
   const fullData = useMemo(() => buildBracket(competitors, winners), [competitors, winners]);
   const steps = useMemo(() => buildPresentSteps(fullData), [fullData]);
+
 
   const [idx, setIdx] = useState(0);
   const currentStep = steps[idx] ?? "pool";
@@ -205,6 +230,46 @@ export function BracketPresentation({
     return "current";
   }
 
+  if (manualMode) {
+    return (
+      <PresentationShell
+        project={project}
+        recording={recording}
+        navLabel="Manual"
+        onNext={() => {}}
+        onPrev={() => {}}
+        canNext={false}
+        canPrev={false}
+        frameBg="bg-neutral-950"
+      >
+        {({ size }) => (
+          <div className="absolute inset-0 flex flex-col p-5 text-white">
+            <AvatarLayer project={project} frameSize={size} />
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-xl font-bold opacity-90">{project.title}</div>
+              <div className="text-[11px] uppercase tracking-widest text-white/50">
+                Modo manual — clique no vencedor de cada confronto
+              </div>
+            </div>
+            <div className="flex-1 min-h-0">
+              <PanZoom className="size-full rounded-md bg-gradient-to-br from-neutral-950 via-slate-900 to-neutral-950" initialScale={0.85}>
+                <div className="p-6" style={{ width: "max-content" }}>
+                  <BracketBoard
+                    competitors={competitors}
+                    winners={winners}
+                    currentStep={null}
+                    mode="edit"
+                    onPickWinner={pickWinnerLive}
+                  />
+                </div>
+              </PanZoom>
+            </div>
+          </div>
+        )}
+      </PresentationShell>
+    );
+  }
+
   return (
     <PresentationShell
       project={project}
@@ -216,6 +281,7 @@ export function BracketPresentation({
       canPrev={idx > 0}
       frameBg="bg-background"
     >
+
       {({ size }) => (
         <div className="absolute inset-0 flex flex-col p-5">
           <AvatarLayer project={project} frameSize={size} />

@@ -177,8 +177,25 @@ export function RankingEditor({ project }: { project: Project }) {
     } as Partial<MindNode>);
   }
 
+  /**
+   * All-or-none rule: either every item has a rank (animated presentation)
+   * or none of them do (manual live drag). Anything in between produces
+   * a broken presentation, so we block it up-front.
+   */
+  function validatePlacement(): boolean {
+    if (N === 0) return true;
+    const placed = byRank.size;
+    if (placed === 0 || placed === N) return true;
+    alert(
+      `Você tem ${placed} de ${N} itens posicionados no ranking. ` +
+      `Posicione todos ou deixe todos sem posição (para arrastar ao vivo na apresentação).`
+    );
+    return false;
+  }
+
   async function onPickFormat(fmt: RecordFormat) {
     setRecordOpen(false);
+    if (!validatePlacement()) return;
     try { await launchRecording(project, fmt, isPro); }
     catch (e: any) {
       if (e?.name !== "NotAllowedError") alert(e?.message || "Falha ao iniciar gravação.");
@@ -188,6 +205,7 @@ export function RankingEditor({ project }: { project: Project }) {
   }
 
   function handlePresent() {
+    if (!validatePlacement()) return;
     if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => {});
     }

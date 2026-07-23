@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { MindNode, Project } from "@/lib/types";
 import { resolveImage } from "@/lib/imageStorage";
+import { useStore } from "@/lib/store";
 import { PresentationShell } from "@/components/shared/PresentationShell";
 import { AvatarLayer } from "@/components/shared/AvatarLayer";
 import { parseAxis, RingLegend, type AxisConfig, type ChartType } from "./MatrixEditor";
+
 
 
 /* ---------- Card ---------- */
@@ -53,6 +55,14 @@ function Card({ node, active }: { node: MindNode; active: boolean }) {
     </div>
   );
 }
+
+/* ---------- Pool thumb (manual-mode drag source) ---------- */
+function PoolThumb({ node }: { node: MindNode }) {
+  const url = useResolvedImage(node);
+  if (!url) return <div className="aspect-square bg-muted" />;
+  return <div className="aspect-square bg-muted"><img src={url} alt="" className="size-full object-cover" /></div>;
+}
+
 
 /* ---------- Spotlight modal (justification focus) ---------- */
 function Spotlight({ node, onClose }: { node: MindNode; onClose: () => void }) {
@@ -166,6 +176,30 @@ export function MatrixPresentation({
     [project.nodes, root?.id],
   );
 
+  /** Manual mode locked at mount: if no card is placed, the author positions
+   *  cards live during the presentation. */
+  const isPlaced = (n: MindNode) =>
+    typeof n.pctX === "number" && (chart === "line" || typeof n.pctY === "number");
+  const manualMode = useState<boolean>(
+    () => cards.length > 0 && cards.every((c) => !isPlaced(c)),
+  )[0];
+  const updateNode = useStore((s) => s.updateNode);
+  const planeWrapRef = useRef<HTMLDivElement>(null);
+  const [dragPoolId, setDragPoolId] = useState<string | null>(null);
+  const placedCards = useMemo(() => cards.filter(isPlaced), [cards, chart]);
+  const unplacedCards = useMemo(() => cards.filter((c) => !isPlaced(c)), [cards, chart]);
+  function onManualDrop(e: React.DragEvent) {
+    if (!dragPoolId || !planeWrapRef.current) return;
+    e.preventDefault();
+    const r = planeWrapRef.current.getBoundingClientRect();
+    const pctX = Math.max(3, Math.min(97, ((e.clientX - r.left) / r.width) * 100));
+    const pctY = chart === "line"
+      ? 50
+      : Math.max(3, Math.min(97, ((e.clientY - r.top) / r.height) * 100));
+    updateNode(project.id, dragPoolId, { pctX, pctY } as Partial<MindNode>);
+    setDragPoolId(null);
+  }
+
   const steps = useMemo(() => buildSteps(chart, axis, cards), [chart, axis, cards]);
   const [step, setStep] = useState(0);
   const current = steps[step];
@@ -207,7 +241,79 @@ export function MatrixPresentation({
         ? activeCard?.body || activeCard?.text || ""
         : "";
 
-  const navLabel = `${step + 1} / ${steps.length}`;
+  const navLabel = manualMode
+    ? `${placedCards.length} / ${cards.length}`
+    : `${step + 1} / ${steps.length}`;
+
+  if (manualMode) {
+    return (
+      <PresentationShell
+        project={project}
+        recording={recording}
+        navLabel={navLabel}
+        onNext={() => {}}
+        onPrev={() => {}}
+        canNext={false}
+        canPrev={false}
+        frameBg="bg-background"
+      >
+        {({ size }) => (
+          <div className="absolute inset-0 flex flex-col p-6 text-foreground">
+            <AvatarLayer project={project} frameSize={size} />
+            <div className="text-2xl font-bold text-center mb-1 opacity-90">{project.title}</div>
+            <div className="text-center text-[11px] uppercase tracking-widest text-muted-foreground mb-2">
+              Modo manual — arraste os cards para o gráfico
+            </div>
+            <div
+              ref={planeWrapRef}
+              className="flex-1 min-h-0 flex flex-col relative"
+              onDragOver={(e) => { if (dragPoolId) e.preventDefault(); }}
+              onDrop={onManualDrop}
+            >
+              <ChartView
+                chart={chart}
+                axis={axis}
+                cards={placedCards}
+                activeIdx={-1}
+                revealed={new Set(placedCards.map((_, i) => i))}
+                axisPhase={{ y: true, x: true, grid: true, zones: true, rings: true }}
+              />
+            </div>
+            {/* Pool */}
+            <div className="mt-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 shrink-0">
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-[11px] uppercase tracking-widest opacity-60">
+                  {unplacedCards.length > 0 ? "Arraste para o gráfico" : "Todos posicionados"}
+                </div>
+                <div className="text-[11px] opacity-60 font-mono tabular-nums">
+                  {unplacedCards.length} restante{unplacedCards.length === 1 ? "" : "s"}
+                </div>
+              </div>
+              <div className="flex gap-2 items-center overflow-x-auto min-h-[72px]">
+                {unplacedCards.map((c) => (
+                  <div
+                    key={c.id}
+                    draggable
+                    onDragStart={() => setDragPoolId(c.id)}
+                    onDragEnd={() => setDragPoolId(null)}
+                    className="cursor-grab active:cursor-grabbing shrink-0 rounded-md border-2 bg-card overflow-hidden"
+                    style={{ width: 96, borderColor: c.color ?? "hsl(var(--border))" }}
+                  >
+                    <PoolThumb node={c} />
+                    <div className="p-1 text-[10px] leading-tight text-center line-clamp-2 min-h-[1.6rem]">
+                      {c.text || "Card"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </PresentationShell>
+    );
+  }
+
+
 
   return (
     <PresentationShell

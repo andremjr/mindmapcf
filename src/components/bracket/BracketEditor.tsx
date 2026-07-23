@@ -101,8 +101,32 @@ export function BracketEditor({ project }: { project: Project }) {
   }
 
 
+  /**
+   * All-or-none rule for winners: either every match is decided (champion
+   * emerges → animated reveal) OR no winner is picked (manual mode → user
+   * clicks winners live on stage). Anything in between produces a broken
+   * script.
+   */
+  function validatePlacement(): boolean {
+    if (competitors.length < 2) {
+      alert("Adicione pelo menos 2 competidores.");
+      return false;
+    }
+    const anyPicked = Object.keys(winners).length > 0;
+    // Champion decided → every needed match is settled.
+    // We consider "decided" = FINAL winner exists.
+    const decided = !!winners["FINAL"];
+    if (!anyPicked || decided) return true;
+    alert(
+      "O chaveamento está parcialmente preenchido. Decida todos os confrontos até o campeão " +
+      "ou limpe todos os vencedores (para escolher ao vivo na apresentação/gravação)."
+    );
+    return false;
+  }
+
   async function onPickFormat(fmt: RecordFormat) {
     setRecordOpen(false);
+    if (!validatePlacement()) return;
     try { await launchRecording(project, fmt, isPro); }
     catch (e: any) {
       if (e?.name !== "NotAllowedError") alert(e?.message || "Falha ao iniciar gravação.");
@@ -112,6 +136,7 @@ export function BracketEditor({ project }: { project: Project }) {
   }
 
   function handlePresent() {
+    if (!validatePlacement()) return;
     if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => {});
     }
