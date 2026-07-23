@@ -253,6 +253,7 @@ export function TierListPresentation({
 
   /* ============ DRAG (manual mode) ============ */
   const [dragId, setDragId] = useState<string | null>(null);
+  const [hover, setHover] = useState<{ key: string; idx: number } | null>(null);
   const updateNode = useStore((s) => s.updateNode);
 
   /** Where the user drops is where the item stays: compute insertion index
