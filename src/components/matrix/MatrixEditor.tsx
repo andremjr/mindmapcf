@@ -350,7 +350,7 @@ function ChartPlane({
 }: {
   chart: ChartType;
   axis: AxisConfig;
-  planeRef: React.RefObject<HTMLDivElement>;
+  planeRef: React.RefObject<HTMLDivElement | null>;
   cards: MindNode[];
   onCardMouseDown: (e: React.MouseEvent, node: MindNode) => void;
   onDelete: (id: string) => void;
