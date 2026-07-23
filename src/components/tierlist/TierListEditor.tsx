@@ -189,7 +189,24 @@ export function TierListEditor({ project }: { project: Project }) {
 
   const [dragItemId, setDragItemId] = useState<string | null>(null);
 
+  /**
+   * Enforce all-or-none placement: either every item is inside a tier
+   * (animated presentation) or none is (manual live drag). Anything in
+   * between produces a broken presentation, so we block it up-front.
+   */
+  function validatePlacement(): boolean {
+    if (allItems.length === 0) return true;
+    const placed = allItems.length - poolItems.length;
+    if (placed === 0 || placed === allItems.length) return true;
+    alert(
+      `Você tem ${placed} de ${allItems.length} itens em tiers. ` +
+      `Posicione todos os itens ou deixe todos no pool (para arrastar ao vivo).`
+    );
+    return false;
+  }
+
   function handlePresent() {
+    if (!validatePlacement()) return;
     if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => {});
     }
