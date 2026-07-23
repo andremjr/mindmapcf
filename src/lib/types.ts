@@ -96,6 +96,8 @@ export interface Project {
   narrationRef?: ImageRef;
   /** Optional folder to group projects. null/undefined = "sem pasta". */
   folderId?: string | null;
+  /** Which renderer to use. Missing = "mindmap". */
+  template?: ProjectTemplate;
 }
 
 export interface Folder {
