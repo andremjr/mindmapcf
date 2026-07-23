@@ -211,14 +211,8 @@ export function RankingEditor({ project }: { project: Project }) {
     return { dupes, missing };
   }, [items]);
 
-  /* --- grid layouts (one per column, sized identically since N is the same) --- */
-  const callGrid = useAutoGrid(N || 1);
-  const rankGrid = useAutoGrid(N || 1);
-
-  const gridStyle = (g: { cols: number; rows: number }) => ({
-    gridTemplateColumns: `repeat(${g.cols}, minmax(0, 1fr))`,
-    gridTemplateRows: `repeat(${g.rows}, minmax(0, 1fr))`,
-  });
+  /* --- both columns use the same single-column stacked layout --- */
+  const stackClass = "flex-1 min-h-0 p-2 flex flex-col gap-2 overflow-y-auto";
 
   return (
     <div className="h-screen bg-background text-foreground flex flex-col overflow-hidden">
@@ -289,7 +283,7 @@ export function RankingEditor({ project }: { project: Project }) {
                 </div>
               </button>
             ) : (
-              <div ref={callGrid.ref} className="flex-1 min-h-0 p-2 grid gap-2" style={gridStyle(callGrid)}>
+              <div className={stackClass}>
                 {items.map((it, i) => {
                   const placed = typeof it.rank === "number";
                   return (
@@ -327,7 +321,7 @@ export function RankingEditor({ project }: { project: Project }) {
                 As posições aparecem quando você adicionar itens.
               </div>
             ) : (
-              <div ref={rankGrid.ref} className="flex-1 min-h-0 p-2 grid gap-2" style={gridStyle(rankGrid)}>
+              <div className={stackClass}>
                 {Array.from({ length: N }, (_, i) => i + 1).map((rank) => {
                   const it = byRank.get(rank);
                   return (
@@ -422,7 +416,7 @@ function CallCard({
       onDrop={(e) => { e.preventDefault(); onDropOnCard(); }}
       onClick={onClick}
       className={[
-        "relative min-h-0 rounded-lg border-2 bg-background overflow-hidden",
+        "relative shrink-0 h-20 rounded-lg border-2 bg-background overflow-hidden",
         "cursor-grab active:cursor-grabbing transition",
         "flex flex-col",
         selected
@@ -490,7 +484,7 @@ function RankSlot({
       onDragOver={(e) => { if (dropActive) e.preventDefault(); }}
       onDrop={(e) => { e.preventDefault(); onDrop(); }}
       className={[
-        "relative min-h-0 rounded-lg overflow-hidden flex flex-col transition",
+        "relative shrink-0 h-20 rounded-lg overflow-hidden flex flex-col transition",
         node
           ? "bg-background border-2 border-emerald-500/70"
           : `border-2 border-dashed ${dropActive ? "border-primary bg-primary/10" : "border-rose-400/70 dark:border-rose-500/50 bg-rose-500/5"}`,
