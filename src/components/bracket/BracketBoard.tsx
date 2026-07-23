@@ -158,7 +158,7 @@ export function CompetitorCard({
     const body = (node.body || "").trim();
     return (
       <div
-        className={`relative w-full rounded-xl overflow-hidden border transition-all flex flex-col ${cls}`}
+        className={`relative w-full rounded-xl overflow-hidden border transition-all duration-500 flex flex-col ${cls}`}
       >
         {hasImage ? (
           <>
