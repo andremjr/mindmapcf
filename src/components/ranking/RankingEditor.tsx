@@ -423,9 +423,13 @@ function CallCard({
         "relative min-h-0 rounded-lg border-2 bg-background overflow-hidden",
         "cursor-grab active:cursor-grabbing transition",
         "flex flex-col",
-        selected ? "border-primary ring-2 ring-primary/40" : "border-border hover:border-muted-foreground/50",
+        selected
+          ? "border-primary ring-2 ring-primary/40"
+          : placed
+            ? "border-emerald-500/70 hover:border-emerald-500"
+            : "border-rose-400/70 hover:border-rose-500 dark:border-rose-500/60",
         dragging ? "opacity-30" : "",
-        placed ? "opacity-60" : "",
+        placed ? "opacity-70" : "",
         isDropTarget ? "ring-2 ring-primary/50" : "",
       ].join(" ")}
     >
@@ -433,10 +437,14 @@ function CallCard({
       <span className="absolute top-1 left-1 z-10 min-w-6 h-6 px-1.5 rounded-md bg-background/85 text-foreground text-[11px] font-bold tabular-nums grid place-items-center border border-border">
         {callIdx + 1}
       </span>
-      {/* rank badge if placed */}
-      {placed && (
-        <span className="absolute top-1 right-1 z-10 h-6 px-1.5 rounded-md bg-primary text-primary-foreground text-[11px] font-bold tabular-nums grid place-items-center">
+      {/* status badge: rank if placed, else "falta" */}
+      {placed ? (
+        <span className="absolute top-1 right-1 z-10 h-6 px-1.5 rounded-md bg-emerald-500 text-white text-[11px] font-bold tabular-nums grid place-items-center shadow-sm">
           #{node.rank}
+        </span>
+      ) : (
+        <span className="absolute top-1 right-1 z-10 h-6 px-1.5 rounded-md bg-rose-500 text-white text-[10px] font-bold uppercase tracking-wider grid place-items-center shadow-sm">
+          Falta
         </span>
       )}
       {/* thumbnail area */}
@@ -447,7 +455,7 @@ function CallCard({
         )}
       </div>
       {/* title strip */}
-      <div className={`px-1.5 py-1 text-[11px] leading-tight text-center border-t border-border/50 bg-card ${placed ? "line-through" : ""}`}>
+      <div className={`px-1.5 py-1 text-[11px] leading-tight text-center border-t border-border/50 bg-card ${placed ? "line-through text-muted-foreground" : ""}`}>
         <span className="line-clamp-2 break-words">
           {node.text || <span className="text-muted-foreground italic">sem título</span>}
         </span>
