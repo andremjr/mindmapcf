@@ -2,6 +2,8 @@ import { createFileRoute, Link, useParams, useSearch } from "@tanstack/react-rou
 import { z } from "zod";
 import { useProject } from "@/lib/store";
 import { Presentation } from "@/components/mindmap/Presentation";
+import { TierListPresentation } from "@/components/tierlist/TierListPresentation";
+import { IcebergPresentation } from "@/components/iceberg/IcebergPresentation";
 import { Button } from "@/components/ui/button";
 
 const searchSchema = z.object({
@@ -36,5 +38,8 @@ function PresentRoute() {
   }
 
   const recording = search.record === "1" || search.record === true;
+  const template = project.template ?? "mindmap";
+  if (template === "tierlist") return <TierListPresentation project={project} recording={recording} />;
+  if (template === "iceberg") return <IcebergPresentation project={project} recording={recording} />;
   return <Presentation project={project} recording={recording} />;
 }
