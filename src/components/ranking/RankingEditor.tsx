@@ -286,28 +286,56 @@ export function RankingEditor({ project }: { project: Project }) {
                 </div>
               </button>
             ) : (
-              <div ref={callRows.ref} className="flex-1 min-h-0 p-2 grid gap-2" style={rowStyle(callRows)}>
+              <div
+                ref={callRows.ref}
+                className="flex-1 min-h-0 p-2 grid gap-2"
+                style={rowStyle(callRows)}
+                onDragOver={(e) => {
+                  if (!drag || drag.from !== "call") return;
+                  e.preventDefault();
+                  const idx = visualInsertIndexVertical(e.currentTarget, e.clientY);
+                  if (callHoverIdx !== idx) setCallHoverIdx(idx);
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setCallHoverIdx(null);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (drag && drag.from === "call" && callHoverIdx !== null) {
+                    const srcIdx = items.findIndex((n) => n.id === drag.id);
+                    let target = callHoverIdx;
+                    if (srcIdx !== -1 && srcIdx < target) target -= 1;
+                    moveCall(drag.id, target);
+                  }
+                  setDrag(null);
+                  setCallHoverIdx(null);
+                }}
+              >
                 {items.map((it, i) => {
                   const placed = typeof it.rank === "number";
                   return (
-                    <CallCard
-                      key={it.id}
-                      node={it}
-                      callIdx={i}
-                      placed={placed}
-                      selected={selectedId === it.id}
-                      dragging={drag?.id === it.id}
-                      isDropTarget={!!drag && drag.from === "call" && drag.id !== it.id}
-                      onClick={() => setSelectedId(it.id)}
-                      onDragStart={() => setDrag({ id: it.id, from: "call" })}
-                      onDragEnd={() => setDrag(null)}
-                      onDropOnCard={() => {
-                        if (drag && drag.from === "call") moveCall(drag.id, i);
-                        setDrag(null);
-                      }}
-                    />
+                    <div key={it.id} className="contents">
+                      {drag?.from === "call" && callHoverIdx === i && <DropIndicator orientation="horizontal" />}
+                      <CallCard
+                        node={it}
+                        callIdx={i}
+                        placed={placed}
+                        selected={selectedId === it.id}
+                        dragging={drag?.id === it.id}
+                        isDropTarget={!!drag && drag.from === "call" && drag.id !== it.id}
+                        onClick={() => setSelectedId(it.id)}
+                        onDragStart={() => setDrag({ id: it.id, from: "call" })}
+                        onDragEnd={() => { setDrag(null); setCallHoverIdx(null); }}
+                        onDropOnCard={() => {
+                          if (drag && drag.from === "call") moveCall(drag.id, i);
+                          setDrag(null);
+                          setCallHoverIdx(null);
+                        }}
+                      />
+                    </div>
                   );
                 })}
+                {drag?.from === "call" && callHoverIdx === items.length && <DropIndicator orientation="horizontal" />}
               </div>
             )}
           </section>
