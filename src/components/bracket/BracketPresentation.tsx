@@ -77,6 +77,21 @@ export function BracketPresentation({
   // Resolved key passed to BracketBoard (drives the amber "current" highlight).
   const resolvedStep = focusKey ?? currentStep;
 
+  const sideRoundsCount = Math.max(fullData.L.rounds.length, fullData.R.rounds.length);
+  function roundLabelFor(key: string | null): string {
+    if (!key) return "";
+    if (key === "FINAL") return "Final";
+    const m = key.match(/^([LR])-r(\d+)i(\d+)$/);
+    if (!m) return "";
+    const r = parseInt(m[2], 10);
+    const fromEnd = sideRoundsCount - 1 - r; // 0 = semifinal, 1 = quartas...
+    if (fromEnd === 0) return "Semifinal";
+    if (fromEnd === 1) return "Quartas de final";
+    if (fromEnd === 2) return "Oitavas de final";
+    if (fromEnd === 3) return "16-avos de final";
+    return `Rodada ${r + 1}`;
+  }
+
   const stepLabel = (() => {
     if (currentStep === "pool") return "Competidores";
     if (currentStep === "seat") return "Chaveamento inicial";
@@ -86,9 +101,8 @@ export function BracketPresentation({
     const m = focusKey?.match(/^([LR])-r(\d+)i(\d+)$/);
     if (m) {
       const side = m[1] === "L" ? "Esquerda" : "Direita";
-      const round = parseInt(m[2], 10) + 1;
       const matchNum = parseInt(m[3], 10) + 1;
-      return `${side} · Rodada ${round} · Confronto ${matchNum}`;
+      return `${side} · ${roundLabelFor(focusKey)} · Confronto ${matchNum}`;
     }
     return "";
   })();
