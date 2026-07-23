@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, X, Download } from "lucide-react";
+import { LayoutGroup, motion } from "framer-motion";
 import type { MindNode, Project } from "@/lib/types";
 import { resolveImage } from "@/lib/imageStorage";
 import {
@@ -37,14 +38,24 @@ function useResolvedImage(node: MindNode | null | undefined) {
   return url;
 }
 
-function TierItem({ node, highlighted }: { node: MindNode; highlighted: boolean }) {
+function TierItem({
+  node,
+  size = 88,
+  highlighted = false,
+}: {
+  node: MindNode;
+  size?: number;
+  highlighted?: boolean;
+}) {
   const url = useResolvedImage(node);
   return (
     <div
-      className={`relative rounded-md overflow-hidden shrink-0 border transition-all ${
-        highlighted ? "ring-2 ring-white scale-105 shadow-[0_0_24px_rgba(255,255,255,0.5)] border-white" : "border-white/20"
+      className={`relative rounded-md overflow-hidden border ${
+        highlighted
+          ? "ring-2 ring-white shadow-[0_0_28px_rgba(255,255,255,0.55)] border-white"
+          : "border-white/20"
       }`}
-      style={{ width: 88, height: 88, background: "#111" }}
+      style={{ width: size, height: size, background: "#111" }}
     >
       {url ? (
         <img src={url} alt="" className="absolute inset-0 size-full object-cover" />
@@ -147,37 +158,47 @@ export function TierListPresentation({
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
     [project.nodes, board?.id],
   );
-  const itemsByTier = useMemo(() => {
-    const m = new Map<string, MindNode[]>();
-    for (const t of tiers) m.set(t.id, []);
-    for (const n of project.nodes) {
-      if (n.role !== "item") continue;
-      if (n.parentId && m.has(n.parentId)) m.get(n.parentId)!.push(n);
-    }
-    return m;
-  }, [project.nodes, tiers]);
 
-  /** Nav order: [tier1, item1a, item1b, tier2, ...] */
-  const nav = useMemo(() => {
-    const arr: Array<{ tierId: string; itemId?: string }> = [];
+  /** Ordered queue of items to reveal, grouped by tier order. */
+  const queue = useMemo(() => {
+    const arr: Array<{ item: MindNode; tierId: string }> = [];
     for (const t of tiers) {
-      arr.push({ tierId: t.id });
-      for (const it of itemsByTier.get(t.id) ?? []) arr.push({ tierId: t.id, itemId: it.id });
+      for (const n of project.nodes) {
+        if (n.role === "item" && n.parentId === t.id) arr.push({ item: n, tierId: t.id });
+      }
     }
     return arr;
-  }, [tiers, itemsByTier]);
+  }, [project.nodes, tiers]);
 
+  const placedByTier = useMemo(() => {
+    const m = new Map<string, MindNode[]>();
+    for (const t of tiers) m.set(t.id, []);
+    return m;
+  }, [tiers]);
+
+  /** idx = number of items already placed (0..queue.length). */
   const [idx, setIdx] = useState(0);
-  const current = nav[idx];
+  const placedIds = useMemo(() => new Set(queue.slice(0, idx).map((q) => q.item.id)), [queue, idx]);
+  const remaining = queue.slice(idx);
+  const currentItemId = idx > 0 ? queue[idx - 1].item.id : null;
+  const currentTierId = idx > 0 ? queue[idx - 1].tierId : (queue[0]?.tierId ?? null);
+
+  // Populate placed items into their tier bucket (by placement order)
+  for (const t of tiers) placedByTier.set(t.id, []);
+  for (let i = 0; i < idx; i++) {
+    const q = queue[i];
+    placedByTier.get(q.tierId)!.push(q.item);
+  }
 
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!scrollRef.current || !current) return;
-    const el = scrollRef.current.querySelector<HTMLElement>(`[data-tier-id="${current.tierId}"]`);
+    if (!scrollRef.current || !currentTierId) return;
+    const el = scrollRef.current.querySelector<HTMLElement>(`[data-tier-id="${currentTierId}"]`);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [idx, current?.tierId]);
+  }, [idx, currentTierId]);
 
-  const next = () => { if (countdown === null) setIdx((i) => Math.min(nav.length - 1, i + 1)); };
+  const totalSteps = queue.length + 1; // step 0 shows all in pool
+  const next = () => { if (countdown === null) setIdx((i) => Math.min(queue.length, i + 1)); };
   const prev = () => { if (countdown === null) setIdx((i) => Math.max(0, i - 1)); };
 
   async function stopAndDownload() {
@@ -223,7 +244,7 @@ export function TierListPresentation({
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nav.length, recording]);
+  }, [queue.length, recording]);
 
   const [, setRecTick] = useState(0);
   useEffect(() => {
@@ -248,43 +269,77 @@ export function TierListPresentation({
 
       <div className={recording ? "absolute inset-0 grid place-items-center" : "absolute inset-0"}>
         <div ref={frameRef} style={frameStyle} className="bg-neutral-950">
-          <div className="absolute inset-0 flex flex-col p-6">
-            <div className="text-2xl font-bold text-center mb-4 opacity-90">{project.title}</div>
-            <div ref={scrollRef} className="flex-1 overflow-y-auto scroll-smooth space-y-2">
-              {tiers.map((tier) => {
-                const items = itemsByTier.get(tier.id) ?? [];
-                const isActive = current?.tierId === tier.id;
-                return (
-                  <div
-                    key={tier.id}
-                    data-tier-id={tier.id}
-                    className={`flex items-stretch rounded-lg overflow-hidden border border-white/10 transition-all duration-300 ${
-                      isActive ? "opacity-100 scale-100" : "opacity-45 scale-[0.98]"
-                    }`}
-                  >
+          <LayoutGroup>
+            <div className="absolute inset-0 flex flex-col p-6">
+              <div className="text-2xl font-bold text-center mb-3 opacity-90">{project.title}</div>
+
+              {/* Tiers */}
+              <div ref={scrollRef} className="flex-1 overflow-y-auto scroll-smooth space-y-2 pr-1">
+                {tiers.map((tier) => {
+                  const items = placedByTier.get(tier.id) ?? [];
+                  const isActive = currentTierId === tier.id;
+                  return (
                     <div
-                      className="w-28 shrink-0 grid place-items-center px-2 py-3 font-black text-2xl text-white text-center uppercase tracking-wider"
-                      style={{ background: tier.color || "#334155" }}
+                      key={tier.id}
+                      data-tier-id={tier.id}
+                      className={`flex items-stretch rounded-lg overflow-hidden border border-white/10 transition-all duration-300 ${
+                        isActive ? "opacity-100 scale-100" : "opacity-45 scale-[0.98]"
+                      }`}
                     >
-                      {tier.text}
+                      <div
+                        className="min-w-[8rem] max-w-[14rem] shrink-0 grid place-items-center px-3 py-3 font-black text-xl text-white text-center uppercase tracking-wider break-words"
+                        style={{ background: tier.color || "#334155" }}
+                      >
+                        {tier.text}
+                      </div>
+                      <div className="flex-1 min-h-[112px] bg-black/30 p-3 flex flex-wrap gap-2 items-start">
+                        {items.map((it) => (
+                          <motion.div
+                            key={it.id}
+                            layoutId={`item-${it.id}`}
+                            transition={{ type: "spring", stiffness: 260, damping: 28 }}
+                          >
+                            <TierItem node={it} highlighted={currentItemId === it.id} />
+                          </motion.div>
+                        ))}
+                        {items.length === 0 && !isActive && (
+                          <div className="text-xs opacity-40 italic self-center px-2">— vazio —</div>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-1 min-h-[112px] bg-black/30 p-3 flex flex-wrap gap-2 items-start">
-                      {items.map((it) => (
-                        <TierItem
-                          key={it.id}
-                          node={it}
-                          highlighted={isActive && current?.itemId === it.id}
-                        />
-                      ))}
-                      {items.length === 0 && (
-                        <div className="text-xs opacity-50 italic self-center px-2">— vazio —</div>
-                      )}
-                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Pool of remaining items */}
+              <div className="mt-3 rounded-lg border border-white/10 bg-black/40 px-3 py-2">
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-[11px] uppercase tracking-widest opacity-60">
+                    A classificar
                   </div>
-                );
-              })}
+                  <div className="text-[11px] opacity-60 font-mono tabular-nums">
+                    {remaining.length} restante{remaining.length === 1 ? "" : "s"}
+                  </div>
+                </div>
+                <div className="flex gap-2 items-center overflow-x-auto min-h-[76px]">
+                  {remaining.length === 0 && (
+                    <div className="text-xs opacity-50 italic self-center px-2">
+                      Todos os itens foram classificados.
+                    </div>
+                  )}
+                  {remaining.map((q, i) => (
+                    <motion.div
+                      key={q.item.id}
+                      layoutId={`item-${q.item.id}`}
+                      transition={{ type: "spring", stiffness: 260, damping: 28 }}
+                    >
+                      <TierItem node={q.item} size={64} highlighted={i === 0} />
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
             </div>
-          </div>
+          </LayoutGroup>
 
           {countdown !== null && (
             <div className="absolute inset-0 grid place-items-center pointer-events-none z-30">
@@ -309,15 +364,15 @@ export function TierListPresentation({
           <ChevronLeft className="size-5" />
         </button>
         <span className="px-3 text-sm font-mono tabular-nums min-w-[70px] text-center">
-          {nav.length > 0 ? `${idx + 1} / ${nav.length}` : "0 / 0"}
+          {`${idx} / ${queue.length}`}
         </span>
-        <button onClick={next} disabled={idx >= nav.length - 1} className="size-9 grid place-items-center rounded-full hover:bg-white/10 disabled:opacity-40">
+        <button onClick={next} disabled={idx >= queue.length} className="size-9 grid place-items-center rounded-full hover:bg-white/10 disabled:opacity-40">
           <ChevronRight className="size-5" />
         </button>
       </div>
 
-      {nav.length === 0 && (
-        <div className="absolute inset-0 grid place-items-center">
+      {totalSteps === 1 && (
+        <div className="absolute inset-0 grid place-items-center pointer-events-none">
           <p className="text-white/60">Adicione tiers e itens antes de apresentar.</p>
         </div>
       )}
