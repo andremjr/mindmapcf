@@ -80,11 +80,22 @@ export function BracketEditor({ project }: { project: Project }) {
     } as Partial<MindNode>);
   }
 
+  const winners: WinnersMap = useMemo(() => {
+    try { return root?.body ? JSON.parse(root.body) : {}; } catch { return {}; }
+  }, [root?.body]);
+
+  function pickWinner(matchKey: string, id: string) {
+    if (!root) return;
+    const next = clearDownstreamWinners(competitors, { ...winners, [matchKey]: id }, matchKey);
+    updateNode(project.id, root.id, { body: JSON.stringify(next) } as Partial<MindNode>);
+  }
+
   function resetWinners() {
     if (!root) return;
     if (!confirm("Limpar todas as escolhas de vencedores?")) return;
     updateNode(project.id, root.id, { body: "{}" } as Partial<MindNode>);
   }
+
 
   async function onPickFormat(fmt: RecordFormat) {
     setRecordOpen(false);
