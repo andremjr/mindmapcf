@@ -11,6 +11,7 @@ import { RecordFormatMenu } from "@/components/RecordFormatMenu";
 import { launchRecording } from "@/lib/launchRecording";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const TIER_COLORS = [
   "#f43f5e", "#f97316", "#eab308", "#22c55e",
