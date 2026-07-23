@@ -221,6 +221,7 @@ export function TierListEditor({ project }: { project: Project }) {
   }
 
   const [dragItemId, setDragItemId] = useState<string | null>(null);
+  const [hover, setHover] = useState<{ key: string; idx: number } | null>(null);
 
   /** Given a horizontal-wrap container and a pointer event, find the insertion
    * index by comparing pointer position to each child card's midpoint. */
