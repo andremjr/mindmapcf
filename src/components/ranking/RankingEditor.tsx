@@ -294,7 +294,12 @@ export function RankingEditor({ project }: { project: Project }) {
                 <div className="text-sm font-semibold">Ranking final</div>
                 <div className="text-[11px] text-muted-foreground">Arraste um item para a posição desejada. Solte sobre um slot ocupado para trocar.</div>
               </div>
-              <div className="flex-1 overflow-auto p-3 space-y-1.5">
+              <div className="px-4 pt-2 pb-1 text-[11px] text-muted-foreground shrink-0">
+                {N > 0 && (
+                  <>Posições vazias: <span className="font-semibold text-foreground">{N - byRank.size}</span> de {N}</>
+                )}
+              </div>
+              <div className="flex-1 overflow-auto p-3 flex flex-col gap-2">
                 {N === 0 && (
                   <div className="text-center text-xs text-muted-foreground italic py-8">
                     Sem itens ainda.
@@ -302,7 +307,11 @@ export function RankingEditor({ project }: { project: Project }) {
                 )}
                 {Array.from({ length: N }, (_, i) => i + 1).map((rank) => {
                   const it = byRank.get(rank);
-                  const medal = rank === 1 ? "text-amber-400" : rank === 2 ? "text-slate-300" : rank === 3 ? "text-amber-600" : "text-muted-foreground";
+                  const medal = rank === 1 ? "bg-amber-400 text-amber-950"
+                    : rank === 2 ? "bg-slate-300 text-slate-900"
+                    : rank === 3 ? "bg-amber-700 text-amber-50"
+                    : "bg-muted text-foreground";
+                  const isDropTarget = drag != null;
                   return (
                     <div
                       key={rank}
@@ -312,11 +321,15 @@ export function RankingEditor({ project }: { project: Project }) {
                         if (drag) assignRank(drag.id, rank);
                         setDrag(null);
                       }}
-                      className={`flex items-center gap-2 rounded-md border px-2 py-1.5 min-h-[44px] transition ${
-                        it ? "bg-background border-border/60" : "bg-muted/20 border-dashed border-border/40"
+                      className={`relative aspect-square w-full rounded-lg overflow-hidden transition flex flex-col ${
+                        it
+                          ? "bg-background border-2 border-border/60"
+                          : `border-2 border-dashed ${isDropTarget ? "border-primary bg-primary/5" : "border-border bg-muted/40 dark:bg-muted/20"}`
                       }`}
                     >
-                      <span className={`text-base font-bold tabular-nums w-8 text-center shrink-0 ${medal}`}>{rank}º</span>
+                      <span className={`absolute top-2 left-2 z-10 size-9 rounded-full grid place-items-center text-sm font-black tabular-nums shadow-sm ${medal}`}>
+                        {rank}
+                      </span>
                       {it ? (
                         <div
                           draggable
@@ -326,21 +339,33 @@ export function RankingEditor({ project }: { project: Project }) {
                           }}
                           onDragEnd={() => setDrag(null)}
                           onClick={() => setSelectedId(it.id)}
-                          className={`flex-1 flex items-center gap-2 rounded px-1.5 py-1 cursor-grab active:cursor-grabbing transition ${
-                            selectedId === it.id ? "bg-primary/10 ring-1 ring-primary/40" : "hover:bg-muted/50"
+                          className={`flex-1 flex flex-col cursor-grab active:cursor-grabbing transition ${
+                            selectedId === it.id ? "ring-2 ring-primary/60 ring-inset" : ""
                           } ${drag?.id === it.id ? "opacity-40" : ""}`}
                         >
-                          <Thumb node={it} size={28} />
-                          <span className="flex-1 text-sm truncate">{it.text || <span className="text-muted-foreground italic">sem título</span>}</span>
+                          <div className="flex-1 min-h-0 bg-muted grid place-items-center overflow-hidden">
+                            <Thumb node={it} size={96} />
+                          </div>
+                          <div className="px-2 py-1.5 text-xs leading-tight text-center border-t border-border/40 bg-card font-medium">
+                            <span className="line-clamp-2 break-words">
+                              {it.text || <span className="text-muted-foreground italic">sem título</span>}
+                            </span>
+                          </div>
                         </div>
                       ) : (
-                        <span className="flex-1 text-xs text-muted-foreground italic">Solte um item aqui</span>
+                        <div className="flex-1 grid place-items-center text-center px-3">
+                          <div>
+                            <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vazio</div>
+                            <div className="text-[10px] text-muted-foreground/70 mt-0.5">Arraste um item</div>
+                          </div>
+                        </div>
                       )}
                     </div>
                   );
                 })}
               </div>
             </section>
+
           </div>
         </div>
 
