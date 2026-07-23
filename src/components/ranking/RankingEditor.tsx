@@ -39,11 +39,10 @@ function Thumb({ node }: { node: MindNode }) {
   return <img src={url} alt="" className="absolute inset-0 size-full object-cover" />;
 }
 
-/* ---------- auto-fit grid dimensions ----------
-   Picks the (cols × rows) layout that maximizes the size of SQUARE cells
-   that fit inside the container. Cards render as squares (aspect-square)
-   so they look consistent no matter how many items exist. */
-function useAutoGrid(count: number) {
+/* ---------- auto-fit row dimensions ----------
+   Keeps the editor in stacked horizontal lines. Rows shrink to keep all
+   items visible inside the frame, instead of switching back to square cards. */
+function useAutoRows(count: number) {
   const ref = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ w: 0, h: 0 });
   useLayoutEffect(() => {
@@ -57,22 +56,14 @@ function useAutoGrid(count: number) {
     setDims({ w: el.clientWidth, h: el.clientHeight });
     return () => ro.disconnect();
   }, []);
-  const layout = useMemo(() => {
+  const row = useMemo(() => {
     const n = Math.max(1, count);
-    const { w, h } = dims;
-    if (!w || !h) return { cols: 1, rows: n, cell: 0 };
+    const { h } = dims;
+    if (!h) return 76;
     const GAP = 8;
-    let best = { cols: 1, rows: n, cell: 0 };
-    for (let c = 1; c <= n; c++) {
-      const r = Math.ceil(n / c);
-      const cellW = (w - GAP * (c - 1)) / c;
-      const cellH = (h - GAP * (r - 1)) / r;
-      const cell = Math.floor(Math.min(cellW, cellH));
-      if (cell > best.cell) best = { cols: c, rows: r, cell };
-    }
-    return best;
+    return Math.max(28, Math.min(86, Math.floor((h - GAP * (n - 1)) / n)));
   }, [count, dims]);
-  return { ref, ...layout };
+  return { ref, row };
 }
 
 /* ---------- drag payload ---------- */
@@ -213,13 +204,13 @@ export function RankingEditor({ project }: { project: Project }) {
     return { dupes, missing };
   }, [items]);
 
-  /* --- auto-fit grid: no scroll, square cards fit inside the frame --- */
-  const callGrid = useAutoGrid(N || 1);
-  const rankGrid = useAutoGrid(N || 1);
-  const gridStyle = (g: { cols: number; cell: number }) => ({
-    gridTemplateColumns: `repeat(${g.cols}, ${g.cell}px)`,
-    gridAutoRows: `${g.cell}px`,
-    justifyContent: "center" as const,
+  /* --- auto-fit rows: no scroll, stacked lines fit inside the frame --- */
+  const callRows = useAutoRows(N || 1);
+  const rankRows = useAutoRows(N || 1);
+  const rowStyle = (g: { row: number }) => ({
+    gridTemplateColumns: "minmax(0, 1fr)",
+    gridAutoRows: `${g.row}px`,
+    justifyContent: "stretch" as const,
     alignContent: "center" as const,
   });
 
@@ -248,7 +239,7 @@ export function RankingEditor({ project }: { project: Project }) {
         </Button>
       </header>
 
-      {/* main = two auto-fit grids side by side, no scroll */}
+      {/* main = two auto-fit stacked columns side by side, no scroll */}
       <main className="flex-1 min-h-0 flex flex-col p-4 gap-3">
         {/* status bar */}
         <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0 px-1">
@@ -292,7 +283,7 @@ export function RankingEditor({ project }: { project: Project }) {
                 </div>
               </button>
             ) : (
-              <div ref={callGrid.ref} className="flex-1 min-h-0 p-2 grid gap-2" style={gridStyle(callGrid)}>
+              <div ref={callRows.ref} className="flex-1 min-h-0 p-2 grid gap-2" style={rowStyle(callRows)}>
                 {items.map((it, i) => {
                   const placed = typeof it.rank === "number";
                   return (
@@ -330,7 +321,7 @@ export function RankingEditor({ project }: { project: Project }) {
                 As posições aparecem quando você adicionar itens.
               </div>
             ) : (
-              <div ref={rankGrid.ref} className="flex-1 min-h-0 p-2 grid gap-2" style={gridStyle(rankGrid)}>
+              <div ref={rankRows.ref} className="flex-1 min-h-0 p-2 grid gap-2" style={rowStyle(rankRows)}>
                 {Array.from({ length: N }, (_, i) => i + 1).map((rank) => {
                   const it = byRank.get(rank);
                   return (
@@ -427,7 +418,7 @@ function CallCard({
       className={[
         "relative min-h-0 rounded-lg border-2 bg-background overflow-hidden",
         "cursor-grab active:cursor-grabbing transition",
-        "flex flex-col",
+        "flex items-stretch",
         selected
           ? "border-primary ring-2 ring-primary/40"
           : placed
@@ -449,15 +440,15 @@ function CallCard({
         </span>
       )}
       {/* thumbnail area */}
-      <div className="relative flex-1 min-h-0 bg-muted grid place-items-center overflow-hidden">
+      <div className="relative h-full aspect-square shrink-0 bg-muted grid place-items-center overflow-hidden border-r border-border/50">
         <Thumb node={node} />
         {!node.imageRef && !node.image && (
           <span className="text-[10px] text-muted-foreground uppercase tracking-wider">sem imagem</span>
         )}
       </div>
       {/* title strip */}
-      <div className={`px-1.5 py-1 text-[11px] leading-tight text-center border-t border-border/50 bg-card ${placed ? "line-through text-muted-foreground" : ""}`}>
-        <span className="line-clamp-2 break-words">
+      <div className={`flex-1 min-w-0 px-10 py-2 text-sm leading-tight bg-card flex items-center ${placed ? "line-through text-muted-foreground" : ""}`}>
+        <span className="line-clamp-2 break-words text-left">
           {node.text || <span className="text-muted-foreground italic">sem título</span>}
         </span>
       </div>
@@ -489,7 +480,7 @@ function RankSlot({
       onDragOver={(e) => { if (dropActive) e.preventDefault(); }}
       onDrop={(e) => { e.preventDefault(); onDrop(); }}
       className={[
-        "relative min-h-0 rounded-lg overflow-hidden flex flex-col transition",
+        "relative min-h-0 rounded-lg overflow-hidden flex items-stretch transition",
         node
           ? "bg-background border-2 border-emerald-500/70"
           : `border-2 border-dashed ${dropActive ? "border-primary bg-primary/10" : "border-border/60 bg-muted/20"}`,
@@ -518,16 +509,16 @@ function RankSlot({
             onDragStart={(e) => { onDragStart(); e.dataTransfer.effectAllowed = "move"; }}
             onDragEnd={onDragEnd}
             onClick={onClickNode}
-            className="flex-1 min-h-0 flex flex-col cursor-grab active:cursor-grabbing"
+            className="flex-1 min-w-0 flex cursor-grab active:cursor-grabbing"
           >
-            <div className="relative flex-1 min-h-0 bg-muted grid place-items-center overflow-hidden">
+            <div className="relative h-full aspect-square shrink-0 bg-muted grid place-items-center overflow-hidden border-r border-border/50">
               <Thumb node={node} />
               {!node.imageRef && !node.image && (
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">sem imagem</span>
               )}
             </div>
-            <div className="px-1.5 py-1 text-[11px] leading-tight text-center border-t border-border/50 bg-card font-medium">
-              <span className="line-clamp-2 break-words">
+            <div className="flex-1 min-w-0 px-10 py-2 text-sm leading-tight bg-card font-medium flex items-center">
+              <span className="line-clamp-2 break-words text-left">
                 {node.text || <span className="text-muted-foreground italic">sem título</span>}
               </span>
             </div>
