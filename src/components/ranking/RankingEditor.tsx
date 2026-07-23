@@ -416,7 +416,7 @@ function CallCard({
       onDrop={(e) => { e.preventDefault(); onDropOnCard(); }}
       onClick={onClick}
       className={[
-        "relative min-h-0 rounded-lg border-2 bg-background overflow-hidden",
+        "relative shrink-0 h-20 rounded-lg border-2 bg-background overflow-hidden",
         "cursor-grab active:cursor-grabbing transition",
         "flex flex-col",
         selected
@@ -484,7 +484,7 @@ function RankSlot({
       onDragOver={(e) => { if (dropActive) e.preventDefault(); }}
       onDrop={(e) => { e.preventDefault(); onDrop(); }}
       className={[
-        "relative min-h-0 rounded-lg overflow-hidden flex flex-col transition",
+        "relative shrink-0 h-20 rounded-lg overflow-hidden flex flex-col transition",
         node
           ? "bg-background border-2 border-emerald-500/70"
           : `border-2 border-dashed ${dropActive ? "border-primary bg-primary/10" : "border-rose-400/70 dark:border-rose-500/50 bg-rose-500/5"}`,
