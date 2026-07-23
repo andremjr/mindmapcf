@@ -2,6 +2,7 @@ import { useMemo, useState, useRef, useEffect, useLayoutEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { Project } from "@/lib/types";
 import { PresentationShell } from "@/components/shared/PresentationShell";
+import { AvatarLayer } from "@/components/shared/AvatarLayer";
 import { BracketBoard, buildBracket, CompetitorCard, type WinnersMap } from "./BracketBoard";
 
 /**
