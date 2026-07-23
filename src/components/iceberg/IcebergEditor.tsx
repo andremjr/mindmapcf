@@ -10,6 +10,7 @@ import type { MindNode, Project } from "@/lib/types";
 import { pickMediaAndStore, resolveImage } from "@/lib/imageStorage";
 import { IcebergBackground } from "./IcebergBackground";
 import { RecordFormatMenu } from "@/components/RecordFormatMenu";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { launchRecording } from "@/lib/launchRecording";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
