@@ -210,35 +210,43 @@ export function RankingPresentation({
   const N = callOrder.length;
 
   /* -----------------------------------------------------------
-     Step machine — 2 steps per item:
-        step = 0           → nothing highlighted, empty ranking
-        step = 2k + 1      → highlight item k in pool + spotlight OPEN
+     Step machine — 3 steps per item:
+        step = 0           → empty ranking, nothing shown
+        step = 3k + 1      → spotlight OPEN for item k
                              (speaker introduces the item)
-        step = 2k + 2      → spotlight CLOSED, item placed into ranking
-                             (speaker compares & rearranges)
-     Pressing next again advances to next item's spotlight.
+        step = 3k + 2      → spotlight CLOSED, item k highlighted in pool
+                             (speaker compares out loud, item stays in pool)
+        step = 3k + 3      → item k placed into ranking list
+                             (leapfrog animation into final position)
   ----------------------------------------------------------- */
   const [step, setStep] = useState(0);
   useEffect(() => { setStep(0); }, [project.id]);
 
-  const maxStep = N * 2;
+  const maxStep = N * 3;
   const goNext = () => setStep((s) => Math.min(s + 1, maxStep));
   const goPrev = () => setStep((s) => Math.max(s - 1, 0));
 
-  // Which item is "currently being talked about" (highlighted + spotlight)
-  const activeIndex = (() => {
+  // spotlight (phase 1 of each item)
+  const spotlightIndex = (() => {
     if (step === 0) return -1;
-    if (step % 2 === 1) {
-      const k = (step - 1) / 2;
-      return k < N ? k : -1;
-    }
-    return -1;
+    const mod = ((step - 1) % 3);
+    if (mod !== 0) return -1;
+    const k = (step - 1) / 3;
+    return k < N ? k : -1;
   })();
-  // Which items are already placed in the ranking list
-  const placedCount = Math.floor(step / 2);
+  // pool highlight (phase 2 of each item)
+  const highlightIndex = (() => {
+    if (step === 0) return -1;
+    const mod = ((step - 1) % 3);
+    if (mod !== 1) return -1;
+    const k = (step - 2) / 3;
+    return k < N ? k : -1;
+  })();
+  // how many items have completed phase 3 → belong to the ranking list
+  const placedCount = Math.floor(step / 3);
 
-  const activeNode = activeIndex >= 0 ? callOrder[activeIndex] : null;
-  const spotlightNode = activeNode; // spotlight opens together with highlight
+  const spotlightNode = spotlightIndex >= 0 ? callOrder[spotlightIndex] : null;
+  const highlightNode = highlightIndex >= 0 ? callOrder[highlightIndex] : null;
 
   const placedIds = useMemo(
     () => new Set(callOrder.slice(0, placedCount).map((n) => n.id)),
@@ -250,6 +258,7 @@ export function RankingPresentation({
       .sort((a, b) => (rankOf.get(a.id) ?? 999) - (rankOf.get(b.id) ?? 999)),
     [callOrder, placedIds, rankOf],
   );
+
 
   const navLabel = N > 0 ? `${placedCount} / ${N}` : "0 / 0";
 
