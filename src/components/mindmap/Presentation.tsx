@@ -18,11 +18,13 @@ import {
   subscribeRecorder,
   cropRecordingToElement,
   beginArmedRecording,
+  getRecordingNarrationEl,
   type RecordingResult,
 } from "@/lib/screenRecorder";
 import { loadRecordFormat, defaultRecordFormat, type RecordFormat } from "@/lib/recordFormats";
 import { resolveEmbed } from "@/lib/embedUrl";
 import { startMicAnalyser, stopMicAnalyser } from "@/lib/micAnalyser";
+import { resolveImage } from "@/lib/imageStorage";
 
 /**
  * Open a URL in a new tab as if the user clicked a normal link. Using an
@@ -161,6 +163,11 @@ export function Presentation({
         setCountdown(null);
         try {
           beginArmedRecording();
+          const narr = getRecordingNarrationEl();
+          if (narr) {
+            narr.currentTime = 0;
+            narr.play().catch((e) => console.warn("[presentation] narration play", e));
+          }
         } catch (e) {
           console.error("[presentation] begin recording", e);
         }
