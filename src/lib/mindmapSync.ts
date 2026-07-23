@@ -13,6 +13,7 @@ interface Row {
     viewport?: Project["viewport"];
     sonicAvatar?: Project["sonicAvatar"];
     narrationRef?: Project["narrationRef"];
+    template?: Project["template"];
   };
   created_at: string;
   updated_at: string;
@@ -38,6 +39,7 @@ function toProject(r: Row): Project {
     viewport: r.data?.viewport ?? { x: 0, y: 0, zoom: 1 },
     sonicAvatar: r.data?.sonicAvatar,
     narrationRef: r.data?.narrationRef,
+    template: r.data?.template ?? "mindmap",
   };
 }
 
