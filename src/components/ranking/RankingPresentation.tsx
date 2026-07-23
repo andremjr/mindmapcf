@@ -349,16 +349,26 @@ export function RankingPresentation({
                         gap: 8,
                       }}
                     >
-                      {callOrder.map((n) => (
-                        <PoolCard
-                          key={n.id}
-                          node={n}
-                          called={placedIds.has(n.id)}
-                          highlighted={highlightNode?.id === n.id}
-                          w={pool.cellW - 8}
-                          h={pool.cellH - 8}
-                        />
-                      ))}
+                      {callOrder.map((n) => {
+                        const isNext = highlightNode?.id === n.id;
+                        let badge: string | undefined;
+                        if (isNext) {
+                          const myRank = rankOf.get(n.id) ?? 999;
+                          const pos = revealed.filter((r) => (rankOf.get(r.id) ?? 999) < myRank).length + 1;
+                          badge = `#${pos}`;
+                        }
+                        return (
+                          <PoolCard
+                            key={n.id}
+                            node={n}
+                            called={placedIds.has(n.id)}
+                            highlighted={isNext}
+                            badge={badge}
+                            w={pool.cellW - 8}
+                            h={pool.cellH - 8}
+                          />
+                        );
+                      })}
                     </div>
                   </LayoutGroup>
                 </div>
