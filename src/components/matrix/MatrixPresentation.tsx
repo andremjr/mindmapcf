@@ -132,9 +132,6 @@ function buildSteps(chart: ChartType, axis: AxisConfig, cards: MindNode[]): Step
 
 function revealOrder(chart: ChartType, cards: MindNode[]): number[] {
   const idxs = cards.map((_, i) => i);
-  if (chart === "line") {
-    return idxs.sort((a, b) => (cards[a].pctX ?? 50) - (cards[b].pctX ?? 50));
-  }
   if (chart === "bullseye") {
     // outer → inner (distance from center descending)
     const dist = (c: MindNode) => {
@@ -151,9 +148,10 @@ function revealOrder(chart: ChartType, cards: MindNode[]): number[] {
       return (cards[b].pctY ?? 50) - (cards[a].pctY ?? 50);
     });
   }
-  // quadrants: keep author order
+  // quadrants and line: keep author order
   return idxs;
 }
+
 
 /* ---------- Main ---------- */
 export function MatrixPresentation({
