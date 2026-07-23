@@ -1,9 +1,18 @@
 import { useMemo, useState, useRef, useEffect, useLayoutEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import type { Project } from "@/lib/types";
+import type { MindNode, Project } from "@/lib/types";
+import { useStore } from "@/lib/store";
 import { PresentationShell } from "@/components/shared/PresentationShell";
 import { AvatarLayer } from "@/components/shared/AvatarLayer";
-import { BracketBoard, buildBracket, CompetitorCard, type WinnersMap } from "./BracketBoard";
+import { PanZoom } from "@/components/ui/PanZoom";
+import {
+  BracketBoard,
+  buildBracket,
+  clearDownstreamWinners,
+  CompetitorCard,
+  type WinnersMap,
+} from "./BracketBoard";
+
 
 /**
  * Present-mode step model:
