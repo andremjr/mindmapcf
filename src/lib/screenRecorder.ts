@@ -107,6 +107,10 @@ export interface StartOptions {
   videoBitsPerSecond?: number;
   audioBitsPerSecond?: number;
   frameRate?: number;
+  /** Target capture resolution. Bumps getDisplayMedia constraints so 4K is
+   * actually available when the user picks it. Defaults to 1920x1080. */
+  targetWidth?: number;
+  targetHeight?: number;
   /** If true, sets up the pipeline but doesn't start the MediaRecorder yet.
    * Caller must invoke `beginArmedRecording()` to actually start capture. */
   armed?: boolean;
@@ -136,6 +140,8 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
     throw new Error("Seu navegador não permite captura de tela (tente Chrome/Edge no desktop).");
   }
 
+  const targetW = opts.targetWidth ?? 1920;
+  const targetH = opts.targetHeight ?? 1080;
   const displayMediaOpts: any = {
     video: {
       // 30fps is plenty for a mind-map presentation and keeps the encoder
@@ -144,8 +150,8 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
       // same time — dropped frames show up as visual corruption in the
       // final file and cause the on-screen video to stutter.
       frameRate: opts.frameRate ?? 30,
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
+      width: { ideal: targetW },
+      height: { ideal: targetH },
     },
     audio: true,
     // Chromium-only: pre-select the current tab so the user doesn't get the
@@ -245,13 +251,13 @@ export async function startRecording(opts: StartOptions = {}): Promise<void> {
 
 
   const mimeType = pickMimeType();
+  // Scale bitrate with pixel count so 4K doesn't look muddy. 8 Mbps for
+  // 1080p ≈ 3.85 bpp; ~35 Mbps for 4K matches YouTube's 4K ingest guide.
+  const pixels = targetW * targetH;
+  const scaledBitrate = Math.round((pixels / (1920 * 1080)) * 8_000_000);
   const recorder = new MediaRecorder(mixed, {
     mimeType,
-    // ~8 Mbps at 1080p30 → matches YouTube's recommended ingest bitrate for
-    // 1080p and leaves enough CPU headroom for the on-page <video> to decode
-    // smoothly. Higher bitrates saturate the encoder on mid-range machines
-    // and produce macroblocks/tearing in the recorded file.
-    videoBitsPerSecond: opts.videoBitsPerSecond ?? 8_000_000,
+    videoBitsPerSecond: opts.videoBitsPerSecond ?? Math.max(4_000_000, Math.min(45_000_000, scaledBitrate)),
     audioBitsPerSecond: opts.audioBitsPerSecond ?? 192_000,
   });
   const chunks: Blob[] = [];
