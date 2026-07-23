@@ -132,7 +132,7 @@ function useResolvedImage(node: MindNode | null | undefined) {
   return url;
 }
 
-function CompetitorCard({
+export function CompetitorCard({
   node, state, onClick, small = false, expanded = false,
 }: {
   node: MindNode;
@@ -231,39 +231,6 @@ function MatchBox({
     return "idle";
   }
   const canPick = mode === "edit" && match.a && match.b && onPickWinner;
-
-  // When a match is focused during presentation, blow the cards up side-by-side.
-  const focusedPresent = mode === "present" && isCurrent;
-
-  if (focusedPresent) {
-    return (
-      <div
-        data-match-key={match.key}
-        className="rounded-xl p-3 bg-white/5 ring-1 ring-amber-300/40 flex items-stretch gap-3"
-        style={{ width: 440 }}
-      >
-        <div className="flex-1">
-          {showContents && match.a ? (
-            <motion.div layoutId={`comp-${match.a.id}-at-${match.key}-a`} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}>
-              <CompetitorCard node={match.a} state={stateFor(match.a.id)} expanded />
-            </motion.div>
-          ) : (
-            <EmptySlot label={match.a ? "?" : match.isBye ? "BYE" : "?"} expanded />
-          )}
-        </div>
-        <div className="self-center text-[11px] uppercase tracking-widest text-amber-200/80 font-semibold px-1">vs</div>
-        <div className="flex-1">
-          {showContents && match.b ? (
-            <motion.div layoutId={`comp-${match.b.id}-at-${match.key}-b`} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }}>
-              <CompetitorCard node={match.b} state={stateFor(match.b.id)} expanded />
-            </motion.div>
-          ) : (
-            <EmptySlot label={match.b ? "?" : match.isBye ? "BYE" : "?"} expanded />
-          )}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div

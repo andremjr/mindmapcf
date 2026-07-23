@@ -1,18 +1,16 @@
 import { useMemo, useState, useRef, useEffect, useLayoutEffect } from "react";
-import type { MindNode, Project } from "@/lib/types";
+import { AnimatePresence, motion } from "framer-motion";
+import type { Project } from "@/lib/types";
 import { PresentationShell } from "@/components/shared/PresentationShell";
-import { BracketBoard, buildBracket, type WinnersMap } from "./BracketBoard";
+import { BracketBoard, buildBracket, CompetitorCard, type WinnersMap } from "./BracketBoard";
 
 /**
  * Present-mode step model:
  *   pool → seat → focus:<matchKey> → reveal:<matchKey> → ... → focus:FINAL → reveal:FINAL → CHAMPION
  *
- * The camera zooms to the currently focused match. On "reveal", the winner is
- * disclosed (loser strike-through, winner green) while the camera stays; the
- * next step moves the camera to the following match.
- *
- * Match order alternates sides: L r0 i0 → R r0 i0 → L r0 i1 → R r0 i1 → ...
- * so viewers watch left/right in tandem before advancing to the next round.
+ * The underlying bracket stays at fit-view. When a match is focused, it dims
+ * and an overlay pops the two competitors side-by-side over the center. On
+ * "reveal", the winner turns green (loser is struck-through) inside the overlay.
  */
 function buildPresentSteps(data: ReturnType<typeof buildBracket>): string[] {
   const steps: string[] = ["pool", "seat"];
@@ -36,16 +34,6 @@ function buildPresentSteps(data: ReturnType<typeof buildBracket>): string[] {
   return steps;
 }
 
-function offsetInside(el: HTMLElement, root: HTMLElement) {
-  let x = 0, y = 0;
-  let cur: HTMLElement | null = el;
-  while (cur && cur !== root && root.contains(cur)) {
-    x += cur.offsetLeft;
-    y += cur.offsetTop;
-    cur = cur.offsetParent as HTMLElement | null;
-  }
-  return { x, y, w: el.offsetWidth, h: el.offsetHeight };
-}
 
 export function BracketPresentation({
   project, recording = false,
@@ -104,7 +92,8 @@ export function BracketPresentation({
     return "";
   })();
 
-  // Camera transform: zoom-fit by default, zoom to focused match when focusKey is set.
+  // Camera: always fit-to-view. The focused match is shown as an overlay on top,
+  // so we never zoom into (and distort) the underlying bracket.
   const wrapperRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
   const [transform, setTransform] = useState("translate(0px, 0px) scale(1)");
@@ -119,26 +108,6 @@ export function BracketPresentation({
       const boardW = board.scrollWidth;
       const boardH = board.scrollHeight;
       if (!wrapW || !wrapH || !boardW || !boardH) return;
-
-      if (focusKey) {
-        const el = board.querySelector<HTMLElement>(`[data-match-key="${CSS.escape(focusKey)}"]`);
-        if (el) {
-          const pos = offsetInside(el, board);
-          // Fit the focused (already-expanded) match to ~72% of the viewport.
-          const fitScale = Math.min(
-            (wrapW * 0.72) / pos.w,
-            (wrapH * 0.78) / pos.h,
-          );
-          const scale = Math.max(0.9, Math.min(fitScale, 1.6));
-          const cx = pos.x + pos.w / 2;
-          const cy = pos.y + pos.h / 2;
-          const tx = wrapW / 2 - cx * scale;
-          const ty = wrapH / 2 - cy * scale;
-          setTransform(`translate(${tx}px, ${ty}px) scale(${scale})`);
-          return;
-        }
-      }
-      // Fit-to-view for pool/seat/CHAMPION (or if focus target not yet mounted).
       const fit = Math.min(wrapW / boardW, wrapH / boardH, 1);
       const tx = (wrapW - boardW * fit) / 2;
       const ty = (wrapH - boardH * fit) / 2;
@@ -150,10 +119,27 @@ export function BracketPresentation({
     if (boardRef.current) ro.observe(boardRef.current);
     window.addEventListener("resize", recalc);
     return () => { ro.disconnect(); window.removeEventListener("resize", recalc); };
-  }, [focusKey, effectiveWinners, currentStep]);
+  }, [effectiveWinners, currentStep]);
 
   // Reset when project changes.
   useEffect(() => { setIdx(0); }, [project.id]);
+
+  // Resolve the focused match's participants for the overlay.
+  const focusedMatch = useMemo(() => {
+    if (!focusKey) return null;
+    const all = [...fullData.L.rounds.flat(), ...fullData.R.rounds.flat(), fullData.finalMatch];
+    return all.find((m) => m.key === focusKey) ?? null;
+  }, [focusKey, fullData]);
+
+  const focusWinnerId = focusKey ? effectiveWinners[focusKey] ?? null : null;
+  const showOverlay = !!focusedMatch && !!focusedMatch.a && !!focusedMatch.b;
+
+  function stateFor(nodeId: string | undefined | null): "idle" | "current" | "winner" | "loser" {
+    if (!nodeId) return "idle";
+    if (focusWinnerId && nodeId === focusWinnerId) return "winner";
+    if (focusWinnerId && nodeId !== focusWinnerId) return "loser";
+    return "current";
+  }
 
   return (
     <PresentationShell
@@ -173,13 +159,15 @@ export function BracketPresentation({
             <div className="text-[11px] uppercase tracking-widest text-white/50">{stepLabel}</div>
           </div>
           <div ref={wrapperRef} className="flex-1 min-h-0 relative overflow-hidden">
+            {/* Bracket (dimmed while a match is in focus) */}
             <div
               ref={boardRef}
-              className="absolute top-0 left-0 origin-top-left"
+              className="absolute top-0 left-0 origin-top-left transition-opacity duration-500"
               style={{
                 transform,
-                transition: "transform 900ms cubic-bezier(0.22, 1, 0.36, 1)",
+                transition: "transform 700ms cubic-bezier(0.22, 1, 0.36, 1), opacity 400ms ease",
                 width: "max-content",
+                opacity: showOverlay ? 0.28 : 1,
               }}
             >
               <BracketBoard
@@ -189,6 +177,30 @@ export function BracketPresentation({
                 mode="present"
               />
             </div>
+
+            {/* Focused match overlay: two large cards side-by-side */}
+            <AnimatePresence>
+              {showOverlay && focusedMatch?.a && focusedMatch?.b && (
+                <motion.div
+                  key={focusKey}
+                  initial={{ opacity: 0, scale: 0.94 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                >
+                  <div className="flex items-stretch gap-6 max-w-[80%]">
+                    <div className="w-[280px]">
+                      <CompetitorCard node={focusedMatch.a} state={stateFor(focusedMatch.a.id)} expanded />
+                    </div>
+                    <div className="self-center text-2xl font-bold uppercase tracking-widest text-amber-300/90">vs</div>
+                    <div className="w-[280px]">
+                      <CompetitorCard node={focusedMatch.b} state={stateFor(focusedMatch.b.id)} expanded />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       )}
