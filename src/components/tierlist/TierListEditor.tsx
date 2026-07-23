@@ -121,12 +121,15 @@ export function TierListEditor({ project }: { project: Project }) {
       if (n.parentId && m.has(n.parentId)) m.get(n.parentId)!.push(n);
       else pool.push(n);
     }
-    // Sort each bucket by call order
+    // Pool → call order. Tiers → manual placement order (falls back to call order).
     const byOrder = (a: MindNode, b: MindNode) => (a.order ?? 0) - (b.order ?? 0);
-    for (const arr of m.values()) arr.sort(byOrder);
+    const byPlacement = (a: MindNode, b: MindNode) =>
+      (a.placementOrder ?? a.order ?? 0) - (b.placementOrder ?? b.order ?? 0);
+    for (const arr of m.values()) arr.sort(byPlacement);
     pool.sort(byOrder);
     return { itemsByTier: m, poolItems: pool };
   }, [allItems, tiers]);
+
 
   const [titleDraft, setTitleDraft] = useState(project.title);
   const [recordOpen, setRecordOpen] = useState(false);
