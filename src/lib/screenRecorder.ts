@@ -21,6 +21,8 @@ interface ActiveRecording {
   audioCtx: AudioContext | null;
   audioAnalyser: AnalyserNode | null;
   hasMic: boolean;
+  hasNarration: boolean;
+  narrationEl: HTMLAudioElement | null;
   cropApplied: boolean;
   mimeType: string;
   startedAt: number;
@@ -71,6 +73,14 @@ export function getRecordingHasMic(): boolean {
   return !!active?.hasMic;
 }
 
+export function getRecordingHasNarration(): boolean {
+  return !!active?.hasNarration;
+}
+
+export function getRecordingNarrationEl(): HTMLAudioElement | null {
+  return active?.narrationEl ?? null;
+}
+
 
 function pickMimeType(): string {
   // H.264 primeiro: no Chrome/Edge desktop o encoder é acelerado por hardware
@@ -100,6 +110,12 @@ export interface StartOptions {
   /** If true, sets up the pipeline but doesn't start the MediaRecorder yet.
    * Caller must invoke `beginArmedRecording()` to actually start capture. */
   armed?: boolean;
+  /**
+   * Optional pre-recorded narration. When provided, the microphone is NOT
+   * captured — the narration becomes the audio track of the recording.
+   * The caller keeps ownership of the element and controls play/pause.
+   */
+  narrationEl?: HTMLAudioElement;
 }
 
 /**
