@@ -230,6 +230,46 @@ export function BracketPresentation({
     return "current";
   }
 
+  if (manualMode) {
+    return (
+      <PresentationShell
+        project={project}
+        recording={recording}
+        navLabel="Manual"
+        onNext={() => {}}
+        onPrev={() => {}}
+        canNext={false}
+        canPrev={false}
+        frameBg="bg-neutral-950"
+      >
+        {({ size }) => (
+          <div className="absolute inset-0 flex flex-col p-5 text-white">
+            <AvatarLayer project={project} frameSize={size} />
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-xl font-bold opacity-90">{project.title}</div>
+              <div className="text-[11px] uppercase tracking-widest text-white/50">
+                Modo manual — clique no vencedor de cada confronto
+              </div>
+            </div>
+            <div className="flex-1 min-h-0">
+              <PanZoom className="size-full rounded-md bg-gradient-to-br from-neutral-950 via-slate-900 to-neutral-950" initialScale={0.85}>
+                <div className="p-6" style={{ width: "max-content" }}>
+                  <BracketBoard
+                    competitors={competitors}
+                    winners={winners}
+                    currentStep={null}
+                    mode="edit"
+                    onPickWinner={pickWinnerLive}
+                  />
+                </div>
+              </PanZoom>
+            </div>
+          </div>
+        )}
+      </PresentationShell>
+    );
+  }
+
   return (
     <PresentationShell
       project={project}
@@ -241,6 +281,7 @@ export function BracketPresentation({
       canPrev={idx > 0}
       frameBg="bg-background"
     >
+
       {({ size }) => (
         <div className="absolute inset-0 flex flex-col p-5">
           <AvatarLayer project={project} frameSize={size} />
