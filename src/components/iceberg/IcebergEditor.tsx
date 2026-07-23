@@ -180,15 +180,36 @@ export function IcebergEditor({ project }: { project: Project }) {
     } as Partial<MindNode>);
   }
 
+  function stripNumberPrefix(t: string) {
+    return (t || "").replace(/^\s*\d+\.\s*/, "").trim();
+  }
+  function renumberLevel(levelId: string) {
+    const items = (itemsByLevel.get(levelId) ?? []);
+    items.forEach((it, idx) => {
+      const base = stripNumberPrefix(it.text) || "Item";
+      const next = `${idx + 1}. ${base}`;
+      if (next !== it.text) updateNode(project.id, it.id, { text: next });
+    });
+  }
+
   function addItem(levelId: string) {
     const id = addNode(project.id, { parentId: levelId });
     if (!id) return;
+    const currentCount = (itemsByLevel.get(levelId) ?? []).length;
     updateNode(project.id, id, {
-      text: "Novo item",
+      text: `${currentCount + 1}. Item`,
       role: "item",
       width: 240,
     } as Partial<MindNode>);
     setExpandedId(id);
+    setTimeout(() => renumberLevel(levelId), 0);
+  }
+
+  function handleDeleteItem(item: MindNode) {
+    const levelId = item.parentId;
+    deleteNode(project.id, item.id);
+    setExpandedId(null);
+    if (levelId) setTimeout(() => renumberLevel(levelId), 0);
   }
 
   function handlePresent() {
@@ -305,10 +326,7 @@ export function IcebergEditor({ project }: { project: Project }) {
           node={expanded}
           projectId={project.id}
           onClose={() => setExpandedId(null)}
-          onDelete={() => {
-            deleteNode(project.id, expanded.id);
-            setExpandedId(null);
-          }}
+          onDelete={() => handleDeleteItem(expanded)}
         />
       )}
 

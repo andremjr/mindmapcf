@@ -16,6 +16,7 @@ import {
 } from "@/lib/screenRecorder";
 import { loadRecordFormat, defaultRecordFormat, type RecordFormat } from "@/lib/recordFormats";
 import { RecorderHUD } from "@/components/mindmap/RecorderHUD";
+import { resolveEmbed } from "@/lib/embedUrl";
 
 function fmtDur(ms: number) {
   const s = Math.floor(ms / 1000);
@@ -384,24 +385,36 @@ export function IcebergPresentation({
 
 function ItemCard({ node, onClose }: { node: MindNode; onClose: () => void }) {
   const url = useResolvedImage(node);
+  const isVideo = node.imageRef?.kind === "video";
+  const embed = node.url ? resolveEmbed(node.url) : null;
   return (
     <div className="absolute inset-0 z-20 grid place-items-center p-6 pointer-events-none">
-      <div className="pointer-events-auto max-w-2xl w-full rounded-xl border border-white/25 bg-black/85 backdrop-blur-md shadow-2xl overflow-hidden animate-scale-in">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
-          <div className="text-lg font-semibold">{node.text || "Item"}</div>
-          <button onClick={onClose} className="size-8 grid place-items-center rounded-full hover:bg-white/10">
+      <div className="pointer-events-auto max-w-3xl w-auto max-h-[85%] rounded-xl border border-white/25 bg-black/85 backdrop-blur-md shadow-2xl overflow-hidden animate-scale-in flex flex-col">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 shrink-0">
+          <div className="text-lg font-semibold truncate">{node.text || "Item"}</div>
+          <button onClick={onClose} className="size-8 grid place-items-center rounded-full hover:bg-white/10 shrink-0">
             <X className="size-4" />
           </button>
         </div>
-        {url && (
-          <div className="bg-black">
-            <img src={url} alt="" className="w-full max-h-[280px] object-contain" />
+        {url && !isVideo && (
+          <div className="bg-black flex items-center justify-center overflow-hidden">
+            <img src={url} alt="" className="block max-w-full max-h-[60vh] w-auto h-auto object-contain" />
+          </div>
+        )}
+        {url && isVideo && (
+          <div className="bg-black flex items-center justify-center">
+            <video src={url} controls autoPlay className="block max-w-full max-h-[60vh] w-auto h-auto" />
+          </div>
+        )}
+        {!url && embed && (
+          <div className="bg-black w-[720px] max-w-full aspect-video">
+            <iframe src={embed.embedUrl} className="w-full h-full" allow="autoplay; encrypted-media; picture-in-picture" allowFullScreen />
           </div>
         )}
         {node.body && (
-          <div className="p-4 text-sm leading-relaxed whitespace-pre-wrap text-white/90">{node.body}</div>
+          <div className="p-4 text-sm leading-relaxed whitespace-pre-wrap text-white/90 overflow-auto">{node.body}</div>
         )}
-        {!node.body && !url && (
+        {!node.body && !url && !embed && (
           <div className="p-6 text-sm text-white/60 italic">Sem conteúdo. Edite o item para adicionar texto ou imagem.</div>
         )}
       </div>
