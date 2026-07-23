@@ -554,7 +554,12 @@ export function Presentation({
             })}
           </MindMapCanvas>
 
-          <AvatarLayer project={project} frameSize={size} />
+          {/* z-50 keeps the avatar visible on top of the link iframe (z-40). */}
+          <div className="absolute inset-0 z-50 pointer-events-none">
+            <div className="absolute inset-0 [&>*]:pointer-events-auto">
+              <AvatarLayer project={project} frameSize={size} />
+            </div>
+          </div>
 
           {countdown !== null && (
             <div className="absolute inset-0 grid place-items-center pointer-events-none z-30">
