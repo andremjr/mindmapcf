@@ -214,10 +214,11 @@ export function MindMapEditor({ project }: { project: Project }) {
         });
         return;
       }
-      if (!panRef.current) return;
-      const dx = (e.clientX - panRef.current.sx) / viewport.zoom;
-      const dy = (e.clientY - panRef.current.sy) / viewport.zoom;
-      setViewport((v) => ({ ...v, x: panRef.current!.vx - dx, y: panRef.current!.vy - dy }));
+      const pan = panRef.current;
+      if (!pan) return;
+      const dx = (e.clientX - pan.sx) / viewport.zoom;
+      const dy = (e.clientY - pan.sy) / viewport.zoom;
+      setViewport((v) => ({ ...v, x: pan.vx - dx, y: pan.vy - dy }));
     }
     function finish() {
       if (marqueeRef.current) {
