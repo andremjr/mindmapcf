@@ -73,7 +73,7 @@ export function BracketEditor({ project }: { project: Project }) {
     const id = addNode(project.id, { parentId: root.id });
     if (!id) return;
     updateNode(project.id, id, {
-      text: ref.name.replace(/\.[^.]+$/, "").slice(0, 30),
+      text: `Competidor ${competitors.length + 1}`,
       role: "item",
       order: competitors.length,
       imageRef: ref,
