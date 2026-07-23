@@ -218,37 +218,30 @@ export function RankingPresentation({
   const N = callOrder.length;
 
   /* -----------------------------------------------------------
-     Step machine. Each item consumes 3 slots:
-        step = 3k + 1  → highlight item k (nothing else changes)
-        step = 3k + 2  → item k placed into ranking + spotlight opens
-        step = 3k + 3  → spotlight closes (nothing else changes)
-     step = 0 → nothing highlighted, empty ranking.
-     Total steps = 3N. Going past just no-ops.
+     Step machine — 2 slots per item:
+        step = 0           → nothing highlighted, empty ranking
+        step = 2k + 1      → highlight item k in the pool (speaker talks)
+        step = 2k + 2      → item k placed into ranking + spotlight opens
+     Pressing next from a "placed+spotlight" step closes the spotlight AND
+     highlights the next item in the same keypress.
   ----------------------------------------------------------- */
   const [step, setStep] = useState(0);
   useEffect(() => { setStep(0); }, [project.id]);
 
-  const maxStep = N * 3;
+  const maxStep = N * 2;
   const goNext = () => setStep((s) => Math.min(s + 1, maxStep));
   const goPrev = () => setStep((s) => Math.max(s - 1, 0));
 
-  // Derive current UI state from step.
-  const placedCount = Math.floor((step + 1) / 3); // items already placed into ranking
+  const placedCount = Math.floor(step / 2);
   const highlightIndex = (() => {
-    if (step === 0) return -1;
-    const mod = ((step - 1) % 3);
-    const k = Math.floor((step - 1) / 3);
-    if (k >= N) return -1;
-    return mod < 2 ? k : -1;
+    if (step === 0 || step % 2 === 0) return -1;
+    const k = (step - 1) / 2;
+    return k < N ? k : -1;
   })();
-  // Spotlight only during phase 2 (mod === 1), but delayed so the list-reorder
-  // animation plays first for the viewer.
   const spotlightBaseIndex = (() => {
-    if (step === 0) return -1;
-    const mod = ((step - 1) % 3);
-    const k = Math.floor((step - 1) / 3);
-    if (k >= N) return -1;
-    return mod === 1 ? k : -1;
+    if (step === 0 || step % 2 !== 0) return -1;
+    const k = step / 2 - 1;
+    return k < N ? k : -1;
   })();
   const SPOTLIGHT_DELAY_MS = 1400;
   const [spotlightIndex, setSpotlightIndex] = useState(-1);
@@ -266,6 +259,9 @@ export function RankingPresentation({
     () => new Set(callOrder.slice(0, placedCount).map((n) => n.id)),
     [callOrder, placedCount],
   );
+  // Ranking list shows ONLY revealed items, sorted by final rank. Positions
+  // are sequential (1..revealed.length) so we never spoil the final rank —
+  // as more items reveal, positions shift.
   const revealed = useMemo(
     () => callOrder
       .filter((n) => placedIds.has(n.id))
