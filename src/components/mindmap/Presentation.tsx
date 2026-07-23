@@ -357,14 +357,50 @@ export function Presentation({
   // When presenting WITHOUT internal recording, capture the mic (analyser
   // only — never routed to speakers or saved) so the sonic-avatar bars still
   // react to the presenter's voice while OBS (or similar) records outside.
+  // If a narration is attached, we skip the mic (the narration itself will
+  // drive the sonic-avatar via getMicAnalyser fallback? — no: we let the
+  // narration play locally and skip the mic capture to avoid double audio).
   useEffect(() => {
     if (recording) return;
+    if (project.narrationRef) return; // narration overrides mic capture
     if (!project.sonicAvatar?.enabled) return;
     startMicAnalyser();
     return () => {
       stopMicAnalyser();
     };
-  }, [recording, project.sonicAvatar?.enabled]);
+  }, [recording, project.sonicAvatar?.enabled, project.narrationRef?.id]);
+
+  // Local narration playback for plain Apresentar mode (no internal recording).
+  // In recording mode the audio element is created upstream (in MindMapEditor)
+  // and wired into the recorder's audio graph — do NOT create a second one here.
+  const localNarrationRef = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    if (recording) return;
+    const ref = project.narrationRef;
+    if (!ref) return;
+    let cancelled = false;
+    let url: string | null = null;
+    let audio: HTMLAudioElement | null = null;
+    resolveImage(ref).then((u) => {
+      if (cancelled || !u) return;
+      url = u;
+      audio = new Audio(u);
+      audio.preload = "auto";
+      localNarrationRef.current = audio;
+      audio.play().catch((e) => console.warn("[presentation] narration autoplay blocked", e));
+    });
+    return () => {
+      cancelled = true;
+      if (audio) {
+        try { audio.pause(); } catch { /* ignore */ }
+      }
+      localNarrationRef.current = null;
+      if (url) {
+        // resolveImage caches URLs — do not revoke here, other consumers may hold it.
+      }
+    };
+  }, [recording, project.narrationRef?.id]);
+
 
 
   useEffect(() => {
