@@ -1,103 +1,71 @@
-# Templates de Canvas: Tier List + Iceberg
+# Chaveamento estilo Copa do Mundo
 
-Adicionar dois novos formatos ao lado do mapa mental, ambos **exclusivos Pro**, reaproveitando o mesmo grafo de nós (posição, mídia, texto, cor) que já sincroniza com Supabase, grava vídeo, toca narração e renderiza Sonic Avatar.
+Refatoração do formato Chaveamento em três frentes: layout bracket duplo, editor de vencedores por confronto e apresentação animada com avanço rodada a rodada.
 
-## Modelo de dados (sem migração)
+## 1. Layout de dois lados (bracket estilo Copa do Mundo)
 
-O campo `data` da tabela `mindmaps` já é `jsonb` livre. Adicionamos duas chaves:
-
-- `data.template`: `"mindmap" | "tierlist" | "iceberg"` (default `"mindmap"`)
-- `data.templateConfig`: objeto específico por template (tiers, níveis, cores)
-
-Nenhuma migração de schema. Projetos antigos abrem como `mindmap` normalmente.
-
-## Estrutura semântica dos nós
-
-Cada template usa um "papel" (`role`) opcional no nó, além dos campos atuais:
+Substituir o layout atual (todas as rodadas em colunas da esquerda para a direita) por bracket duplo simétrico:
 
 ```text
-Tier List
-├─ raiz (role: "board")
-├─ tier S (role: "tier", tierColor, ordem)
-│   ├─ item (role: "item", texto/imagem)
-│   └─ item
-├─ tier A ...
-
-Iceberg
-├─ raiz (role: "iceberg")
-├─ nível 1 (role: "level", depth: 0, cor)
-│   └─ item (role: "item", card expandido)
-├─ nível 2 (role: "level", depth: 1)
-└─ ...
+Esq R1   Esq R2   Esq SF     FINAL     Dir SF   Dir R2   Dir R1
+[A vs B] ─┐                                              ┌─ [G vs H]
+          ├─ [W]─┐                              ┌─[W] ─┤
+[C vs D] ─┘      ├─ [SF-E]─┐        ┌─[SF-D]─┤       [E vs F]
+[...]            │         [CHAMPION]         │       [...]
 ```
 
-Isso mantém compatibilidade total com o motor atual — o layout automático e o inspector apenas checam `role` para renderizar de forma diferente.
+- Competidores dividem-se ao meio: primeiros N/2 vão para o lado esquerdo, restantes para o direito (mesmo seeding atual, apenas separado).
+- Colunas da esquerda avançam da esquerda para o centro; colunas da direita avançam da direita para o centro; troféu/campeão no meio.
+- Mantém suporte a BYE quando o número de competidores não é potência de 2.
 
-## Seletor de template
+## 2. Editor: definir vencedores previamente
 
-Novo botão no header do editor: **"Formato"** com três opções (Mapa mental / Tier List / Iceberg).
+No `BracketEditor`, adicionar uma seção "Definir vencedores" abaixo da lista de competidores:
 
-- Só aparece quando o projeto está **vazio ou recém-criado** (evita destruir grafos existentes).
-- Ao trocar, o app popula um **template inicial** (raiz + estrutura mínima) e trava o `role` da raiz.
-- Free vê os formatos mas com selo "Pro" e CTA para upgrade — mesmo padrão do Sonic Avatar.
+- Renderiza o mesmo bracket duplo em modo leitura.
+- Em cada confronto ativo (com ambos slots preenchidos), o usuário clica em um dos dois cards para marcá-lo como vencedor. O vencedor sobe para o próximo confronto e o botão do próximo confronto fica clicável.
+- Mudar um vencedor em rodada anterior invalida (limpa) os vencedores das rodadas seguintes que dependiam dele.
+- Botão "Resetar vencedores" continua no header.
+- O resultado é persistido em `root.body` como JSON `{ "r{round}i{idx}": nodeId }` (formato atual mantido).
 
-## Tier List
+## 3. Apresentação animada
 
-**Editor:**
-- Renderizador dedicado `TierListCanvas.tsx` (linhas horizontais fixas em vez do layout radial).
-- Cada tier: label editável inline + color picker (paleta 10 cores já existente) + botão "adicionar tier" no fim.
-- Itens: card compacto (nome opcional + imagem/emoji), arrastar entre tiers ou reordenar dentro do tier.
-- Atalhos: `Enter` novo item no tier atual, `Tab` novo tier, `Del` remove.
-- Padrão inicial: S / A / B / C / D com cores tier-list clássicas.
+Sequência de navegação com setas (funciona igual em Apresentar e Gravar):
 
-**Apresentação/gravação:**
-- Câmera passeia tier por tier (topo → base) com o motor de câmera atual.
-- Setinha `→` avança para o próximo tier; segundo `→` entra em modo item-por-item se o tier tiver itens marcados como destaque.
-- Sonic Avatar e narração funcionam sem mudança.
+1. **Passo 0**: todos os competidores em fila embaixo da tela (grade horizontal, ordem = seeding).
+2. **Passo 1**: competidores voam para seus slots iniciais dos dois lados (rodada 1 vazia com nomes).
+3. **Passo 2..N**: cada seta revela o próximo confronto na ordem: R1 esq #1, R1 dir #1, R1 esq #2, R1 dir #2, ..., SF esq, SF dir, Final. Cada revelação:
+   - Destaca o confronto atual (glow âmbar).
+   - Após uma pausa curta, o vencedor pré-definido no editor "vence": card do perdedor esmaece, card do vencedor pulsa em verde e sobe animando para o slot da próxima rodada.
+4. **Passo final**: card do campeão amplia no centro com brilho dourado.
 
-## Iceberg
+Se um confronto não tem vencedor definido no editor, ele é pulado (sem animação de vitória) e o slot da próxima rodada fica marcado como "?".
 
-**Editor:**
-- Renderizador `IcebergCanvas.tsx`: fundo dividido em faixas (céu → superfície → águas rasas → profundo → abissal), 3 ou 4 níveis configuráveis.
-- Cada nível: label + cor de faixa (gradiente).
-- Itens: círculos/cards pequenos posicionados livremente dentro da faixa do nível.
-- Ao **clicar num item** no editor: abre um **modal de card expandido** para preencher título, texto longo, imagem, vídeo, link — reaproveita os componentes do inspector atual.
-- Padrão inicial: 4 níveis com nomes editáveis ("Conhecido", "Menos conhecido", "Obscuro", "Proibido").
+Animações via `framer-motion` (já instalado) com `layoutId` para transições suaves entre a fila inicial, os slots de rodada e o troféu.
 
-**Apresentação/gravação:**
-- Câmera começa no topo do iceberg, desce nível por nível (`→` avança).
-- Ao chegar num nível, `→` percorre itens; ao focar um item, faz **zoom cinematográfico** no card expandido (mesma animação que já usamos para nós grandes) e mostra o conteúdo em tela cheia — sem modal.
-- `←` volta um passo (item → nível → cima).
+## Detalhes técnicos
 
-## Gating Pro
+### Estrutura de dados
+- `MindNode` do root do bracket continua guardando o mapa de vencedores em `body` (JSON).
+- Chaves de match reformuladas para incluir lado: `L-r{round}i{idx}` e `R-r{round}i{idx}` para os dois brackets; `FINAL` para o confronto central.
 
-- Bloqueio no seletor de template: usuários Free só criam `mindmap`. Ao clicar em Tier List/Iceberg abre modal de upgrade (o já existente).
-- Enforcement no servidor: reforçamos a trigger `enforce_mindmap_freemium_limits` para rejeitar `data.template` diferente de `"mindmap"` quando o usuário não é Pro. Isso impede bypass via API.
+### Ordem de navegação
+- Array plano `navSteps` construído em `useMemo`:
+  ```
+  ['pool', 'seat',
+   'L-r0i0', 'R-r0i0', 'L-r0i1', 'R-r0i1', ...,
+   'L-r1i0', 'R-r1i0', ...,
+   'FINAL', 'CHAMPION']
+  ```
+- Cada step avança 1 na navegação. Confrontos com BYE são pulados automaticamente.
 
-## Reaproveitamento (sem retrabalho)
+### Componentes tocados
+- `src/components/bracket/BracketPresentation.tsx`: reescrita para bracket duplo + engine de steps + animações framer-motion.
+- `src/components/bracket/BracketEditor.tsx`: adicionar painel "Bracket" abaixo dos competidores reutilizando um novo componente compartilhado `BracketBoard.tsx` com prop `mode: "edit" | "present"`.
+- Novo: `src/components/bracket/BracketBoard.tsx` — renderização do bracket duplo (usado por editor e apresentação), recebendo `winners`, `revealedMatches`, `currentMatchKey`, `onPickWinner?`.
+- Nenhuma migração de banco necessária; o schema JSON no `body` do root permanece compatível (chaves antigas serão ignoradas ao migrar; usuário clica Resetar se preferir recomeçar).
 
-Continuam funcionando sem mudança:
-- Sync Supabase (`mindmapSync.ts`)
-- Gravação de tela (`screenRecorder.ts`) e regra 40% de vídeo
-- Narração pré-gravada + Sonic Avatar
-- Import/export JSON (adiciona `template` e `templateConfig` no payload)
-- Temas claro/escuro
-- Pastas em `projects.index.tsx`
-- Miniatura do projeto (usa primeira imagem do primeiro item do grafo)
-
-## Escopo desta entrega
-
-1. Campo `template` + `templateConfig` no store + tipos TS
-2. Seletor de formato no editor (com gate Pro)
-3. `TierListCanvas.tsx` + drag entre tiers + apresentação por tier
-4. `IcebergCanvas.tsx` + modal de card + zoom cinematográfico no item
-5. Trigger Supabase reforçada para bloquear templates Pro no Free
-6. Import/export atualizado
-
-## Fora de escopo (pode virar próximo passo)
-
-- Mais templates (fluxograma, timeline, matriz 2×2)
-- Templates prontos com conteúdo de exemplo por tema
-- Botão "converter mindmap existente em tier list"
-
-Posso implementar tudo isso na sequência?
+## Fora do escopo
+- Não estamos mudando outros formatos.
+- Sem placar/pontuação; só quem vence.
+- Sem repescagem / chave da perdedores.
