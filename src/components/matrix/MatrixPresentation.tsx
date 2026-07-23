@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { MindNode, Project } from "@/lib/types";
 import { resolveImage } from "@/lib/imageStorage";
 import { PresentationShell } from "@/components/shared/PresentationShell";
+import { AvatarLayer } from "@/components/shared/AvatarLayer";
 import { parseAxis, RingLegend, type AxisConfig, type ChartType } from "./MatrixEditor";
 
 
