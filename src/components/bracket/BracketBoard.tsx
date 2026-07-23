@@ -249,8 +249,8 @@ function RoundColumn({
 }) {
   const r = parseInt(round[0]?.key.match(/r(\d+)/)?.[1] ?? "0", 10);
   const spacing = 8 * Math.pow(2, r);
-  return (
-    <div className="flex flex-col gap-2 min-w-[180px] shrink-0" style={{ paddingTop: spacing, paddingBottom: spacing }}>
+    <div className="flex flex-col gap-2 w-[140px] sm:w-[170px] shrink-0" style={{ paddingTop: spacing, paddingBottom: spacing }}>
+
       <div className="text-[10px] uppercase tracking-widest text-white/40 text-center">{label}</div>
       <div className="flex-1 flex flex-col justify-around gap-2">
         {round.map((m, i) => {
