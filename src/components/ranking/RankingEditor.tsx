@@ -428,7 +428,7 @@ function CallCard({
           ? "border-primary ring-2 ring-primary/40"
           : placed
             ? "border-emerald-500/70 hover:border-emerald-500"
-            : "border-rose-400/70 hover:border-rose-500 dark:border-rose-500/60",
+            : "border-border/60 hover:border-border",
         dragging ? "opacity-30" : "",
         placed ? "opacity-70" : "",
         isDropTarget ? "ring-2 ring-primary/50" : "",
