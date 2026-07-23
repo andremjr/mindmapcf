@@ -211,8 +211,13 @@ export function RankingEditor({ project }: { project: Project }) {
     return { dupes, missing };
   }, [items]);
 
-  /* --- both columns use the same single-column stacked layout --- */
-  const stackClass = "flex-1 min-h-0 p-2 flex flex-col gap-2 overflow-y-auto";
+  /* --- auto-fit grid: no scroll, everything fits in the frame --- */
+  const callGrid = useAutoGrid(N || 1);
+  const rankGrid = useAutoGrid(N || 1);
+  const gridStyle = (g: { cols: number; rows: number }) => ({
+    gridTemplateColumns: `repeat(${g.cols}, minmax(0, 1fr))`,
+    gridTemplateRows: `repeat(${g.rows}, minmax(0, 1fr))`,
+  });
 
   return (
     <div className="h-screen bg-background text-foreground flex flex-col overflow-hidden">
@@ -283,7 +288,7 @@ export function RankingEditor({ project }: { project: Project }) {
                 </div>
               </button>
             ) : (
-              <div className={stackClass}>
+              <div ref={callGrid.ref} className="flex-1 min-h-0 p-2 grid gap-2" style={gridStyle(callGrid)}>
                 {items.map((it, i) => {
                   const placed = typeof it.rank === "number";
                   return (
@@ -321,7 +326,7 @@ export function RankingEditor({ project }: { project: Project }) {
                 As posições aparecem quando você adicionar itens.
               </div>
             ) : (
-              <div className={stackClass}>
+              <div ref={rankGrid.ref} className="flex-1 min-h-0 p-2 grid gap-2" style={gridStyle(rankGrid)}>
                 {Array.from({ length: N }, (_, i) => i + 1).map((rank) => {
                   const it = byRank.get(rank);
                   return (
