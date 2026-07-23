@@ -305,8 +305,8 @@ function ProjectsDashboard() {
                 )}
               </>
             )}
-            <span className="text-xs text-muted-foreground hidden sm:inline">
-              {session.user.email}
+            <span className="text-xs text-muted-foreground hidden sm:inline max-w-[180px] truncate" title="Edite seu nome em Minha conta">
+              {(session.user.user_metadata as { display_name?: string } | null)?.display_name?.trim() || session.user.email}
             </span>
             <Button
               variant="ghost"
