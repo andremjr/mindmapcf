@@ -24,13 +24,12 @@ export function IcebergBackgroundRealista({ levels }: { levels: number }) {
         @keyframes rl-mist { 0%,100% { opacity: 0.12; } 50% { opacity: 0.22; } }
       `}</style>
 
-      {/* Deep ocean vertical gradient — surface haze fading into abyss */}
+      {/* Deep ocean vertical gradient — bright blue surface fading into abyss */}
       <div
         className="absolute inset-0"
         style={{
           background:
-            "linear-gradient(180deg, #dbe6ee 0%, #6f8aa1 8%, #2f4b66 22%, #12253a 45%, #060d18 75%, #01030a 100%)",
-          opacity: 0.55,
+            "linear-gradient(180deg, #7fb5d9 0%, #4a86ad 10%, #1f4e75 25%, #0b2947 48%, #04101f 78%, #01030a 100%)",
         }}
       />
       {/* Volumetric shafts of light near the surface */}
@@ -39,22 +38,27 @@ export function IcebergBackgroundRealista({ levels }: { levels: number }) {
         style={{
           height: `${(1 / N) * 100}%`,
           background:
-            "radial-gradient(ellipse at 30% 0%, rgba(255,255,255,0.20), transparent 55%), radial-gradient(ellipse at 70% 0%, rgba(255,255,255,0.14), transparent 60%)",
+            "radial-gradient(ellipse at 30% 0%, rgba(255,255,255,0.28), transparent 55%), radial-gradient(ellipse at 70% 0%, rgba(255,255,255,0.18), transparent 60%)",
           animation: "rl-mist 8s ease-in-out infinite",
         }}
       />
 
-      {/* Iceberg silhouette — jagged, cracked, cinematic */}
+      {/* Iceberg silhouette — single traditional peak, cinematic */}
       <svg
         className="absolute inset-0 w-full h-full"
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
       >
         <defs>
-          <linearGradient id="rl-ice" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#f3f8fb" stopOpacity="0.92" />
-            <stop offset="20%" stopColor="#c7d6e2" stopOpacity="0.7" />
-            <stop offset="55%" stopColor="#4d6a85" stopOpacity="0.42" />
+          <linearGradient id="rl-ice-top" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+            <stop offset="60%" stopColor="#f4fbff" stopOpacity="0.98" />
+            <stop offset="100%" stopColor="#d5e6f2" stopOpacity="0.95" />
+          </linearGradient>
+          <linearGradient id="rl-ice-body" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#cfe2ee" stopOpacity="0.75" />
+            <stop offset="35%" stopColor="#7ea3bd" stopOpacity="0.55" />
+            <stop offset="70%" stopColor="#2f4e6c" stopOpacity="0.4" />
             <stop offset="100%" stopColor="#050a14" stopOpacity="0.35" />
           </linearGradient>
           <linearGradient id="rl-ice-shadow" x1="0" y1="0" x2="1" y2="0">
@@ -67,21 +71,27 @@ export function IcebergBackgroundRealista({ levels }: { levels: number }) {
           </linearGradient>
         </defs>
 
-        {/* Above-water crown — irregular jagged peaks */}
+        {/* Above-water crown — ONE main pointed peak with subtle shoulders */}
         <polygon
-          points="34,3 40,1 45,6 51,2 57,7 63,3 70,9 74,14 68,17 82,19 18,19 26,15 30,10"
-          fill="url(#rl-ice)"
-          opacity="0.85"
+          points="50,2 58,10 64,15 72,19 28,19 36,15 42,10"
+          fill="url(#rl-ice-top)"
+          opacity="0.98"
+        />
+        {/* Soft snow shading on the right face of the peak */}
+        <polygon
+          points="50,2 58,10 64,15 72,19 55,19"
+          fill="#b7cfe0"
+          opacity="0.35"
         />
         {/* Underwater body — massive, cavernous, uneven */}
         <polygon
-          points="18,19 82,19 92,28 96,42 94,55 88,68 80,80 68,92 54,98 40,96 24,88 10,72 4,55 6,38 12,26"
-          fill="url(#rl-ice)"
-          opacity="0.55"
+          points="28,19 72,19 88,28 95,42 93,55 87,68 79,80 66,92 52,98 38,96 22,88 9,72 4,55 7,38 14,26"
+          fill="url(#rl-ice-body)"
+          opacity="0.7"
         />
         {/* Right-side shadow to add depth */}
         <polygon
-          points="60,19 82,19 92,28 96,42 94,55 88,68 80,80 68,92 60,94"
+          points="55,19 72,19 88,28 95,42 93,55 87,68 79,80 66,92 58,94"
           fill="url(#rl-ice-shadow)"
           opacity="0.55"
         />
@@ -104,6 +114,7 @@ export function IcebergBackgroundRealista({ levels }: { levels: number }) {
           <circle cx="80" cy="71" r="0.3" />
         </g>
       </svg>
+
 
       {/* Creatures per level. Depth ratio decides the species and tint.
           Level 0 is the tip above the waterline — no marine life there. */}
