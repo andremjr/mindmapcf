@@ -256,8 +256,35 @@ export function TierListPresentation({
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [idx, currentTierId, manualMode]);
 
-  const next = () => { if (!manualMode && countdown === null) setIdx((i) => Math.min(preplacedQueue.length, i + 1)); };
-  const prev = () => { if (!manualMode && countdown === null) setIdx((i) => Math.max(0, i - 1)); };
+  /** Auto-mode spotlight: item shown enlarged before flying to its tier. */
+  const [autoSpotlightId, setAutoSpotlightId] = useState<string | null>(null);
+  const autoTimers = useRef<number[]>([]);
+  const autoBusy = useRef(false);
+  useEffect(() => () => { autoTimers.current.forEach((t) => window.clearTimeout(t)); }, []);
+
+  const next = () => {
+    if (manualMode || countdown !== null) return;
+    if (autoBusy.current) return;
+    setIdx((i) => {
+      if (i >= preplacedQueue.length) return i;
+      const nextItem = preplacedQueue[i];
+      autoBusy.current = true;
+      setAutoSpotlightId(nextItem.id);
+      // Hold the spotlight, then collapse and let LayoutGroup fly the card into its tier.
+      autoTimers.current.push(window.setTimeout(() => {
+        setAutoSpotlightId(null);
+        autoTimers.current.push(window.setTimeout(() => {
+          setIdx((cur) => Math.min(preplacedQueue.length, cur + 1));
+          autoBusy.current = false;
+        }, 220));
+      }, 1400));
+      return i; // increment happens after spotlight closes
+    });
+  };
+  const prev = () => {
+    if (manualMode || countdown !== null || autoBusy.current) return;
+    setIdx((i) => Math.max(0, i - 1));
+  };
 
   /* ============ DRAG (manual mode) ============ */
   const [dragId, setDragId] = useState<string | null>(null);
