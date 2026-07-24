@@ -18,6 +18,7 @@ import { launchRecording } from "@/lib/launchRecording";
 import type { RecordFormat } from "@/lib/recordFormats";
 import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
 import { visualInsertIndexVertical } from "@/components/shared/DropIndicator";
+import { NarrationDock } from "@/components/shared/NarrationDock";
 
 /* ---------- image resolution ---------- */
 function useResolvedImage(node: MindNode | undefined) {
