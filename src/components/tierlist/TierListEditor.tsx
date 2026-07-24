@@ -15,6 +15,13 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
 import { DropIndicator, visualInsertIndex } from "@/components/shared/DropIndicator";
 import { NarrationDock } from "@/components/shared/NarrationDock";
+import {
+  ASPECT_OPTIONS,
+  aspectDims,
+  parseTierListConfig,
+  serializeTierListConfig,
+  type ItemAspect,
+} from "@/lib/tierlistConfig";
 
 const TIER_COLORS = [
   "rgb(255, 127, 127)", "rgb(255, 191, 127)", "rgb(255, 223, 127)",
