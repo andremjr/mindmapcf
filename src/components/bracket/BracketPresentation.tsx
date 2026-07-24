@@ -383,7 +383,7 @@ export function BracketPresentation({
                         }
                         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
                       >
-                        <CompetitorCard node={focusedMatch.b} state={stateFor(focusedMatch.b.id)} expanded />
+                        <CompetitorCard node={focusedMatch.b} state={stateFor(focusedMatch.b.id)} expanded aspect={itemAspect} accentColor={accentColor} />
                       </motion.div>
                     </div>
                   </div>
