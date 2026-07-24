@@ -333,6 +333,35 @@ export function MatrixEditor({ project }: { project: Project }) {
             })}
           </div>
 
+          {/* Visual controls: image aspect + accent color used across chart+presentation */}
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border/60 bg-card/40 px-3 py-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Proporção</span>
+              {ASPECT_OPTIONS.map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => setAxis({ itemAspect: opt.id })}
+                  className={`text-xs px-2 py-1 rounded-md border transition ${
+                    axis.itemAspect === opt.id
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background hover:bg-muted border-border/60"
+                  }`}
+                  title={opt.hint}
+                >{opt.label}</button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Cor de acento</span>
+              <input
+                type="color"
+                value={axis.accentColor}
+                onChange={(e) => setAxis({ accentColor: e.target.value })}
+                className="size-8 rounded border border-border/60 bg-transparent cursor-pointer"
+                aria-label="Cor de acento do gráfico"
+              />
+            </div>
+          </div>
+
           {/* Axis config */}
           {chart === "quadrants" && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
