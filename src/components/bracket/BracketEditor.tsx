@@ -20,7 +20,7 @@ import type { RecordFormat } from "@/lib/recordFormats";
 import { BracketBoard, clearDownstreamWinners, type WinnersMap } from "./BracketBoard";
 import { PanZoom } from "@/components/ui/PanZoom";
 import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
-import { parseBracketConfig, serializeBracketConfig } from "@/lib/bracketConfig";
+import { parseBracketConfig, serializeBracketConfig, seatCompetitors, drawSeedOrder } from "@/lib/bracketConfig";
 import { ASPECT_OPTIONS, aspectDims, type ItemAspect } from "@/lib/tierlistConfig";
 
 
