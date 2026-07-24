@@ -58,6 +58,9 @@ export function BracketPresentation({
   );
   const cfg = useMemo(() => parseBracketConfig(root?.body), [root?.body]);
   const winners: WinnersMap = cfg.winners;
+  const itemAspect = cfg.itemAspect;
+  const accentColor = cfg.accentColor;
+
 
   /** Manual mode locked at mount: no winners pre-picked → author decides live. */
   const manualMode = useState<boolean>(() => {
