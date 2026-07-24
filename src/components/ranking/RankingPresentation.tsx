@@ -344,13 +344,20 @@ export function RankingPresentation({
   function assignRankLive(itemId: string, targetRank: number) {
     const item = callOrder.find((n) => n.id === itemId);
     if (!item) return;
-    const prev = item.rank;
-    if (prev === targetRank) return;
-    const occupant = callOrder.find((n) => n.rank === targetRank && n.id !== itemId);
-    updateNode(project.id, itemId, { rank: targetRank } as Partial<MindNode>);
-    if (occupant) {
-      updateNode(project.id, occupant.id, { rank: prev } as Partial<MindNode>);
-    }
+    const ordered = callOrder
+      .filter((n) => typeof n.rank === "number")
+      .sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0));
+    const currentIndex = ordered.findIndex((n) => n.id === itemId);
+    if (currentIndex !== -1) ordered.splice(currentIndex, 1);
+    let insertAt = Math.max(0, Math.min(targetRank - 1, ordered.length));
+    if (currentIndex !== -1 && currentIndex < targetRank - 1) insertAt -= 1;
+    ordered.splice(insertAt, 0, item);
+    ordered.forEach((n, index) => {
+      const nextRank = index + 1;
+      if ((n.rank ?? -1) !== nextRank) {
+        updateNode(project.id, n.id, { rank: nextRank } as Partial<MindNode>);
+      }
+    });
   }
 
   return (
