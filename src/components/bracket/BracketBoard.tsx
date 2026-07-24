@@ -390,6 +390,8 @@ export function BracketBoard({
   currentStep,
   mode,
   onPickWinner,
+  aspect = "square",
+  accentColor = DEFAULT_ACCENT_COLOR,
 }: {
   competitors: MindNode[];
   winners: WinnersMap;
@@ -397,6 +399,8 @@ export function BracketBoard({
   currentStep: string | null;
   mode: "edit" | "present";
   onPickWinner?: (matchKey: string, id: string) => void;
+  aspect?: ItemAspect;
+  accentColor?: string;
 }) {
   const data = useMemo(() => buildBracket(competitors, winners), [competitors, winners]);
   const steps = useMemo(() => buildBracketSteps(data), [data]);
@@ -445,12 +449,14 @@ export function BracketBoard({
               side="L"
               onPickWinner={onPickWinner}
               label={r === data.L.rounds.length - 1 ? "Semifinal" : `Rodada ${r + 1}`}
+              aspect={aspect}
+              accentColor={accentColor}
             />
           ))}
 
           {/* Center: FINAL + Champion */}
           <div className="flex flex-col items-center justify-center gap-4 w-[180px] sm:w-[220px] shrink-0 py-6">
-            <div className="text-[10px] uppercase tracking-widest text-amber-300/80">Final</div>
+            <div className="text-[10px] uppercase tracking-widest" style={{ color: `${accentColor}cc` }}>Final</div>
             <div className="w-full">
 
               <MatchBox
@@ -460,6 +466,8 @@ export function BracketBoard({
                 isRevealed={finalRevealed}
                 onPickWinner={onPickWinner}
                 side="F"
+                aspect={aspect}
+                accentColor={accentColor}
               />
             </div>
             <div className="min-h-[110px] w-full grid place-items-center">
@@ -471,12 +479,17 @@ export function BracketBoard({
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
                     transition={{ type: "spring", stiffness: 180, damping: 18 }}
-                    className="rounded-xl p-3 bg-gradient-to-br from-amber-400/30 to-amber-600/20 border border-amber-300/60 shadow-[0_0_60px_rgba(252,211,77,0.55)] w-full"
+                    className="rounded-xl p-3 w-full"
+                    style={{
+                      background: `linear-gradient(to bottom right, ${accentColor}4d, ${accentColor}26)`,
+                      border: `1px solid ${accentColor}99`,
+                      boxShadow: `0 0 60px ${accentColor}8c`,
+                    }}
                   >
-                    <div className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-amber-200 mb-1 justify-center">
+                    <div className="flex items-center gap-1 text-[10px] uppercase tracking-widest mb-1 justify-center" style={{ color: accentColor }}>
                       <Trophy className="size-3" /> Campeão
                     </div>
-                    <CompetitorCard node={data.champion} state="winner" />
+                    <CompetitorCard node={data.champion} state="winner" aspect={aspect} accentColor={accentColor} />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -497,10 +510,13 @@ export function BracketBoard({
                 side="R"
                 onPickWinner={onPickWinner}
                 label={r === data.R.rounds.length - 1 ? "Semifinal" : `Rodada ${r + 1}`}
+                aspect={aspect}
+                accentColor={accentColor}
               />
             );
           })}
         </div>
+
 
         {/* Pool row (visible only on 'pool' step in present mode) */}
         <AnimatePresence>
