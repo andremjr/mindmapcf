@@ -23,6 +23,7 @@ interface Actions {
   replaceProjectNodes: (projectId: string, nodes: MindNode[], title?: string) => void;
   deleteProject: (id: string) => void;
   renameProject: (id: string, title: string) => void;
+  setIcebergAtmosphere: (id: string, atmosphere: "ludico" | "realista") => void;
   moveProjectToFolder: (projectId: string, folderId: string | null) => void;
 
   // Folders
