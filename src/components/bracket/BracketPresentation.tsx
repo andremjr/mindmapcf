@@ -411,3 +411,184 @@ export function BracketPresentation({
     </PresentationShell>
   );
 }
+
+
+/**
+ * Manual-mode stage. If the bracket hasn't been drawn yet, shows a big
+ * "Sortear chaveamento" call-to-action with a rapid shuffle animation that
+ * cycles through random seedings for ~1.6s before locking the result in and
+ * revealing the bracket board (where the author picks winners live).
+ */
+function ManualBracketStage({
+  project,
+  recording,
+  rawCompetitors,
+  seatedCompetitors,
+  cfg,
+  winners,
+  itemAspect,
+  accentColor,
+  hasDraw,
+  onPickWinner,
+  onCommitSeedOrder,
+}: {
+  project: Project;
+  recording: boolean;
+  rawCompetitors: MindNode[];
+  seatedCompetitors: MindNode[];
+  cfg: ReturnType<typeof parseBracketConfig>;
+  winners: WinnersMap;
+  itemAspect: ReturnType<typeof parseBracketConfig>["itemAspect"];
+  accentColor: string;
+  hasDraw: boolean;
+  onPickWinner: (matchKey: string, id: string) => void;
+  onCommitSeedOrder: (seedOrder: string[]) => void;
+}) {
+  const [drawing, setDrawing] = useState(false);
+  // Ephemeral shuffle preview shown during the animation — never persisted.
+  const [previewOrder, setPreviewOrder] = useState<string[] | null>(null);
+  const showBoard = hasDraw && !drawing;
+
+  function startDraw() {
+    if (drawing || rawCompetitors.length < 2) return;
+    setDrawing(true);
+    const start = performance.now();
+    const DURATION = 1600;
+    let raf = 0;
+    const tick = () => {
+      const t = performance.now() - start;
+      if (t >= DURATION) {
+        const finalOrder = drawSeedOrder(rawCompetitors);
+        setPreviewOrder(finalOrder);
+        onCommitSeedOrder(finalOrder);
+        // Small pause on the final seeding before revealing the bracket.
+        window.setTimeout(() => {
+          setDrawing(false);
+          setPreviewOrder(null);
+        }, 650);
+        return;
+      }
+      setPreviewOrder(drawSeedOrder(rawCompetitors));
+      raf = window.setTimeout(tick, 80) as unknown as number;
+    };
+    tick();
+    return () => window.clearTimeout(raf);
+  }
+
+  const previewCompetitors = useMemo(() => {
+    if (!previewOrder) return rawCompetitors;
+    const byId = new Map(rawCompetitors.map((c) => [c.id, c] as const));
+    return previewOrder.map((id) => byId.get(id)).filter((x): x is MindNode => !!x);
+  }, [previewOrder, rawCompetitors]);
+
+  return (
+    <PresentationShell
+      project={project}
+      recording={recording}
+      navLabel={showBoard ? "Manual" : "Sorteio"}
+      onNext={() => {}}
+      onPrev={() => {}}
+      canNext={false}
+      canPrev={false}
+      frameBg="bg-neutral-950"
+    >
+      {({ size }) => (
+        <div className="absolute inset-0 flex flex-col p-5 text-white">
+          <AvatarLayer project={project} frameSize={size} />
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-xl font-bold opacity-90">{project.title}</div>
+            <div className="text-[11px] uppercase tracking-widest text-white/50">
+              {showBoard
+                ? "Modo manual — clique no vencedor de cada confronto"
+                : drawing
+                  ? "Sorteando confrontos…"
+                  : "Sorteio inicial dos confrontos"}
+            </div>
+          </div>
+
+          <div className="flex-1 min-h-0 relative">
+            {!showBoard && !drawing && (
+              <div className="absolute inset-0 grid place-items-center">
+                <div className="flex flex-col items-center gap-6 text-center max-w-xl px-6">
+                  <div
+                    className="grid place-items-center size-24 rounded-full border"
+                    style={{ borderColor: `${accentColor}80`, boxShadow: `0 0 40px ${accentColor}55` }}
+                  >
+                    <Shuffle className="size-10" style={{ color: accentColor }} />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="text-2xl font-bold">Sortear chaveamento</div>
+                    <div className="text-sm text-white/60">
+                      {rawCompetitors.length} competidores serão distribuídos aleatoriamente pelos confrontos iniciais.
+                    </div>
+                  </div>
+                  <Button
+                    size="lg"
+                    onClick={startDraw}
+                    className="gap-2"
+                    style={{ background: accentColor, color: "#0a0a0a" }}
+                  >
+                    <Shuffle className="size-4" /> Sortear agora
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {drawing && (
+              <div className="absolute inset-0 grid place-items-center">
+                <div className="flex flex-col items-center gap-6">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }}
+                    className="grid place-items-center size-24 rounded-full border"
+                    style={{ borderColor: `${accentColor}aa`, boxShadow: `0 0 60px ${accentColor}88` }}
+                  >
+                    <Shuffle className="size-10" style={{ color: accentColor }} />
+                  </motion.div>
+                  <div className="text-sm uppercase tracking-[0.35em]" style={{ color: `${accentColor}e0` }}>
+                    Sorteando…
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center gap-2 max-w-3xl">
+                    <AnimatePresence mode="popLayout">
+                      {previewCompetitors.slice(0, 16).map((c, i) => (
+                        <motion.div
+                          key={`${c.id}-${i}-${previewOrder?.join("") ?? ""}`}
+                          initial={{ opacity: 0, y: -6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 6 }}
+                          transition={{ duration: 0.15 }}
+                          className="px-3 py-1.5 rounded-md text-xs font-medium border bg-white/5"
+                          style={{ borderColor: `${accentColor}55` }}
+                        >
+                          <span className="opacity-50 mr-1 tabular-nums">#{i + 1}</span>
+                          {c.text || "—"}
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {showBoard && (
+              <PanZoom className="size-full rounded-md bg-gradient-to-br from-neutral-950 via-slate-900 to-neutral-950" initialScale={0.85}>
+                <div className="p-6" style={{ width: "max-content" }}>
+                  <BracketBoard
+                    competitors={seatedCompetitors}
+                    winners={winners}
+                    currentStep={null}
+                    mode="edit"
+                    onPickWinner={onPickWinner}
+                    aspect={itemAspect}
+                    accentColor={accentColor}
+                  />
+                </div>
+              </PanZoom>
+            )}
+          </div>
+        </div>
+      )}
+    </PresentationShell>
+  );
+}
+
