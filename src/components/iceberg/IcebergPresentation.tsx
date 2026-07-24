@@ -328,9 +328,9 @@ export function IcebergPresentation({
             const N = Math.max(1, levels.length);
             const levelH = size.h;
             const totalH = levelH * N;
-            const scale = phase === "overview" ? 1 / N : 1;
-            const tY = phase === "overview" ? 0 : -levelIndex * levelH;
-            const tX = phase === "overview" ? (size.w * (1 - 1 / N)) / 2 : 0;
+            const scale = effectivePhase === "overview" ? 1 / N : 1;
+            const tY = effectivePhase === "overview" ? 0 : -levelIndex * levelH;
+            const tX = effectivePhase === "overview" ? (size.w * (1 - 1 / N)) / 2 : 0;
             return (
               <div ref={scrollRef} className="absolute inset-0 overflow-hidden">
                 <div
