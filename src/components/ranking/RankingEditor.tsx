@@ -458,6 +458,7 @@ export function RankingEditor({ project }: { project: Project }) {
                       node={it}
                       callIdx={i}
                       placed={placed}
+                      aspect={itemAspect}
                       selected={selectedId === it.id}
                       dragging={drag?.id === it.id}
                       isDropTarget={!!drag && drag.from === "call" && drag.id !== it.id}
@@ -486,7 +487,7 @@ export function RankingEditor({ project }: { project: Project }) {
           <section className="flex flex-col rounded-xl border border-border/60 bg-card/40 overflow-hidden">
             <header className="px-3 py-2 border-b border-border/60 shrink-0">
               <div className="text-sm font-semibold">Ranking final</div>
-              <div className="text-[11px] text-muted-foreground">Arraste um item aqui</div>
+              <div className="text-[11px] text-muted-foreground">Arraste um item aqui — solte entre linhas para inserir no meio</div>
             </header>
 
             {N === 0 ? (
@@ -494,7 +495,39 @@ export function RankingEditor({ project }: { project: Project }) {
                 As posições aparecem quando você adicionar itens.
               </div>
             ) : (
-              <div ref={rankRows.ref} className="flex-1 min-h-0 p-2 grid gap-2" style={rowStyle(rankRows)}>
+              <div
+                ref={rankRows.ref}
+                className="flex-1 min-h-0 p-2 grid gap-2 relative"
+                style={rowStyle(rankRows)}
+                onDragOver={(e) => {
+                  if (!drag) return;
+                  e.preventDefault();
+                  const container = e.currentTarget as HTMLElement;
+                  const idx = visualInsertIndexVertical(container, e.clientY);
+                  const cards = Array.from(container.querySelectorAll<HTMLElement>("[data-item-id]"));
+                  const containerRect = container.getBoundingClientRect();
+                  let y = 4;
+                  if (idx === 0 && cards[0]) {
+                    y = cards[0].getBoundingClientRect().top - containerRect.top - 2;
+                  } else if (cards[idx - 1]) {
+                    const r = cards[idx - 1].getBoundingClientRect();
+                    y = r.bottom - containerRect.top + 1;
+                  } else if (cards.length) {
+                    const r = cards[cards.length - 1].getBoundingClientRect();
+                    y = r.bottom - containerRect.top + 1;
+                  }
+                  if (rankHover?.idx !== idx) setRankHover({ idx, y });
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setRankHover(null);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (drag && rankHover) insertRank(drag.id, rankHover.idx);
+                  setDrag(null);
+                  setRankHover(null);
+                }}
+              >
                 {Array.from({ length: N }, (_, i) => i + 1).map((rank) => {
                   const it = byRank.get(rank);
                   return (
@@ -502,23 +535,27 @@ export function RankingEditor({ project }: { project: Project }) {
                       key={rank}
                       rank={rank}
                       node={it}
+                      aspect={itemAspect}
                       selected={!!it && selectedId === it.id}
                       dragging={!!it && drag?.id === it.id}
                       dropActive={drag != null}
                       onClickNode={() => it && setSelectedId(it.id)}
                       onDragStart={() => it && setDrag({ id: it.id, from: "rank" })}
                       onDragEnd={() => setDrag(null)}
-                      onDrop={() => {
-                        if (drag) assignRank(drag.id, rank);
-                        setDrag(null);
-                      }}
                       onClear={() => it && clearRank(it.id)}
                     />
                   );
                 })}
+                {drag && rankHover && (
+                  <div
+                    className="absolute left-2 right-2 h-[3px] rounded-full bg-primary shadow-[0_0_10px_2px_hsl(var(--primary)/0.75)] animate-pulse pointer-events-none z-10"
+                    style={{ top: rankHover.y }}
+                  />
+                )}
               </div>
             )}
           </section>
+
         </div>
       </main>
 
