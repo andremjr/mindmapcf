@@ -139,7 +139,7 @@ function useResolvedImage(node: MindNode | null | undefined) {
 }
 
 export function CompetitorCard({
-  node, state, onClick, small = false, expanded = false,
+  node, state, onClick, small = false, expanded = false, aspect = "square", accentColor = DEFAULT_ACCENT_COLOR,
 }: {
   node: MindNode;
   state: "idle" | "current" | "winner" | "loser";
@@ -147,6 +147,10 @@ export function CompetitorCard({
   small?: boolean;
   /** Big vertical layout used when a match is focused in present mode. */
   expanded?: boolean;
+  /** Image aspect ratio (square / portrait / landscape). */
+  aspect?: ItemAspect;
+  /** Highlight color for the "current" state (from project config). */
+  accentColor?: string;
 }) {
   const url = useResolvedImage(node);
   const accent = node.color;
@@ -154,13 +158,21 @@ export function CompetitorCard({
     state === "winner"
       ? "border-emerald-300 bg-emerald-500/20 shadow-[0_0_18px_rgba(52,211,153,0.4)]"
       : state === "current"
-        ? "border-amber-300 bg-amber-400/10 ring-2 ring-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.45)]"
+        ? "border-transparent bg-white/5 ring-2"
         : state === "loser"
           ? "border-white/10 bg-black/50 opacity-40"
           : "bg-black/60";
   const textCls = state === "loser" ? "line-through text-white/60" : "text-white/95";
+  const currentStyle = state === "current"
+    ? {
+        borderColor: accentColor,
+        boxShadow: `0 0 18px ${accentColor}80, inset 0 0 0 1px ${accentColor}55`,
+        // ring color via CSS var used by Tailwind's ring utility
+        ["--tw-ring-color" as any]: accentColor,
+      } as React.CSSProperties
+    : undefined;
   // For idle state, use the node's own color as border tint; other states keep
-  // their meaningful accent (winner=green, current=amber, loser=grey).
+  // their meaningful accent (winner=green, current=accent, loser=grey).
   const idleBorder = state === "idle"
     ? { borderColor: accent ?? "rgba(255,255,255,0.2)", boxShadow: accent ? `inset 0 0 0 1px ${accent}22` : undefined }
     : undefined;
@@ -168,14 +180,17 @@ export function CompetitorCard({
   if (expanded) {
     const hasImage = !!url;
     const body = (node.body || "").trim();
+    // Aspect ratio for the image area — respects the project setting so
+    // portraits (movie posters) and landscapes (thumbnails) don't get cropped.
+    const ar = aspect === "portrait" ? "3 / 4" : aspect === "landscape" ? "4 / 3" : "1 / 1";
     return (
       <div
         className={`relative w-full rounded-xl overflow-hidden border-2 transition-all duration-500 flex flex-col ${cls}`}
-        style={idleBorder}
+        style={{ ...(idleBorder ?? {}), ...(currentStyle ?? {}) }}
       >
         {hasImage ? (
           <>
-            <div className="w-full aspect-square bg-black/70 grid place-items-center overflow-hidden">
+            <div className="w-full bg-black/70 grid place-items-center overflow-hidden" style={{ aspectRatio: ar }}>
               <img src={url!} alt="" className="size-full object-contain" />
             </div>
             <div className={`px-3 py-2 font-semibold leading-tight line-clamp-3 text-center text-sm ${textCls}`}>
@@ -183,7 +198,7 @@ export function CompetitorCard({
             </div>
           </>
         ) : (
-          <div className="w-full aspect-square flex flex-col items-center justify-center px-4 py-4 gap-2 text-center">
+          <div className="w-full flex flex-col items-center justify-center px-4 py-4 gap-2 text-center" style={{ aspectRatio: ar }}>
             <div className={`font-bold leading-tight ${body ? "text-base line-clamp-3" : "text-xl line-clamp-4"} ${textCls}`}>
               {node.text || "—"}
             </div>
@@ -198,17 +213,24 @@ export function CompetitorCard({
     );
   }
 
+  // Overview card (rows in the bracket columns). Use aspect-aware image box
+  // and `object-contain` so posters/thumbnails aren't cropped into squares.
+  const thumbBase = small ? 32 : 40;
+  const { w: tw, h: th } = aspectDims(thumbBase, aspect);
   return (
     <button
       disabled={!onClick}
       onClick={onClick}
       className={`relative w-full rounded-md overflow-hidden border-2 transition-all text-left ${cls} ${onClick ? "hover:brightness-110 cursor-pointer" : "cursor-default"}`}
-      style={{ minHeight: small ? 42 : 52, ...idleBorder }}
+      style={{ minHeight: small ? 42 : 52, ...(idleBorder ?? {}), ...(currentStyle ?? {}) }}
     >
       <div className="flex items-center gap-2 p-1.5">
         {url ? (
-          <div className={`rounded bg-black/60 overflow-hidden shrink-0 grid place-items-center ${small ? "size-8" : "size-10"}`}>
-            <img src={url} alt="" className="size-full object-cover" />
+          <div
+            className="rounded bg-black/60 overflow-hidden shrink-0 grid place-items-center"
+            style={{ width: tw, height: th }}
+          >
+            <img src={url} alt="" className="size-full object-contain" />
           </div>
         ) : null}
         <div className={`flex-1 font-medium leading-tight line-clamp-2 ${textCls} ${small ? "text-[11px]" : "text-xs"} ${url ? "" : "text-center px-1"}`}>
@@ -218,6 +240,7 @@ export function CompetitorCard({
     </button>
   );
 }
+
 
 function EmptySlot({ label = "?", expanded = false }: { label?: string; expanded?: boolean }) {
   if (expanded) {
