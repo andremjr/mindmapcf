@@ -51,6 +51,7 @@ function TierItem({
   draggable = false,
   onDragStart,
   onDragEnd,
+  onClick,
 }: {
   node: MindNode;
   size?: number;
@@ -59,6 +60,7 @@ function TierItem({
   draggable?: boolean;
   onDragStart?: () => void;
   onDragEnd?: () => void;
+  onClick?: () => void;
 }) {
   const url = useResolvedImage(node);
   const { w, h } = aspectDims(size, aspect);
@@ -70,11 +72,12 @@ function TierItem({
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
+      onClick={onClick}
       className={`relative rounded-md overflow-hidden border ${
         highlighted
           ? "ring-2 ring-white border-white"
           : "border-white/20"
-      } ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      } ${draggable ? "cursor-grab active:cursor-grabbing" : ""} ${onClick ? "cursor-pointer" : ""}`}
       style={{ width: w, height: h, background: node.color ?? "#111", ...ring }}
     >
       {url ? (
