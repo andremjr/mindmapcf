@@ -110,7 +110,7 @@ export interface Project {
   /** Which renderer to use. Missing = "mindmap". */
   template?: ProjectTemplate;
   /** Iceberg-only: visual atmosphere of the background/creatures. */
-  icebergAtmosphere?: "ludico" | "realista";
+  icebergAtmosphere?: "ludico" | "realista" | "ultra";
 }
 
 export interface Folder {

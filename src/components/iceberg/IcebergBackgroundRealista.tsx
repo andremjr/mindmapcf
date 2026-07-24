@@ -105,8 +105,10 @@ export function IcebergBackgroundRealista({ levels }: { levels: number }) {
         </g>
       </svg>
 
-      {/* Creatures per level. Depth ratio decides the species and tint. */}
+      {/* Creatures per level. Depth ratio decides the species and tint.
+          Level 0 is the tip above the waterline — no marine life there. */}
       {Array.from({ length: N }).map((_, levelIdx) => {
+        if (levelIdx === 0) return null;
         const depth = N > 1 ? levelIdx / (N - 1) : 0;
 
         let variant: RealCreatureVariant = "whale";
@@ -216,7 +218,9 @@ function RealCreature({
       }}
     >
       <div style={{ width: size, animation: "rl-bob 4.6s ease-in-out infinite" }}>
-        <div style={{ transform: dir === "l" ? "scaleX(-1)" : undefined, transformOrigin: "center" }}>
+        {/* SVGs are drawn facing LEFT by default; flip when swimming right so
+            the creatures face their travel direction. */}
+        <div style={{ transform: dir === "r" ? "scaleX(-1)" : undefined, transformOrigin: "center" }}>
           {variant === "whale" && (
             <svg viewBox="0 0 200 80" width={size} height={size * 0.4} fill={tint}>
               {/* Blue-whale silhouette */}
