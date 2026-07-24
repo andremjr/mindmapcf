@@ -336,9 +336,15 @@ export function IcebergPresentation({
             const N = Math.max(1, levels.length);
             const levelH = size.h;
             const totalH = levelH * N;
-            const scale = effectivePhase === "overview" ? 1 / N : 1;
-            const tY = effectivePhase === "overview" ? 0 : -levelIndex * levelH;
-            const tX = effectivePhase === "overview" ? (size.w * (1 - 1 / N)) / 2 : 0;
+            // On level 0 (the tip) show a bit more of the waterline base so
+            // the shot doesn't feel like a floating peak — zoom out ~18%.
+            const focusExtra = levelIndex === 0 ? 0.18 : 0;
+            const focusScale = 1 / (1 + focusExtra);
+            const scale = effectivePhase === "overview" ? 1 / N : focusScale;
+            const tY = effectivePhase === "overview" ? 0 : -levelIndex * levelH * focusScale;
+            const tX = effectivePhase === "overview"
+              ? (size.w * (1 - 1 / N)) / 2
+              : (size.w * (1 - focusScale)) / 2;
             return (
               <div ref={scrollRef} className="absolute inset-0 overflow-hidden">
                 <div
@@ -352,6 +358,7 @@ export function IcebergPresentation({
                     willChange: "transform",
                   }}
                 >
+
                   {(() => {
                     const atm = project.icebergAtmosphere ?? "ludico";
                     if (atm === "ultra") return <IcebergBackgroundUltra levels={N} />;
