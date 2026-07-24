@@ -180,11 +180,11 @@ export function IcebergPresentation({
     return m;
   }, [project.nodes, levels]);
 
-  /** Nav order: [level1, item1a, item1b, level2, item2a, ...] */
+  /** Nav order: items only, grouped by level. Camera zoom-to-level happens
+   *  automatically when the level of the current item changes. */
   const nav = useMemo(() => {
-    const arr: Array<{ type: "level" | "item"; levelId: string; itemId?: string }> = [];
+    const arr: Array<{ type: "item"; levelId: string; itemId: string }> = [];
     for (const lvl of levels) {
-      arr.push({ type: "level", levelId: lvl.id });
       for (const it of itemsByLevel.get(lvl.id) ?? []) {
         arr.push({ type: "item", levelId: lvl.id, itemId: it.id });
       }
@@ -194,8 +194,11 @@ export function IcebergPresentation({
 
   const [idx, setIdx] = useState(0);
   const [itemOpen, setItemOpen] = useState(false);
+  // Final beat: after the last item closes, one more click shows the whole
+  // iceberg in overview so the video can end on that shot.
+  const [finalOverview, setFinalOverview] = useState(false);
   const current = nav[idx];
-  const activeItem = current?.itemId && itemOpen
+  const activeItem = current?.itemId && itemOpen && !finalOverview
     ? project.nodes.find((n) => n.id === current.itemId) ?? null
     : null;
 
@@ -219,15 +222,25 @@ export function IcebergPresentation({
     prevLevelIdRef.current = current.levelId;
   }, [current?.levelId]);
 
+  const effectivePhase: "focus" | "overview" = finalOverview ? "overview" : phase;
+
   const next = () => {
     if (countdown !== null) return;
+    if (finalOverview) return; // final beat — no further steps
     // Two-click per item: 1st opens the card, 2nd closes it and moves on.
     if (current?.type === "item" && !itemOpen) { setItemOpen(true); return; }
+    // Closing the last item → final overview shot of the entire iceberg.
+    if (idx >= nav.length - 1) {
+      setItemOpen(false);
+      setFinalOverview(true);
+      return;
+    }
     setItemOpen(false);
     setIdx((i) => Math.min(nav.length - 1, i + 1));
   };
   const prev = () => {
     if (countdown !== null) return;
+    if (finalOverview) { setFinalOverview(false); return; }
     if (current?.type === "item" && itemOpen) { setItemOpen(false); return; }
     setItemOpen(false);
     setIdx((i) => Math.max(0, i - 1));
@@ -276,7 +289,7 @@ export function IcebergPresentation({
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nav.length, recording, idx, itemOpen, countdown]);
+  }, [nav.length, recording, idx, itemOpen, countdown, finalOverview]);
 
   const [, setRecTick] = useState(0);
   useEffect(() => {
@@ -315,9 +328,9 @@ export function IcebergPresentation({
             const N = Math.max(1, levels.length);
             const levelH = size.h;
             const totalH = levelH * N;
-            const scale = phase === "overview" ? 1 / N : 1;
-            const tY = phase === "overview" ? 0 : -levelIndex * levelH;
-            const tX = phase === "overview" ? (size.w * (1 - 1 / N)) / 2 : 0;
+            const scale = effectivePhase === "overview" ? 1 / N : 1;
+            const tY = effectivePhase === "overview" ? 0 : -levelIndex * levelH;
+            const tX = effectivePhase === "overview" ? (size.w * (1 - 1 / N)) / 2 : 0;
             return (
               <div ref={scrollRef} className="absolute inset-0 overflow-hidden">
                 <div
@@ -341,7 +354,7 @@ export function IcebergPresentation({
                         key={lvl.id}
                         data-level-id={lvl.id}
                         className={`relative px-10 py-10 flex flex-col gap-6 transition-opacity duration-500 ${
-                          phase === "overview" || isActive ? "opacity-100" : "opacity-40"
+                          effectivePhase === "overview" || isActive ? "opacity-100" : "opacity-40"
                         }`}
                         style={{
                           background: `linear-gradient(180deg, ${grad.from}cc 0%, ${grad.to}cc 100%)`,
@@ -357,26 +370,37 @@ export function IcebergPresentation({
                         </div>
                         <div className="relative z-10 flex-1 w-full">
                           {(() => {
-                            // Constrain items to the iceberg silhouette per level.
-                            // Width peaks near the middle levels (widest belly) and
-                            // narrows at the tip and the deep bottom.
+                            // Iceberg silhouette band for this level (widest belly, narrow tips).
                             const wPct = 46 + 44 * Math.sin(Math.PI * (i + 0.5) / N);
                             const bandLeft = 50 - wPct / 2 + 3;
                             const bandWidth = wPct - 6;
+                            const n = items.length;
+                            if (n === 0) return null;
+                            // Auto-fit tiles per level so they never overflow the band.
+                            // Pick a column count that keeps cells roughly square.
+                            const bandWpx = (bandWidth / 100) * size.w;
+                            const bandHpx = (78 / 100) * levelH;
+                            const aspect = bandWpx / Math.max(1, bandHpx);
+                            const cols = Math.max(1, Math.min(n, Math.round(Math.sqrt(n * aspect))));
+                            const rows = Math.ceil(n / cols);
+                            const slotWpct = bandWidth / cols;
+                            const slotHpct = 78 / rows;
+                            const cellWpx = bandWpx / cols;
+                            const cellHpx = bandHpx / rows;
+                            // Tile fills ~80% of its cell; clamp so extremes stay readable.
+                            const baseTile = Math.max(
+                              32,
+                              Math.min(140, Math.floor(Math.min(cellWpx, cellHpx) * 0.82)),
+                            );
                             return items.map((it, k) => {
-                              const n = items.length;
-                              const cols = Math.min(n, Math.max(1, Math.ceil(Math.sqrt(n * 1.6))));
-                              const rows = Math.ceil(n / cols);
                               const col = k % cols;
                               const row = Math.floor(k / cols);
-                              const slotW = bandWidth / cols;
-                              const slotH = 78 / rows;
-                              const jitterX = (seeded(it.id + "x") - 0.5) * slotW * 0.3;
-                              const jitterY = (seeded(it.id + "y") - 0.5) * slotH * 0.3;
-                              const leftPct = bandLeft + slotW * (col + 0.5) + jitterX;
-                              const topPct = 11 + slotH * (row + 0.5) + jitterY;
+                              const jitterX = (seeded(it.id + "x") - 0.5) * slotWpct * 0.25;
+                              const jitterY = (seeded(it.id + "y") - 0.5) * slotHpct * 0.25;
+                              const leftPct = bandLeft + slotWpct * (col + 0.5) + jitterX;
+                              const topPct = 11 + slotHpct * (row + 0.5) + jitterY;
                               const rotate = (seeded(it.id + "r") - 0.5) * 14;
-                              const tileSize = 96 + Math.round(seeded(it.id + "s") * 22);
+                              const tileSize = baseTile + Math.round((seeded(it.id + "s") - 0.5) * baseTile * 0.14);
                               return (
                                 <ItemTile
                                   key={it.id}
@@ -424,13 +448,13 @@ export function IcebergPresentation({
       </div>
 
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-foreground/10 backdrop-blur border border-border text-foreground px-2 py-2">
-        <button onClick={prev} disabled={idx === 0} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
+        <button onClick={prev} disabled={idx === 0 && !itemOpen && !finalOverview} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
           <ChevronLeft className="size-5" />
         </button>
         <span className="px-3 text-sm font-mono tabular-nums min-w-[70px] text-center">
-          {nav.length > 0 ? `${idx + 1} / ${nav.length}` : "0 / 0"}
+          {finalOverview ? "★" : nav.length > 0 ? `${idx + 1} / ${nav.length}` : "0 / 0"}
         </span>
-        <button onClick={next} disabled={idx >= nav.length - 1} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
+        <button onClick={next} disabled={finalOverview} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
           <ChevronRight className="size-5" />
         </button>
       </div>
