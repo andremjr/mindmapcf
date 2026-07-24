@@ -303,7 +303,7 @@ export function RankingPresentation({
 
   const navLabel = N > 0 ? `${placedCount} / ${N}` : "0 / 0";
 
-  const pool = useAutoGrid(Math.max(1, N), 1);
+  const pool = useAutoGrid(Math.max(1, N), aspectRatioNum);
 
   const rankColRef = useRef<HTMLDivElement>(null);
   const [rankColH, setRankColH] = useState(0);
