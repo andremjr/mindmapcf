@@ -51,7 +51,7 @@ function CompetitorThumb({
   onSelect: () => void;
 }) {
   const url = useResolvedImage(node);
-  const { w, h } = aspectDims(140, aspect);
+  const { w, h } = aspectDims(88, aspect);
   return (
     <button
       type="button"
