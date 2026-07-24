@@ -556,64 +556,10 @@ export function TierListPresentation({
                       </motion.div>
                     </div>
                   ))}
-
-                        {manualMode && dragId && hover?.key === `tier:${tier.id}` && hover.idx === items.length && <DropIndicator />}
-                        {items.length === 0 && !isActive && (
-                          <div className="text-xs opacity-40 italic self-center px-2">
-                            {manualMode ? "solte aqui" : "— vazio —"}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Pool of remaining items */}
-              <div
-                onDragOver={manualMode ? onHoverOver("pool") : allowDrop}
-                onDragLeave={manualMode ? onHoverLeave : undefined}
-                onDrop={onPoolDrop}
-                className="mt-3 rounded-lg border border-border bg-muted/40 px-3 py-2"
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <div className="text-[11px] uppercase tracking-widest opacity-60">
-                    {manualMode ? "Arraste para classificar" : "A classificar"}
-                  </div>
-                  <div className="text-[11px] opacity-60 font-mono tabular-nums">
-                    {remaining.length} restante{remaining.length === 1 ? "" : "s"}
-                  </div>
-                </div>
-                <div className="flex gap-2 items-center overflow-x-auto min-h-[80px]">
-                  {remaining.length === 0 && (
-                    <div className="text-xs opacity-50 italic self-center px-2">
-                      Todos os itens foram classificados.
-                    </div>
-                  )}
-                  {remaining.map((it, i) => (
-                    <div key={it.id} className="contents">
-                      {manualMode && hover?.key === "pool" && hover.idx === i && <DropIndicator />}
-                      <motion.div
-                        data-item-id={it.id}
-                        layoutId={`item-${it.id}`}
-                        transition={{ type: "spring", stiffness: 260, damping: 28 }}
-                      >
-                        <TierItem
-                          node={it}
-                          size={72}
-                          aspect={itemAspect}
-                          highlighted={!manualMode && i === 0}
-                          draggable={manualMode && spotlightId !== it.id}
-                          onClick={manualMode ? () => toggleSpotlight(it.id) : undefined}
-                          onDragStart={() => setDragId(it.id)}
-                          onDragEnd={() => { setDragId(null); setHover(null); }}
-                        />
-                      </motion.div>
-                    </div>
-                  ))}
                   {manualMode && dragId && hover?.key === "pool" && hover.idx === remaining.length && <DropIndicator />}
                 </div>
               </div>
+
             </div>
           </LayoutGroup>
 
