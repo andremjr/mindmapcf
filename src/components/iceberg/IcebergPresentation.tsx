@@ -19,6 +19,7 @@ import { RecorderHUD } from "@/components/mindmap/RecorderHUD";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { resolveEmbed } from "@/lib/embedUrl";
 import { AvatarLayer } from "@/components/shared/AvatarLayer";
+import { IcebergBackgroundRealista } from "./IcebergBackgroundRealista";
 
 function fmtDur(ms: number) {
   const s = Math.floor(ms / 1000);
