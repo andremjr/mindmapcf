@@ -245,9 +245,15 @@ export function TierListPresentation({
   }, [tiers, manualMode, allItems, idx, preplacedQueue]);
 
 
+  /** Auto-mode spotlight: item shown enlarged before flying to its tier. */
+  const [autoSpotlightId, setAutoSpotlightId] = useState<string | null>(null);
+  const autoTimers = useRef<number[]>([]);
+  const autoBusy = useRef(false);
+  useEffect(() => () => { autoTimers.current.forEach((t) => window.clearTimeout(t)); }, []);
+
   const remaining = manualMode
     ? allItems.filter((n) => !n.parentId || !tierIds.has(n.parentId))
-    : preplacedQueue.slice(idx);
+    : preplacedQueue.slice(idx).filter((n) => n.id !== autoSpotlightId);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -256,8 +262,30 @@ export function TierListPresentation({
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [idx, currentTierId, manualMode]);
 
-  const next = () => { if (!manualMode && countdown === null) setIdx((i) => Math.min(preplacedQueue.length, i + 1)); };
-  const prev = () => { if (!manualMode && countdown === null) setIdx((i) => Math.max(0, i - 1)); };
+
+  const next = () => {
+    if (manualMode || countdown !== null) return;
+    if (autoBusy.current) return;
+    setIdx((i) => {
+      if (i >= preplacedQueue.length) return i;
+      const nextItem = preplacedQueue[i];
+      autoBusy.current = true;
+      setAutoSpotlightId(nextItem.id);
+      // Hold the spotlight, then collapse and let LayoutGroup fly the card into its tier.
+      autoTimers.current.push(window.setTimeout(() => {
+        setAutoSpotlightId(null);
+        autoTimers.current.push(window.setTimeout(() => {
+          setIdx((cur) => Math.min(preplacedQueue.length, cur + 1));
+          autoBusy.current = false;
+        }, 220));
+      }, 1400));
+      return i; // increment happens after spotlight closes
+    });
+  };
+  const prev = () => {
+    if (manualMode || countdown !== null || autoBusy.current) return;
+    setIdx((i) => Math.max(0, i - 1));
+  };
 
   /* ============ DRAG (manual mode) ============ */
   const [dragId, setDragId] = useState<string | null>(null);
@@ -266,6 +294,8 @@ export function TierListPresentation({
   const [spotlightId, setSpotlightId] = useState<string | null>(null);
   const spotlightNode = spotlightId ? allItems.find((n) => n.id === spotlightId) ?? null : null;
   const spotlightUrl = useResolvedImage(spotlightNode);
+  const autoSpotlightNode = autoSpotlightId ? allItems.find((n) => n.id === autoSpotlightId) ?? null : null;
+  const autoSpotlightUrl = useResolvedImage(autoSpotlightNode);
   function toggleSpotlight(id: string) {
     setSpotlightId((prev) => (prev === id ? null : id));
   }
@@ -607,7 +637,48 @@ export function TierListPresentation({
               </div>
 
             </div>
+
+            {/* Auto-mode spotlight: item opens, pauses, then flies to its tier
+                via LayoutGroup shared-element transition (layoutId item-<id>). */}
+            <AnimatePresence>
+              {!manualMode && autoSpotlightNode && (
+                <motion.div
+                  key="auto-spotlight-backdrop"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="absolute inset-0 z-40 grid place-items-center bg-black/70 backdrop-blur-sm pointer-events-none"
+                >
+                  <motion.div
+                    layoutId={`item-${autoSpotlightNode.id}`}
+                    transition={{ type: "spring", stiffness: 220, damping: 26 }}
+                    className="relative rounded-2xl overflow-hidden border-2 border-white/40 shadow-2xl"
+                    style={{
+                      ...(() => {
+                        const base = Math.min(size.w, size.h) * 0.6;
+                        const { w, h } = aspectDims(base, itemAspect);
+                        return { width: w, height: h };
+                      })(),
+                      background: autoSpotlightNode.color ?? "#111",
+                    }}
+                  >
+                    {autoSpotlightUrl && (
+                      <img src={autoSpotlightUrl} alt="" className="absolute inset-0 size-full object-cover" />
+                    )}
+                    {autoSpotlightNode.text && (
+                      <div className="absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-6 py-4">
+                        <div className="text-white text-2xl md:text-4xl font-bold break-words">
+                          {autoSpotlightNode.text}
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </LayoutGroup>
+
 
           {/* Spotlight (manual mode): enlarge the tapped item for the camera,
               then tap the backdrop to collapse and drag it into a tier. */}
