@@ -313,7 +313,10 @@ export function BracketPresentation({
                 winners={effectiveWinners}
                 currentStep={resolvedStep}
                 mode="present"
+                aspect={itemAspect}
+                accentColor={accentColor}
               />
+
             </div>
 
             {/* Solid backdrop behind overlay for legibility */}
