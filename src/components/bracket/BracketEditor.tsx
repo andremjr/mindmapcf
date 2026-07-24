@@ -92,6 +92,8 @@ export function BracketEditor({ project }: { project: Project }) {
 
   const [titleDraft, setTitleDraft] = useState(project.title);
   const [recordOpen, setRecordOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = selectedId ? competitors.find((c) => c.id === selectedId) ?? null : null;
 
   const cfg = useMemo(() => parseBracketConfig(root?.body), [root?.body]);
   const winners: WinnersMap = cfg.winners;
