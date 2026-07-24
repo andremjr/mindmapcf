@@ -334,6 +334,49 @@ export function TierListPresentation({
     if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) setHover(null);
   };
 
+  /**
+   * Fit-to-frame sizing. The recording frame must never scroll — items shrink
+   * so all tiers + the pool are always fully visible. Recomputes when the
+   * frame resizes, tiers change, or items wrap to a new row.
+   */
+  const itemBase = useMemo(() => {
+    if (!tiers.length || size.w < 100 || size.h < 100) return 92;
+    const TITLE_H = 60;
+    const POOL_H = 120;
+    const OUTER_PAD = 48; // p-6 top+bottom
+    const availH = Math.max(80, size.h - TITLE_H - POOL_H - OUTER_PAD - (manualMode ? 24 : 0));
+    const LABEL_W = 160;
+    const INNER_PAD = 24;
+    const availW = Math.max(120, size.w - 48 - LABEL_W - INNER_PAD);
+    const GAP = 8;
+    const countsInTiers = tiers.map((t) => placedByTier.get(t.id)?.length ?? 0);
+    const poolCount = remaining.length;
+
+    let base = 100;
+    const min = 28;
+    while (base > min) {
+      const { w: iw, h: ih } = aspectDims(base, itemAspect);
+      const rowH = ih + GAP;
+      const perRow = Math.max(1, Math.floor((availW + GAP) / (iw + GAP)));
+      let totalTiersH = 0;
+      for (const n of countsInTiers) {
+        const rows = Math.max(1, Math.ceil(Math.max(n, 1) / perRow));
+        totalTiersH += Math.max(rowH, rows * rowH) + GAP;
+      }
+      // Pool uses a slightly smaller icon (0.78×) and one wrap row max target.
+      const poolBase = Math.round(base * 0.78);
+      const { w: pw, h: ph } = aspectDims(poolBase, itemAspect);
+      const poolPerRow = Math.max(1, Math.floor((size.w - 48 - 24 + GAP) / (pw + GAP)));
+      const poolRows = Math.max(1, Math.ceil(Math.max(poolCount, 1) / poolPerRow));
+      const poolTotalH = poolRows * (ph + GAP) + 40;
+      if (totalTiersH <= availH && poolTotalH <= POOL_H + 40) break;
+      base -= 4;
+    }
+    return Math.max(min, base);
+  }, [size, tiers, itemAspect, placedByTier, remaining.length, manualMode]);
+  const poolBase = Math.max(24, Math.round(itemBase * 0.78));
+
+
 
   async function stopAndDownload() {
     const narr = getRecordingNarrationEl();
@@ -413,8 +456,8 @@ export function TierListPresentation({
                 </div>
               )}
 
-              {/* Tiers */}
-              <div ref={scrollRef} className="flex-1 overflow-y-auto scroll-smooth space-y-2 pr-1">
+              {/* Tiers — never scroll: items resize to fit the frame */}
+              <div ref={scrollRef} className="flex-1 min-h-0 overflow-hidden space-y-2 pr-1 flex flex-col">
                 {tiers.map((tier) => {
                   const items = placedByTier.get(tier.id) ?? [];
                   const isActive = !manualMode && currentTierId === tier.id;
@@ -425,7 +468,7 @@ export function TierListPresentation({
                       onDragOver={manualMode ? onHoverOver(`tier:${tier.id}`) : allowDrop}
                       onDragLeave={manualMode ? onHoverLeave : undefined}
                       onDrop={onTierDrop(tier.id)}
-                      className={`flex items-stretch rounded-lg overflow-hidden border border-border transition-all duration-300 ${
+                      className={`flex items-stretch rounded-lg overflow-hidden border border-border transition-all duration-300 flex-1 min-h-0 ${
                         manualMode
                           ? (dragId ? "ring-2 ring-primary/40" : "")
                           : (isActive ? "opacity-100 scale-100" : "opacity-45 scale-[0.98]")
@@ -437,7 +480,7 @@ export function TierListPresentation({
                       >
                         {tier.text}
                       </div>
-                      <div className="flex-1 min-h-[112px] bg-muted/30 p-3 flex flex-wrap gap-2 items-start">
+                      <div className="flex-1 min-h-0 min-w-0 bg-muted/30 p-2 flex flex-wrap gap-2 items-start content-start overflow-hidden">
                         {items.map((it, i) => (
                           <div key={it.id} className="contents">
                             {manualMode && hover?.key === `tier:${tier.id}` && hover.idx === i && <DropIndicator />}
@@ -448,6 +491,7 @@ export function TierListPresentation({
                             >
                               <TierItem
                                 node={it}
+                                size={itemBase}
                                 aspect={itemAspect}
                                 highlighted={!manualMode && currentItemId === it.id}
                                 draggable={manualMode && spotlightId !== it.id}
@@ -475,7 +519,7 @@ export function TierListPresentation({
                 onDragOver={manualMode ? onHoverOver("pool") : allowDrop}
                 onDragLeave={manualMode ? onHoverLeave : undefined}
                 onDrop={onPoolDrop}
-                className="mt-3 rounded-lg border border-border bg-muted/40 px-3 py-2"
+                className="mt-3 rounded-lg border border-border bg-muted/40 px-3 py-2 shrink-0"
               >
                 <div className="flex items-center justify-between mb-1">
                   <div className="text-[11px] uppercase tracking-widest opacity-60">
@@ -485,7 +529,7 @@ export function TierListPresentation({
                     {remaining.length} restante{remaining.length === 1 ? "" : "s"}
                   </div>
                 </div>
-                <div className="flex gap-2 items-center overflow-x-auto min-h-[80px]">
+                <div className="flex flex-wrap gap-2 items-center">
                   {remaining.length === 0 && (
                     <div className="text-xs opacity-50 italic self-center px-2">
                       Todos os itens foram classificados.
@@ -501,7 +545,7 @@ export function TierListPresentation({
                       >
                         <TierItem
                           node={it}
-                          size={72}
+                          size={poolBase}
                           aspect={itemAspect}
                           highlighted={!manualMode && i === 0}
                           draggable={manualMode && spotlightId !== it.id}
@@ -515,6 +559,7 @@ export function TierListPresentation({
                   {manualMode && dragId && hover?.key === "pool" && hover.idx === remaining.length && <DropIndicator />}
                 </div>
               </div>
+
             </div>
           </LayoutGroup>
 
