@@ -257,6 +257,15 @@ export function TierListPresentation({
   const [autoPhase, setAutoPhase] = useState<AutoPhase>("idle");
   const [autoSpotlightId, setAutoSpotlightId] = useState<string | null>(null);
 
+  /** FLIP flight: on the third click, the card physically travels from its
+   *  pool slot to its tier slot instead of teleporting. `from` is captured
+   *  synchronously before `idx` increments; `to` is measured after the tier
+   *  re-renders the (hidden) landing card. */
+  type FlyRect = { x: number; y: number; w: number; h: number };
+  const [flying, setFlying] = useState<null | { id: string; from: FlyRect; to?: FlyRect }>(null);
+  const flyingNode = flying ? preplacedQueue.find((n) => n.id === flying.id) ?? null : null;
+  const flyingUrl = useResolvedImage(flyingNode);
+
   const remaining = manualMode
     ? allItems.filter((n) => !n.parentId || !tierIds.has(n.parentId))
     : preplacedQueue.slice(idx).filter((n) => n.id !== autoSpotlightId);
@@ -270,7 +279,7 @@ export function TierListPresentation({
 
 
   const next = () => {
-    if (manualMode || countdown !== null) return;
+    if (manualMode || countdown !== null || flying) return;
     if (autoPhase === "idle") {
       if (idx >= preplacedQueue.length) return;
       setAutoSpotlightId(preplacedQueue[idx].id);
@@ -280,13 +289,26 @@ export function TierListPresentation({
       setAutoSpotlightId(null);
       setAutoPhase("ready-to-place");
     } else {
-      // Fly the card from the pool into its tier via LayoutGroup.
+      // Third click: capture source rect BEFORE the pool item unmounts, then
+      // let idx increment. A layout-effect measures the destination and starts
+      // the overlay flight.
+      const item = preplacedQueue[idx];
+      const frame = frameRef.current;
+      const src = frame?.querySelector<HTMLElement>(`[data-item-id="${item.id}"]`);
+      if (frame && src) {
+        const f = frame.getBoundingClientRect();
+        const s = src.getBoundingClientRect();
+        setFlying({
+          id: item.id,
+          from: { x: s.left - f.left, y: s.top - f.top, w: s.width, h: s.height },
+        });
+      }
       setIdx((cur) => Math.min(preplacedQueue.length, cur + 1));
       setAutoPhase("idle");
     }
   };
   const prev = () => {
-    if (manualMode || countdown !== null) return;
+    if (manualMode || countdown !== null || flying) return;
     if (autoPhase === "ready-to-place") {
       // Re-open the spotlight for the current item.
       if (idx < preplacedQueue.length) setAutoSpotlightId(preplacedQueue[idx].id);
@@ -298,6 +320,25 @@ export function TierListPresentation({
       setIdx((i) => Math.max(0, i - 1));
     }
   };
+
+  // Once the landing card is mounted (idx incremented), measure its rect and
+  // populate `flying.to` so the overlay animation can start.
+  useLayoutEffect(() => {
+    if (!flying || flying.to) return;
+    const frame = frameRef.current;
+    if (!frame) return;
+    const dst = frame.querySelector<HTMLElement>(
+      `[data-placed-id="${flying.id}"]`,
+    );
+    if (!dst) return;
+    const f = frame.getBoundingClientRect();
+    const d = dst.getBoundingClientRect();
+    setFlying((cur) => (cur && !cur.to ? {
+      ...cur,
+      to: { x: d.left - f.left, y: d.top - f.top, w: d.width, h: d.height },
+    } : cur));
+  }, [flying, idx, placedByTier]);
+
 
   /* ============ DRAG (manual mode) ============ */
   const [dragId, setDragId] = useState<string | null>(null);
@@ -492,7 +533,7 @@ export function TierListPresentation({
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preplacedQueue.length, recording, manualMode, autoPhase, autoSpotlightId, idx, countdown]);
+  }, [preplacedQueue.length, recording, manualMode, autoPhase, autoSpotlightId, idx, countdown, flying]);
 
   const [, setRecTick] = useState(0);
   useEffect(() => {
@@ -572,8 +613,10 @@ export function TierListPresentation({
                             {manualMode && hover?.key === `tier:${tier.id}` && hover.idx === i && <DropIndicator />}
                             <motion.div
                               data-item-id={it.id}
+                              data-placed-id={it.id}
                               layoutId={`item-${it.id}`}
                               transition={{ type: "spring", stiffness: 260, damping: 28 }}
+                              style={flying?.id === it.id ? { opacity: 0 } : undefined}
                             >
                               <TierItem
                                 node={it}
@@ -691,6 +734,35 @@ export function TierListPresentation({
             </AnimatePresence>
           </LayoutGroup>
 
+          {/* Auto-mode third click: card physically travels from its pool slot
+              to its tier slot so the viewer sees the placement, not a teleport. */}
+          {flying?.to && flyingNode && (
+            <motion.div
+              key={`flight-${flying.id}`}
+              initial={{ left: flying.from.x, top: flying.from.y, width: flying.from.w, height: flying.from.h }}
+              animate={{ left: flying.to.x, top: flying.to.y, width: flying.to.w, height: flying.to.h }}
+              transition={{ duration: 0.9, ease: [0.22, 0.61, 0.36, 1] }}
+              onAnimationComplete={() => setFlying(null)}
+              className="absolute z-40 pointer-events-none rounded-md overflow-hidden border border-white/25 shadow-2xl"
+              style={{ background: flyingNode.color ?? "#111" }}
+            >
+              {flyingUrl ? (
+                <img src={flyingUrl} alt="" className="absolute inset-0 size-full object-cover" />
+              ) : (
+                <div className="absolute inset-0 grid place-items-center text-[11px] text-center px-1.5 leading-tight text-white/95 break-words whitespace-normal overflow-hidden">
+                  {flyingNode.text || "Item"}
+                </div>
+              )}
+              {flyingUrl && flyingNode.text && (
+                <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] px-1 py-0.5 leading-tight break-words whitespace-normal max-h-[55%] overflow-hidden">
+                  {flyingNode.text}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+
+
 
           {/* Spotlight (manual mode): enlarge the tapped item for the camera,
               then tap the backdrop to collapse and drag it into a tier. */}
@@ -768,13 +840,13 @@ export function TierListPresentation({
 
       {!manualMode && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-foreground/10 backdrop-blur border border-border text-foreground px-2 py-2">
-          <button onClick={prev} disabled={idx === 0 && autoPhase === "idle"} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
+          <button onClick={prev} disabled={(idx === 0 && autoPhase === "idle") || !!flying} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
             <ChevronLeft className="size-5" />
           </button>
           <span className="px-3 text-sm font-mono tabular-nums min-w-[70px] text-center">
             {`${idx} / ${preplacedQueue.length}`}
           </span>
-          <button onClick={next} disabled={idx >= preplacedQueue.length && autoPhase === "idle"} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
+          <button onClick={next} disabled={(idx >= preplacedQueue.length && autoPhase === "idle") || !!flying} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
             <ChevronRight className="size-5" />
           </button>
         </div>
