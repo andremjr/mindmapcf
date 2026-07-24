@@ -52,7 +52,7 @@ export function BracketPresentation({
   project, recording = false,
 }: { project: Project; recording?: boolean }) {
   const root = project.nodes.find((n) => n.role === "bracket" || !n.parentId);
-  const competitors = useMemo(
+  const rawCompetitors = useMemo(
     () => project.nodes
       .filter((n) => n.role === "item" && n.parentId === root?.id)
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
@@ -62,14 +62,19 @@ export function BracketPresentation({
   const winners: WinnersMap = cfg.winners;
   const itemAspect = cfg.itemAspect;
   const accentColor = cfg.accentColor;
+  const competitors = useMemo(
+    () => seatCompetitors(rawCompetitors, cfg.seedOrder),
+    [rawCompetitors, cfg.seedOrder],
+  );
+  const hasDraw = !!cfg.seedOrder && cfg.seedOrder.length > 0;
+  const updateNode = useStore((s) => s.updateNode);
 
 
   /** Manual mode locked at mount: no winners pre-picked → author decides live. */
   const manualMode = useState<boolean>(() => {
-    if (competitors.length < 2) return false;
+    if (rawCompetitors.length < 2) return false;
     return Object.keys(parseBracketConfig(root?.body).winners).length === 0;
   })[0];
-  const updateNode = useStore((s) => s.updateNode);
   function pickWinnerLive(matchKey: string, id: string) {
     if (!root) return;
     const next = clearDownstreamWinners(competitors, { ...winners, [matchKey]: id }, matchKey);
@@ -82,6 +87,7 @@ export function BracketPresentation({
   // Full bracket used purely to enumerate the step order (all winners applied).
   const fullData = useMemo(() => buildBracket(competitors, winners), [competitors, winners]);
   const steps = useMemo(() => buildPresentSteps(fullData), [fullData]);
+
 
 
   const [idx, setIdx] = useState(0);
