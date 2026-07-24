@@ -12,6 +12,7 @@ import {
   CompetitorCard,
   type WinnersMap,
 } from "./BracketBoard";
+import { parseBracketConfig, serializeBracketConfig } from "@/lib/bracketConfig";
 
 
 /**
