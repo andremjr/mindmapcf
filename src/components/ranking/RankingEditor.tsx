@@ -51,6 +51,18 @@ function rankInsertLineY(container: HTMLElement, idx: number): number {
   return 4;
 }
 
+function shouldPreviewRankShift(
+  rank: number,
+  node: MindNode | undefined,
+  drag: DragPayload | null,
+  hover: { idx: number; y: number } | null,
+  total: number,
+): boolean {
+  if (!drag || !hover || hover.idx >= total) return false;
+  if (node?.id === drag.id) return false;
+  return rank - 1 >= hover.idx;
+}
+
 
 /* ---------- image resolution ---------- */
 function useResolvedImage(node: MindNode | undefined) {
@@ -524,6 +536,7 @@ export function RankingEditor({ project }: { project: Project }) {
                       aspect={itemAspect}
                       selected={!!it && selectedId === it.id}
                       dragging={!!it && drag?.id === it.id}
+                      previewShift={shouldPreviewRankShift(rank, it, drag, rankHover, N)}
                       dropActive={drag != null}
                       onClickNode={() => it && setSelectedId(it.id)}
                       onDragStart={() => it && setDrag({ id: it.id, from: "rank" })}
@@ -534,7 +547,7 @@ export function RankingEditor({ project }: { project: Project }) {
                 })}
                 {drag && rankHover && (
                   <div
-                    className="absolute left-2 right-2 h-[3px] rounded-full bg-primary shadow-[0_0_10px_2px_hsl(var(--primary)/0.75)] animate-pulse pointer-events-none z-10"
+                    className="absolute left-2 right-2 h-1 rounded-full bg-primary shadow-[0_0_18px_3px_hsl(var(--primary)/0.75)] animate-pulse pointer-events-none z-20"
                     style={{ top: rankHover.y }}
                   />
                 )}
@@ -665,11 +678,11 @@ function CallCard({
 
 /* ---------- Ranking slot ---------- */
 function RankSlot({
-  rank, node, selected, dragging, dropActive, aspect,
+  rank, node, selected, dragging, previewShift, dropActive, aspect,
   onClickNode, onDragStart, onDragEnd, onClear,
 }: {
   rank: number; node: MindNode | undefined;
-  selected: boolean; dragging: boolean; dropActive: boolean;
+  selected: boolean; dragging: boolean; previewShift: boolean; dropActive: boolean;
   aspect: ItemAspect;
   onClickNode: () => void;
   onDragStart: () => void; onDragEnd: () => void;
@@ -689,13 +702,14 @@ function RankSlot({
       data-rank-slot={rank}
       {...(node ? { "data-item-id": node.id } : {})}
       className={[
-        "relative min-h-0 rounded-lg overflow-hidden flex items-stretch transition",
+        "relative min-h-0 rounded-lg overflow-hidden flex items-stretch transition-[transform,opacity,border-color,background-color] duration-200 ease-out",
         node
           ? "bg-background border-2 border-emerald-500/70"
           : `border-2 border-dashed ${dropActive ? "border-primary bg-primary/10" : "border-border/60 bg-muted/20"}`,
         selected ? "ring-2 ring-primary/50" : "",
         dragging ? "opacity-30" : "",
       ].join(" ")}
+      style={{ transform: previewShift ? "translateY(14px)" : "translateY(0)" }}
     >
       {/* rank medal */}
       <span className={`absolute top-1 left-1 z-10 size-7 rounded-full grid place-items-center text-[12px] font-black tabular-nums shadow-sm ${medal}`}>
