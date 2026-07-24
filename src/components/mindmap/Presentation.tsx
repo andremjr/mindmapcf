@@ -161,16 +161,20 @@ export function Presentation({
     timers.push(
       window.setTimeout(() => {
         setCountdown(null);
-        try {
-          beginArmedRecording();
-          const narr = getRecordingNarrationEl();
-          if (narr) {
-            narr.currentTime = 0;
-            narr.play().catch((e) => console.warn("[presentation] narration play", e));
+        // Wait two animation frames so the "1" is fully unmounted before the
+        // recorder captures its first frame — otherwise the video opens on "1".
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          try {
+            beginArmedRecording();
+            const narr = getRecordingNarrationEl();
+            if (narr) {
+              narr.currentTime = 0;
+              narr.play().catch((e) => console.warn("[presentation] narration play", e));
+            }
+          } catch (e) {
+            console.error("[presentation] begin recording", e);
           }
-        } catch (e) {
-          console.error("[presentation] begin recording", e);
-        }
+        }));
       }, 3000),
     );
     return () => {

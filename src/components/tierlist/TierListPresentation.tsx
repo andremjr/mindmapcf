@@ -166,11 +166,14 @@ export function TierListPresentation({
     timers.push(window.setTimeout(() => setCountdown(1), 2000));
     timers.push(window.setTimeout(() => {
       setCountdown(null);
-      try {
-        beginArmedRecording();
-        const narr = getRecordingNarrationEl();
-        if (narr) { narr.currentTime = 0; narr.play().catch(() => undefined); }
-      } catch (e) { console.error(e); }
+      // Defer 2 rAFs so the "1" frame is unmounted before capture starts.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        try {
+          beginArmedRecording();
+          const narr = getRecordingNarrationEl();
+          if (narr) { narr.currentTime = 0; narr.play().catch(() => undefined); }
+        } catch (e) { console.error(e); }
+      }));
     }, 3000));
     return () => timers.forEach((t) => window.clearTimeout(t));
   }, [recording, cropOk]);
