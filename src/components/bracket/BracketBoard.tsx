@@ -393,6 +393,7 @@ function RoundColumn({
                 isCurrent={isCurrent}
                 isRevealed={revealed}
                 onPickWinner={onPickWinner}
+                onMatchClick={onMatchClick}
                 side={side}
                 aspect={aspect}
                 accentColor={accentColor}
