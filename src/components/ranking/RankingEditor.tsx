@@ -613,16 +613,19 @@ export function RankingEditor({ project }: { project: Project }) {
 
 /* ---------- Call order card ---------- */
 function CallCard({
-  node, callIdx, placed, selected, dragging, isDropTarget,
+  node, callIdx, placed, selected, dragging, isDropTarget, aspect,
   onClick, onDragStart, onDragEnd, onDropOnCard,
 }: {
   node: MindNode; callIdx: number; placed: boolean;
   selected: boolean; dragging: boolean; isDropTarget: boolean;
+  aspect: ItemAspect;
   onClick: () => void;
   onDragStart: () => void; onDragEnd: () => void; onDropOnCard: () => void;
 }) {
+  const ratio = aspectDims(100, aspect);
   return (
     <div
+      data-item-id={node.id}
       draggable
       onDragStart={(e) => { onDragStart(); e.dataTransfer.effectAllowed = "move"; }}
       onDragEnd={onDragEnd}
@@ -653,8 +656,11 @@ function CallCard({
           #{node.rank}
         </span>
       )}
-      {/* thumbnail area */}
-      <div className="relative h-full aspect-square shrink-0 bg-muted grid place-items-center overflow-hidden border-r border-border/50">
+      {/* thumbnail area — width follows chosen aspect (square / vertical / horizontal) */}
+      <div
+        className="relative h-full shrink-0 bg-muted grid place-items-center overflow-hidden border-r border-border/50"
+        style={{ aspectRatio: `${ratio.w} / ${ratio.h}` }}
+      >
         <Thumb node={node} />
         {!node.imageRef && !node.image && (
           <span className="text-[10px] text-muted-foreground uppercase tracking-wider">sem imagem</span>
@@ -669,6 +675,7 @@ function CallCard({
     </div>
   );
 }
+
 
 /* ---------- Ranking slot ---------- */
 function RankSlot({
