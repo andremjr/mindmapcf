@@ -173,6 +173,7 @@ export function TierListPresentation({
   }, [recording, cropOk]);
 
   const board = project.nodes.find((n) => n.role === "board" || !n.parentId);
+  const itemAspect: ItemAspect = useMemo(() => parseTierListConfig(board?.body).itemAspect, [board?.body]);
   const tiers = useMemo(
     () => project.nodes
       .filter((n) => n.role === "tier" && n.parentId === board?.id)
