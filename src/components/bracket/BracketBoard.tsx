@@ -258,13 +258,15 @@ function EmptySlot({ label = "?", expanded = false }: { label?: string; expanded
 }
 
 function MatchBox({
-  match, mode, isCurrent, isRevealed, onPickWinner, side, aspect, accentColor,
+  match, mode, isCurrent, isRevealed, onPickWinner, onMatchClick, side, aspect, accentColor,
 }: {
   match: Match;
   mode: "edit" | "present";
   isCurrent: boolean;
   isRevealed: boolean;   // true when both slots are visible
   onPickWinner?: (matchKey: string, id: string) => void;
+  /** Present-mode manual click: fires when the whole match box is clicked. */
+  onMatchClick?: (matchKey: string) => void;
   side: "L" | "R" | "F";
   aspect: ItemAspect;
   accentColor: string;
@@ -282,6 +284,7 @@ function MatchBox({
     return "idle";
   }
   const canPick = mode === "edit" && match.a && match.b && onPickWinner;
+  const canClickBox = mode === "present" && !!onMatchClick && !!match.a && !!match.b && !match.isBye && !winnerId;
   const currentBoxStyle: React.CSSProperties | undefined = isCurrent
     ? { background: `${accentColor}0f`, boxShadow: `inset 0 0 0 1px ${accentColor}66` }
     : undefined;
@@ -289,7 +292,7 @@ function MatchBox({
   return (
     <div
       data-match-key={match.key}
-      className="rounded-lg p-1.5 space-y-1 transition-all"
+      className="relative rounded-lg p-1.5 space-y-1 transition-all"
       style={currentBoxStyle}
     >
 
@@ -319,6 +322,24 @@ function MatchBox({
         </motion.div>
       ) : (
         <EmptySlot label={match.b ? "?" : match.isBye ? "BYE" : "?"} />
+      )}
+
+      {canClickBox && (
+        <button
+          type="button"
+          aria-label="Abrir confronto"
+          onClick={() => onMatchClick!(match.key)}
+          className="absolute inset-0 rounded-lg cursor-pointer"
+          style={{ background: "transparent", boxShadow: `inset 0 0 0 2px ${accentColor}00`, transition: "box-shadow 200ms ease, background 200ms ease" }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.boxShadow = `inset 0 0 0 2px ${accentColor}cc, 0 0 24px ${accentColor}55`;
+            e.currentTarget.style.background = `${accentColor}14`;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = `inset 0 0 0 2px ${accentColor}00`;
+            e.currentTarget.style.background = "transparent";
+          }}
+        />
       )}
     </div>
   );
