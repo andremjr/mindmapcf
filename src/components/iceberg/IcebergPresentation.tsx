@@ -527,10 +527,10 @@ function IcebergArt({ levels }: { levels: number }) {
             <stop offset="100%" stopColor="#0c1e3a" stopOpacity="0.2" />
           </linearGradient>
         </defs>
-        <polygon points="42,3 58,6 68,12 62,17 74,19 30,19 36,14" fill="url(#ig)" opacity="0.5" />
-        <polygon points="30,19 74,19 88,44 80,72 55,96 24,88 14,60 20,32" fill="url(#ig)" opacity="0.28" />
-        <path d="M40 22 L46 55 L42 90" stroke="#fff" strokeOpacity="0.12" strokeWidth="0.2" fill="none" />
-        <path d="M60 22 L58 50 L64 85" stroke="#fff" strokeOpacity="0.12" strokeWidth="0.2" fill="none" />
+        <polygon points="40,2 60,5 72,12 66,18 82,20 18,20 34,14" fill="url(#ig)" opacity="0.55" />
+        <polygon points="18,20 82,20 96,42 92,72 62,98 12,90 4,60 8,32" fill="url(#ig)" opacity="0.32" />
+        <path d="M38 22 L46 55 L40 92" stroke="#fff" strokeOpacity="0.12" strokeWidth="0.2" fill="none" />
+        <path d="M62 22 L58 50 L66 88" stroke="#fff" strokeOpacity="0.12" strokeWidth="0.2" fill="none" />
       </svg>
       {Array.from({ length: Math.max(0, levels) }).map((_, levelIdx) => {
         const depthRatio = levels > 1 ? levelIdx / (levels - 1) : 0;
