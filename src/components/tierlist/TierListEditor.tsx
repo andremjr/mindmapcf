@@ -348,7 +348,7 @@ export function TierListEditor({ project }: { project: Project }) {
   const placedCount = allItems.length - poolItems.length;
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="h-screen bg-background text-foreground flex flex-col overflow-hidden">
       <header className="border-b border-border/60 px-4 py-3 flex items-center gap-3">
         <Button asChild variant="ghost" size="sm">
           <Link to="/projects"><ChevronLeft className="size-4" /> Voltar</Link>
@@ -372,106 +372,10 @@ export function TierListEditor({ project }: { project: Project }) {
         </Button>
       </header>
 
-      <main className="flex-1 overflow-auto p-6">
-        <div className="mx-auto max-w-7xl grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4">
-          <div className="space-y-4">
-            {/* Pool of unassigned items */}
-            <div
-              className="rounded-lg border border-dashed border-border/60 bg-muted/20 p-3"
-            >
-
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <div className="text-sm font-semibold">Itens disponíveis</div>
-                  <div className="text-xs text-muted-foreground">
-                    Adicione itens em ordem de chamada e arraste para os tiers — ou deixe todos aqui para posicionar ao vivo na apresentação/gravação.
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap justify-end">
-                  <span className="text-[11px] text-muted-foreground">
-                    {allItems.length} total · {placedCount} nos tiers
-                  </span>
-                  <div
-                    className="inline-flex rounded-md border border-border/60 overflow-hidden"
-                    title="Formato de exibição das imagens"
-                  >
-                    {ASPECT_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setItemAspect(opt.id)}
-                        className={`px-2 py-1 text-[11px] leading-none transition ${
-                          itemAspect === opt.id
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-background hover:bg-muted"
-                        }`}
-                      >
-                        {opt.label}
-                        <span className="ml-1 opacity-60">{opt.hint}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <Button size="sm" variant="outline" onClick={addItem} className="gap-1.5">
-                    <Plus className="size-3.5" /> Item
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={addItemsFromImages} className="gap-1.5" title="Selecione várias imagens de uma pasta para criar um item por imagem">
-                    <ImageIcon className="size-3.5" /> Importar imagens
-                  </Button>
-                </div>
-              </div>
-              <div
-                className="min-h-[120px] flex flex-wrap gap-2 p-2"
-                onDragOver={(e) => {
-                  if (!dragItemId) return;
-                  e.preventDefault();
-                  const idx = visualInsertIndex(e.currentTarget, e.clientX, e.clientY);
-                  if (hover?.key !== "pool" || hover.idx !== idx) setHover({ key: "pool", idx });
-                }}
-                onDragLeave={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHover(null);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (!dragItemId) return;
-                  const idx = computeInsertIndex(e.currentTarget, e.clientX, e.clientY, dragItemId);
-                  moveItem(dragItemId, null, idx);
-                  setDragItemId(null);
-                  setHover(null);
-                }}
-              >
-                {poolItems.map((it, i) => (
-                  <div key={it.id} className="contents">
-                    {hover?.key === "pool" && hover.idx === i && <DropIndicator />}
-                    <div
-                      data-item-id={it.id}
-                      draggable
-                      onDragStart={() => setDragItemId(it.id)}
-                      onDragEnd={() => { setDragItemId(null); setHover(null); }}
-                      className="cursor-grab active:cursor-grabbing relative"
-                    >
-                      <div className="absolute -top-1.5 -left-1.5 z-10 size-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold grid place-items-center shadow">
-                        {(it.order ?? 0) + 1}
-                      </div>
-                      <ItemThumb
-                        node={it}
-                        aspect={itemAspect}
-                        selected={selectedId === it.id}
-                        onClick={() => { setSelectedId(it.id); setSelectedTierId(null); }}
-                        onRemove={() => deleteNode(project.id, it.id)}
-                      />
-                    </div>
-                  </div>
-                ))}
-                {hover?.key === "pool" && hover.idx === poolItems.length && dragItemId && <DropIndicator />}
-                {poolItems.length === 0 && (
-                  <div className="self-center text-xs text-muted-foreground italic px-2">
-                    Nenhum item no pool.
-                  </div>
-                )}
-              </div>
-
-            </div>
-
+      <main className="flex-1 min-h-0 overflow-hidden p-4">
+        <div className="mx-auto max-w-[1600px] h-full grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px_300px] gap-4">
+          {/* TIERS column — scrolls internally so the pool never goes off-screen */}
+          <section className="min-h-0 overflow-auto pr-1 space-y-3">
             {tiers.map((tier) => {
               const items = itemsByTier.get(tier.id) ?? [];
               return (
@@ -480,7 +384,7 @@ export function TierListEditor({ project }: { project: Project }) {
                   className="flex items-stretch rounded-lg overflow-hidden border border-border/60"
                 >
                   <div
-                    className={`min-w-[8rem] max-w-[14rem] w-40 shrink-0 grid place-items-center px-2 py-3 text-center cursor-pointer transition ${
+                    className={`min-w-[7rem] max-w-[12rem] w-32 shrink-0 grid place-items-center px-2 py-3 text-center cursor-pointer transition ${
                       selectedTierId === tier.id ? "ring-2 ring-inset ring-foreground/30" : ""
                     }`}
                     style={{ background: tier.color || "#334155" }}
@@ -557,15 +461,110 @@ export function TierListEditor({ project }: { project: Project }) {
               );
             })}
 
-            <div className="pt-2">
+            <div className="pt-1">
               <Button variant="outline" onClick={addTier} className="gap-2">
                 <Plus className="size-4" /> Adicionar tier
               </Button>
             </div>
-          </div>
+          </section>
+
+          {/* POOL column — side-by-side with tiers so items are always reachable */}
+          <section className="min-h-0 flex flex-col rounded-lg border border-dashed border-border/60 bg-muted/20">
+            <div className="p-3 border-b border-border/40 space-y-2">
+              <div>
+                <div className="text-sm font-semibold">Itens disponíveis</div>
+                <div className="text-[11px] text-muted-foreground">
+                  Arraste para os tiers ao lado — ou deixe aqui para posicionar ao vivo na apresentação.
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span className="text-[11px] text-muted-foreground">
+                  {allItems.length} total · {placedCount} nos tiers
+                </span>
+                <div
+                  className="inline-flex rounded-md border border-border/60 overflow-hidden"
+                  title="Formato de exibição das imagens"
+                >
+                  {ASPECT_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setItemAspect(opt.id)}
+                      className={`px-2 py-1 text-[11px] leading-none transition ${
+                        itemAspect === opt.id
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-background hover:bg-muted"
+                      }`}
+                    >
+                      {opt.label}
+                      <span className="ml-1 opacity-60">{opt.hint}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button size="sm" variant="outline" onClick={addItem} className="gap-1.5">
+                  <Plus className="size-3.5" /> Item
+                </Button>
+                <Button size="sm" variant="outline" onClick={addItemsFromImages} className="gap-1.5" title="Selecione várias imagens de uma pasta para criar um item por imagem">
+                  <ImageIcon className="size-3.5" /> Importar imagens
+                </Button>
+              </div>
+            </div>
+            <div
+              className="flex-1 min-h-0 overflow-auto p-2 flex flex-wrap gap-2 content-start"
+              onDragOver={(e) => {
+                if (!dragItemId) return;
+                e.preventDefault();
+                const idx = visualInsertIndex(e.currentTarget, e.clientX, e.clientY);
+                if (hover?.key !== "pool" || hover.idx !== idx) setHover({ key: "pool", idx });
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setHover(null);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                if (!dragItemId) return;
+                const idx = computeInsertIndex(e.currentTarget, e.clientX, e.clientY, dragItemId);
+                moveItem(dragItemId, null, idx);
+                setDragItemId(null);
+                setHover(null);
+              }}
+            >
+              {poolItems.map((it, i) => (
+                <div key={it.id} className="contents">
+                  {hover?.key === "pool" && hover.idx === i && <DropIndicator />}
+                  <div
+                    data-item-id={it.id}
+                    draggable
+                    onDragStart={() => setDragItemId(it.id)}
+                    onDragEnd={() => { setDragItemId(null); setHover(null); }}
+                    className="cursor-grab active:cursor-grabbing relative"
+                  >
+                    <div className="absolute -top-1.5 -left-1.5 z-10 size-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold grid place-items-center shadow">
+                      {(it.order ?? 0) + 1}
+                    </div>
+                    <ItemThumb
+                      node={it}
+                      aspect={itemAspect}
+                      selected={selectedId === it.id}
+                      onClick={() => { setSelectedId(it.id); setSelectedTierId(null); }}
+                      onRemove={() => deleteNode(project.id, it.id)}
+                    />
+                  </div>
+                </div>
+              ))}
+              {hover?.key === "pool" && hover.idx === poolItems.length && dragItemId && <DropIndicator />}
+              {poolItems.length === 0 && (
+                <div className="w-full text-center text-xs text-muted-foreground italic py-6">
+                  Nenhum item no pool.
+                </div>
+              )}
+            </div>
+          </section>
 
           {/* Inspector */}
-          <aside className="rounded-lg border border-border/60 bg-card/40 p-4 h-fit sticky top-4 space-y-4">
+          <aside className="min-h-0 overflow-auto rounded-lg border border-border/60 bg-card/40 p-4 space-y-4">
             {!selected && !selectedTier && (
               <div className="text-sm text-muted-foreground">
                 Selecione um item ou tier para editar.
@@ -638,6 +637,7 @@ export function TierListEditor({ project }: { project: Project }) {
           </aside>
         </div>
       </main>
+
 
       <RecordFormatMenu open={recordOpen} onClose={() => setRecordOpen(false)} onPick={onPickFormat} />
     </div>
