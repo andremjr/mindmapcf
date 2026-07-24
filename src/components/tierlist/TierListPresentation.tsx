@@ -247,7 +247,7 @@ export function TierListPresentation({
 
   const remaining = manualMode
     ? allItems.filter((n) => !n.parentId || !tierIds.has(n.parentId))
-    : preplacedQueue.slice(idx);
+    : preplacedQueue.slice(idx).filter((n) => n.id !== autoSpotlightId);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
