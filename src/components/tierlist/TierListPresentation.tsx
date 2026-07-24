@@ -477,7 +477,16 @@ export function TierListPresentation({
         <div ref={frameRef} style={frameStyle} className="bg-background">
           <AvatarLayer project={project} frameSize={size} />
           <LayoutGroup>
-            <div className="absolute inset-0 flex flex-col p-6">
+            <div className="absolute inset-0 overflow-hidden px-6 py-6">
+              <div
+                className="mx-auto flex flex-col"
+                style={{
+                  width: layout.contentW,
+                  height: layout.boardNaturalH,
+                  transform: `scale(${layout.boardScale})`,
+                  transformOrigin: "top center",
+                }}
+              >
               <div className="text-2xl font-bold text-center mb-2 opacity-90">{project.title}</div>
               {manualMode && (
                 <div className="text-center text-[11px] uppercase tracking-widest text-muted-foreground mb-2">
@@ -485,8 +494,12 @@ export function TierListPresentation({
                 </div>
               )}
 
-              {/* Tiers — fixed proportional rows, with items resizing before anything scrolls */}
-              <div ref={scrollRef} className="flex-1 min-h-0 overflow-hidden pr-1 flex flex-col gap-2">
+              {/* Tiers — rows may grow with wrapped items; the whole board auto-zooms to fit */}
+              <div
+                ref={scrollRef}
+                className="min-h-0 overflow-hidden pr-1 flex flex-col gap-2 shrink-0"
+                style={{ height: layout.tiersHeight }}
+              >
                 {tiers.map((tier) => {
                   const items = placedByTier.get(tier.id) ?? [];
                   const isActive = !manualMode && currentTierId === tier.id;
@@ -497,15 +510,16 @@ export function TierListPresentation({
                       onDragOver={manualMode ? onHoverOver(`tier:${tier.id}`) : allowDrop}
                       onDragLeave={manualMode ? onHoverLeave : undefined}
                       onDrop={onTierDrop(tier.id)}
-                      className={`flex flex-1 basis-0 min-h-0 items-stretch rounded-lg overflow-hidden border border-border transition-all duration-300 ${
+                      className={`flex shrink-0 items-stretch rounded-lg overflow-hidden border border-border transition-all duration-300 ${
                         manualMode
                           ? (dragId ? "ring-2 ring-primary/40" : "")
                           : (isActive ? "opacity-100 scale-100" : "opacity-45 scale-[0.98]")
                       }`}
+                      style={{ height: layout.tierHeights[tier.id] ?? 52 }}
                     >
                       <div
-                        className="w-32 md:w-36 shrink-0 grid place-items-center px-3 py-3 font-black text-lg text-neutral-900 text-center uppercase tracking-wider break-words whitespace-normal leading-tight"
-                        style={{ background: tier.color || "#334155" }}
+                        className="shrink-0 grid place-items-center px-3 py-3 font-black text-lg text-neutral-900 text-center uppercase tracking-wider break-words whitespace-normal leading-tight"
+                        style={{ width: layout.tierLabelW, background: tier.color || "#334155" }}
                       >
                         {tier.text}
                       </div>
@@ -521,7 +535,7 @@ export function TierListPresentation({
                             >
                               <TierItem
                                 node={it}
-                                size={itemBase}
+                                size={layout.itemBase}
                                 aspect={itemAspect}
                                 highlighted={!manualMode && currentItemId === it.id}
                                 draggable={manualMode && spotlightId !== it.id}
@@ -550,6 +564,7 @@ export function TierListPresentation({
                 onDragLeave={manualMode ? onHoverLeave : undefined}
                 onDrop={onPoolDrop}
                 className="mt-3 rounded-lg border border-border bg-muted/40 px-3 py-2 shrink-0"
+                style={{ height: layout.poolHeight }}
               >
                 <div className="flex items-center justify-between mb-1">
                   <div className="text-[11px] uppercase tracking-widest opacity-60">
@@ -575,7 +590,7 @@ export function TierListPresentation({
                       >
                         <TierItem
                           node={it}
-                          size={poolBase}
+                          size={layout.poolBase}
                           aspect={itemAspect}
                           highlighted={!manualMode && i === 0}
                           draggable={manualMode && spotlightId !== it.id}
@@ -588,6 +603,7 @@ export function TierListPresentation({
                   ))}
                   {manualMode && dragId && hover?.key === "pool" && hover.idx === remaining.length && <DropIndicator />}
                 </div>
+              </div>
               </div>
 
             </div>
