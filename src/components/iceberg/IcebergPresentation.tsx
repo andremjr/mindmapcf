@@ -196,11 +196,14 @@ export function IcebergPresentation({
 
   const [idx, setIdx] = useState(0);
   const [itemOpen, setItemOpen] = useState(false);
+  // Intro beat: presentation starts with the whole iceberg in view. The
+  // first arrow click zooms into level 1 (the first item).
+  const [introOverview, setIntroOverview] = useState(true);
   // Final beat: after the last item closes, one more click shows the whole
   // iceberg in overview so the video can end on that shot.
   const [finalOverview, setFinalOverview] = useState(false);
   const current = nav[idx];
-  const activeItem = current?.itemId && itemOpen && !finalOverview
+  const activeItem = current?.itemId && itemOpen && !finalOverview && !introOverview
     ? project.nodes.find((n) => n.id === current.itemId) ?? null
     : null;
 
@@ -224,11 +227,13 @@ export function IcebergPresentation({
     prevLevelIdRef.current = current.levelId;
   }, [current?.levelId]);
 
-  const effectivePhase: "focus" | "overview" = finalOverview ? "overview" : phase;
+  const effectivePhase: "focus" | "overview" = (finalOverview || introOverview) ? "overview" : phase;
 
   const next = () => {
     if (countdown !== null) return;
     if (finalOverview) return; // final beat — no further steps
+    // Intro: first click leaves the full-iceberg shot and focuses level 1.
+    if (introOverview) { setIntroOverview(false); return; }
     // Two-click per item: 1st opens the card, 2nd closes it and moves on.
     if (current?.type === "item" && !itemOpen) { setItemOpen(true); return; }
     // Closing the last item → final overview shot of the entire iceberg.
@@ -244,6 +249,7 @@ export function IcebergPresentation({
     if (countdown !== null) return;
     if (finalOverview) { setFinalOverview(false); return; }
     if (current?.type === "item" && itemOpen) { setItemOpen(false); return; }
+    if (idx === 0 && !itemOpen && !introOverview) { setIntroOverview(true); return; }
     setItemOpen(false);
     setIdx((i) => Math.max(0, i - 1));
   };
