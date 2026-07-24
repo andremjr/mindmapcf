@@ -298,74 +298,88 @@ export function IcebergPresentation({
       <div className={recording ? "absolute inset-0 grid place-items-center" : "absolute inset-0"}>
         <div ref={frameRef} style={frameStyle} className="bg-background">
           <AvatarLayer project={project} frameSize={size} />
-          {/* Scrollable stack — background art scrolls together with the levels */}
-          <div ref={scrollRef} className="absolute inset-0 overflow-y-auto scroll-smooth">
-            <div className="relative w-full">
-              {/* Full-height iceberg art behind the levels */}
-              <IcebergArt levels={Math.max(1, levels.length)} />
+          {/* Zoom stack — one screen per level, transformed to focus/overview */}
+          {(() => {
+            const N = Math.max(1, levels.length);
+            const levelH = size.h;
+            const totalH = levelH * N;
+            const scale = phase === "overview" ? 1 / N : 1;
+            const tY = phase === "overview" ? 0 : -levelIndex * levelH;
+            const tX = phase === "overview" ? (size.w * (1 - 1 / N)) / 2 : 0;
+            return (
+              <div ref={scrollRef} className="absolute inset-0 overflow-hidden">
+                <div
+                  className="absolute top-0 left-0"
+                  style={{
+                    width: size.w,
+                    height: totalH,
+                    transform: `translate(${tX}px, ${tY}px) scale(${scale})`,
+                    transformOrigin: "top left",
+                    transition: "transform 900ms cubic-bezier(0.65, 0, 0.35, 1)",
+                    willChange: "transform",
+                  }}
+                >
+                  <IcebergArt levels={N} />
+                  {levels.map((lvl, i) => {
+                    const grad = GRADS[Math.min(i, GRADS.length - 1)];
+                    const items = itemsByLevel.get(lvl.id) ?? [];
+                    const isActive = current?.levelId === lvl.id;
+                    return (
+                      <div
+                        key={lvl.id}
+                        data-level-id={lvl.id}
+                        className={`relative px-10 py-10 flex flex-col gap-6 transition-opacity duration-500 ${
+                          phase === "overview" || isActive ? "opacity-100" : "opacity-40"
+                        }`}
+                        style={{
+                          background: `linear-gradient(180deg, ${grad.from}cc 0%, ${grad.to}cc 100%)`,
+                          color: grad.text,
+                          height: levelH,
+                        }}
+                      >
+                        <div
+                          className="font-bold text-3xl md:text-4xl relative z-10 text-center"
+                          style={{ textShadow: "0 2px 12px rgba(0,0,0,0.55)" }}
+                        >
+                          {lvl.text}
+                        </div>
+                        <div className="relative z-10 flex-1 w-full">
+                          {items.map((it, k) => {
+                            const n = items.length;
+                            const cols = Math.min(n, Math.max(1, Math.ceil(Math.sqrt(n * 1.8))));
+                            const rows = Math.ceil(n / cols);
+                            const col = k % cols;
+                            const row = Math.floor(k / cols);
+                            const slotW = 84 / cols;
+                            const slotH = 80 / rows;
+                            const jitterX = (seeded(it.id + "x") - 0.5) * slotW * 0.35;
+                            const jitterY = (seeded(it.id + "y") - 0.5) * slotH * 0.35;
+                            const leftPct = 8 + slotW * (col + 0.5) + jitterX;
+                            const topPct = 10 + slotH * (row + 0.5) + jitterY;
+                            const rotate = (seeded(it.id + "r") - 0.5) * 16;
+                            const tileSize = 100 + Math.round(seeded(it.id + "s") * 20);
+                            return (
+                              <ItemTile
+                                key={it.id}
+                                node={it}
+                                active={activeItem?.id === it.id}
+                                onClick={() => {
+                                  const j = nav.findIndex((x) => x.itemId === it.id);
+                                  if (j >= 0) setIdx(j);
+                                }}
+                                scatter={{ left: `${leftPct}%`, top: `${topPct}%`, rotate, size: tileSize }}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
-              {levels.map((lvl, i) => {
-                const grad = GRADS[Math.min(i, GRADS.length - 1)];
-                const items = itemsByLevel.get(lvl.id) ?? [];
-                const isActive = current?.levelId === lvl.id;
-                const levelHeight = Math.max(320, size.h * 0.9);
-                return (
-                  <div
-                    key={lvl.id}
-                    data-level-id={lvl.id}
-                    className={`relative px-10 py-10 flex flex-col gap-6 transition-opacity duration-500 ${
-                      isActive ? "opacity-100" : "opacity-40"
-                    }`}
-                    style={{
-                      background: `linear-gradient(180deg, ${grad.from}cc 0%, ${grad.to}cc 100%)`,
-                      color: grad.text,
-                      minHeight: levelHeight,
-                    }}
-                  >
-                    <div
-                      className="font-bold text-3xl md:text-4xl relative z-10 text-center"
-                      style={{ textShadow: "0 2px 12px rgba(0,0,0,0.55)" }}
-                    >
-                      {lvl.text}
-                    </div>
-                    <div className="relative z-10 flex-1 w-full" style={{ minHeight: levelHeight - 140 }}>
-                      {items.map((it, k) => {
-                        // Non-overlapping slot grid with small jitter inside each slot.
-                        const n = items.length;
-                        const cols = Math.min(n, Math.max(1, Math.ceil(Math.sqrt(n * 1.8))));
-                        const rows = Math.ceil(n / cols);
-                        const col = k % cols;
-                        const row = Math.floor(k / cols);
-                        const slotW = 84 / cols;   // % width per slot (leaves 8% margin each side)
-                        const slotH = 80 / rows;   // % height per slot
-                        const jitterX = (seeded(it.id + "x") - 0.5) * slotW * 0.35;
-                        const jitterY = (seeded(it.id + "y") - 0.5) * slotH * 0.35;
-                        const leftPct = 8 + slotW * (col + 0.5) + jitterX;
-                        const topPct = 10 + slotH * (row + 0.5) + jitterY;
-                        const rotate = (seeded(it.id + "r") - 0.5) * 16;
-                        // Keep sizes close so grid stays tidy; slight variation for organic feel.
-                        const size = 100 + Math.round(seeded(it.id + "s") * 20);
-                        return (
-                          <ItemTile
-                            key={it.id}
-                            node={it}
-                            active={activeItem?.id === it.id}
-                            onClick={() => {
-                              const j = nav.findIndex((x) => x.itemId === it.id);
-                              if (j >= 0) setIdx(j);
-                            }}
-                            scatter={{ left: `${leftPct}%`, top: `${topPct}%`, rotate, size }}
-                          />
-                        );
-                      })}
-                    </div>
-
-
-                  </div>
-                );
-              })}
-            </div>
-          </div>
 
           {/* Item card overlay */}
           {activeItem && <ItemCard node={activeItem} onClose={() => {
