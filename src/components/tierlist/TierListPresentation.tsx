@@ -456,8 +456,8 @@ export function TierListPresentation({
                 </div>
               )}
 
-              {/* Tiers */}
-              <div ref={scrollRef} className="flex-1 overflow-y-auto scroll-smooth space-y-2 pr-1">
+              {/* Tiers — never scroll: items resize to fit the frame */}
+              <div ref={scrollRef} className="flex-1 min-h-0 overflow-hidden space-y-2 pr-1 flex flex-col">
                 {tiers.map((tier) => {
                   const items = placedByTier.get(tier.id) ?? [];
                   const isActive = !manualMode && currentTierId === tier.id;
@@ -468,7 +468,7 @@ export function TierListPresentation({
                       onDragOver={manualMode ? onHoverOver(`tier:${tier.id}`) : allowDrop}
                       onDragLeave={manualMode ? onHoverLeave : undefined}
                       onDrop={onTierDrop(tier.id)}
-                      className={`flex items-stretch rounded-lg overflow-hidden border border-border transition-all duration-300 ${
+                      className={`flex items-stretch rounded-lg overflow-hidden border border-border transition-all duration-300 flex-1 min-h-0 ${
                         manualMode
                           ? (dragId ? "ring-2 ring-primary/40" : "")
                           : (isActive ? "opacity-100 scale-100" : "opacity-45 scale-[0.98]")
@@ -480,7 +480,7 @@ export function TierListPresentation({
                       >
                         {tier.text}
                       </div>
-                      <div className="flex-1 min-h-[112px] bg-muted/30 p-3 flex flex-wrap gap-2 items-start">
+                      <div className="flex-1 min-h-0 min-w-0 bg-muted/30 p-2 flex flex-wrap gap-2 items-start content-start overflow-hidden">
                         {items.map((it, i) => (
                           <div key={it.id} className="contents">
                             {manualMode && hover?.key === `tier:${tier.id}` && hover.idx === i && <DropIndicator />}
@@ -491,6 +491,7 @@ export function TierListPresentation({
                             >
                               <TierItem
                                 node={it}
+                                size={itemBase}
                                 aspect={itemAspect}
                                 highlighted={!manualMode && currentItemId === it.id}
                                 draggable={manualMode && spotlightId !== it.id}
@@ -501,6 +502,61 @@ export function TierListPresentation({
                             </motion.div>
                           </div>
                         ))}
+                        {manualMode && dragId && hover?.key === `tier:${tier.id}` && hover.idx === items.length && <DropIndicator />}
+                        {items.length === 0 && !isActive && (
+                          <div className="text-xs opacity-40 italic self-center px-2">
+                            {manualMode ? "solte aqui" : "— vazio —"}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Pool of remaining items */}
+              <div
+                onDragOver={manualMode ? onHoverOver("pool") : allowDrop}
+                onDragLeave={manualMode ? onHoverLeave : undefined}
+                onDrop={onPoolDrop}
+                className="mt-3 rounded-lg border border-border bg-muted/40 px-3 py-2 shrink-0"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-[11px] uppercase tracking-widest opacity-60">
+                    {manualMode ? "Arraste para classificar" : "A classificar"}
+                  </div>
+                  <div className="text-[11px] opacity-60 font-mono tabular-nums">
+                    {remaining.length} restante{remaining.length === 1 ? "" : "s"}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 items-center">
+                  {remaining.length === 0 && (
+                    <div className="text-xs opacity-50 italic self-center px-2">
+                      Todos os itens foram classificados.
+                    </div>
+                  )}
+                  {remaining.map((it, i) => (
+                    <div key={it.id} className="contents">
+                      {manualMode && hover?.key === "pool" && hover.idx === i && <DropIndicator />}
+                      <motion.div
+                        data-item-id={it.id}
+                        layoutId={`item-${it.id}`}
+                        transition={{ type: "spring", stiffness: 260, damping: 28 }}
+                      >
+                        <TierItem
+                          node={it}
+                          size={poolBase}
+                          aspect={itemAspect}
+                          highlighted={!manualMode && i === 0}
+                          draggable={manualMode && spotlightId !== it.id}
+                          onClick={manualMode ? () => toggleSpotlight(it.id) : undefined}
+                          onDragStart={() => setDragId(it.id)}
+                          onDragEnd={() => { setDragId(null); setHover(null); }}
+                        />
+                      </motion.div>
+                    </div>
+                  ))}
+
                         {manualMode && dragId && hover?.key === `tier:${tier.id}` && hover.idx === items.length && <DropIndicator />}
                         {items.length === 0 && !isActive && (
                           <div className="text-xs opacity-40 italic self-center px-2">
