@@ -734,6 +734,35 @@ export function TierListPresentation({
             </AnimatePresence>
           </LayoutGroup>
 
+          {/* Auto-mode third click: card physically travels from its pool slot
+              to its tier slot so the viewer sees the placement, not a teleport. */}
+          {flying?.to && flyingNode && (
+            <motion.div
+              key={`flight-${flying.id}`}
+              initial={{ left: flying.from.x, top: flying.from.y, width: flying.from.w, height: flying.from.h }}
+              animate={{ left: flying.to.x, top: flying.to.y, width: flying.to.w, height: flying.to.h }}
+              transition={{ duration: 0.9, ease: [0.22, 0.61, 0.36, 1] }}
+              onAnimationComplete={() => setFlying(null)}
+              className="absolute z-40 pointer-events-none rounded-md overflow-hidden border border-white/25 shadow-2xl"
+              style={{ background: flyingNode.color ?? "#111" }}
+            >
+              {flyingUrl ? (
+                <img src={flyingUrl} alt="" className="absolute inset-0 size-full object-cover" />
+              ) : (
+                <div className="absolute inset-0 grid place-items-center text-[11px] text-center px-1.5 leading-tight text-white/95 break-words whitespace-normal overflow-hidden">
+                  {flyingNode.text || "Item"}
+                </div>
+              )}
+              {flyingUrl && flyingNode.text && (
+                <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] px-1 py-0.5 leading-tight break-words whitespace-normal max-h-[55%] overflow-hidden">
+                  {flyingNode.text}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+
+
 
           {/* Spotlight (manual mode): enlarge the tapped item for the camera,
               then tap the backdrop to collapse and drag it into a tier. */}
