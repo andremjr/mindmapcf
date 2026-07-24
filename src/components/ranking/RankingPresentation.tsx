@@ -411,7 +411,7 @@ export function RankingPresentation({
                               onDragEnd={() => setDragId(null)}
                               className="cursor-grab active:cursor-grabbing"
                             >
-                              <RankRow node={node} rank={rank} height={rowHeight} />
+                              <RankRow node={node} rank={rank} height={rowHeight} aspect={itemAspect} />
                             </div>
                           ) : (
                             <EmptySlot rank={rank} height={rowHeight} />
@@ -486,7 +486,7 @@ export function RankingPresentation({
                             animate={{ opacity: 1, scale: 1, x: 0 }}
                             transition={{ type: "spring", stiffness: 240, damping: 24 }}
                           >
-                            <RankRow node={node} rank={rank} height={rowHeight} />
+                            <RankRow node={node} rank={rank} height={rowHeight} aspect={itemAspect} />
                           </motion.div>
                         );
                       })}
