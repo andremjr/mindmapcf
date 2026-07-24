@@ -41,6 +41,7 @@ function toProject(r: Row): Project {
     sonicAvatar: r.data?.sonicAvatar,
     narrationRef: r.data?.narrationRef,
     template: r.data?.template ?? "mindmap",
+    icebergAtmosphere: r.data?.icebergAtmosphere,
   };
 }
 
