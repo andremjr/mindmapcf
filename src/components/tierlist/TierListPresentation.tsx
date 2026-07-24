@@ -335,46 +335,67 @@ export function TierListPresentation({
   };
 
   /**
-   * Fit-to-frame sizing. The recording frame must never scroll — items shrink
-   * so all tiers + the pool are always fully visible. Recomputes when the
-   * frame resizes, tiers change, or items wrap to a new row.
+   * Fit-to-frame sizing. The tier area itself stays proportional — every tier
+   * shares the available height from the title to the pool. Items only shrink
+   * when a tier/pool needs extra wrap rows inside that fixed frame.
    */
-  const itemBase = useMemo(() => {
-    if (!tiers.length || size.w < 100 || size.h < 100) return 92;
-    const TITLE_H = 60;
-    const POOL_H = 120;
-    const OUTER_PAD = 48; // p-6 top+bottom
-    const availH = Math.max(80, size.h - TITLE_H - POOL_H - OUTER_PAD - (manualMode ? 24 : 0));
-    const LABEL_W = 160;
-    const INNER_PAD = 24;
-    const availW = Math.max(120, size.w - 48 - LABEL_W - INNER_PAD);
-    const GAP = 8;
+  const { itemBase, poolBase } = useMemo(() => {
+    if (!tiers.length || size.w < 100 || size.h < 100) {
+      return { itemBase: 86, poolBase: 64 };
+    }
+
+    const OUTER_PAD_Y = 48;
+    const OUTER_PAD_X = 48;
+    const TITLE_H = 40;
+    const MANUAL_HINT_H = manualMode ? 22 : 0;
+    const TIER_GAP = 8;
+    const TIER_LABEL_W = 144;
+    const TIER_PAD_X = 16;
+    const TIER_PAD_Y = 16;
+    const POOL_MT = 12;
+    const POOL_HEADER_H = 18;
+    const POOL_PAD_Y = 16;
+    const POOL_PAD_X = 24;
+    const ITEM_GAP = 8;
+    const DESIRED_BASE = 86;
+    const MIN_BASE = 28;
+
+    const tierItemW = Math.max(120, size.w - OUTER_PAD_X - TIER_LABEL_W - TIER_PAD_X);
+    const poolItemW = Math.max(120, size.w - OUTER_PAD_X - POOL_PAD_X);
     const countsInTiers = tiers.map((t) => placedByTier.get(t.id)?.length ?? 0);
     const poolCount = remaining.length;
 
-    let base = 100;
-    const min = 28;
-    while (base > min) {
+    for (let base = DESIRED_BASE; base >= MIN_BASE; base -= 2) {
+      const poolCandidate = Math.max(24, Math.round(base * 0.74));
+      const { w: pw, h: ph } = aspectDims(poolCandidate, itemAspect);
+      const poolPerRow = Math.max(1, Math.floor((poolItemW + ITEM_GAP) / (pw + ITEM_GAP)));
+      const poolRows = poolCount > 0 ? Math.ceil(poolCount / poolPerRow) : 1;
+      const poolH = POOL_HEADER_H + POOL_PAD_Y + poolRows * ph + Math.max(0, poolRows - 1) * ITEM_GAP;
+
+      const tierAreaH = Math.max(
+        80,
+        size.h - OUTER_PAD_Y - TITLE_H - MANUAL_HINT_H - POOL_MT - poolH,
+      );
+      const tierRowH = Math.max(
+        36,
+        (tierAreaH - Math.max(0, tiers.length - 1) * TIER_GAP) / tiers.length,
+      );
+
       const { w: iw, h: ih } = aspectDims(base, itemAspect);
-      const rowH = ih + GAP;
-      const perRow = Math.max(1, Math.floor((availW + GAP) / (iw + GAP)));
-      let totalTiersH = 0;
-      for (const n of countsInTiers) {
-        const rows = Math.max(1, Math.ceil(Math.max(n, 1) / perRow));
-        totalTiersH += Math.max(rowH, rows * rowH) + GAP;
+      const tierPerRow = Math.max(1, Math.floor((tierItemW + ITEM_GAP) / (iw + ITEM_GAP)));
+      const tallestTierContent = countsInTiers.reduce((max, count) => {
+        const rows = count > 0 ? Math.ceil(count / tierPerRow) : 1;
+        const contentH = rows * ih + Math.max(0, rows - 1) * ITEM_GAP + TIER_PAD_Y;
+        return Math.max(max, contentH);
+      }, 0);
+
+      if (tallestTierContent <= tierRowH) {
+        return { itemBase: base, poolBase: poolCandidate };
       }
-      // Pool uses a slightly smaller icon (0.78×) and one wrap row max target.
-      const poolBase = Math.round(base * 0.78);
-      const { w: pw, h: ph } = aspectDims(poolBase, itemAspect);
-      const poolPerRow = Math.max(1, Math.floor((size.w - 48 - 24 + GAP) / (pw + GAP)));
-      const poolRows = Math.max(1, Math.ceil(Math.max(poolCount, 1) / poolPerRow));
-      const poolTotalH = poolRows * (ph + GAP) + 40;
-      if (totalTiersH <= availH && poolTotalH <= POOL_H + 40) break;
-      base -= 4;
     }
-    return Math.max(min, base);
+
+    return { itemBase: MIN_BASE, poolBase: Math.max(24, Math.round(MIN_BASE * 0.74)) };
   }, [size, tiers, itemAspect, placedByTier, remaining.length, manualMode]);
-  const poolBase = Math.max(24, Math.round(itemBase * 0.78));
 
 
 
@@ -456,8 +477,8 @@ export function TierListPresentation({
                 </div>
               )}
 
-              {/* Tiers — never scroll: items resize to fit the frame */}
-              <div ref={scrollRef} className="flex-1 min-h-0 overflow-hidden space-y-2 pr-1">
+              {/* Tiers — fixed proportional rows, with items resizing before anything scrolls */}
+              <div ref={scrollRef} className="flex-1 min-h-0 overflow-hidden pr-1 flex flex-col gap-2">
                 {tiers.map((tier) => {
                   const items = placedByTier.get(tier.id) ?? [];
                   const isActive = !manualMode && currentTierId === tier.id;
@@ -468,19 +489,19 @@ export function TierListPresentation({
                       onDragOver={manualMode ? onHoverOver(`tier:${tier.id}`) : allowDrop}
                       onDragLeave={manualMode ? onHoverLeave : undefined}
                       onDrop={onTierDrop(tier.id)}
-                      className={`flex items-stretch rounded-lg overflow-hidden border border-border transition-all duration-300 ${
+                      className={`flex flex-1 basis-0 min-h-0 items-stretch rounded-lg overflow-hidden border border-border transition-all duration-300 ${
                         manualMode
                           ? (dragId ? "ring-2 ring-primary/40" : "")
                           : (isActive ? "opacity-100 scale-100" : "opacity-45 scale-[0.98]")
                       }`}
                     >
                       <div
-                        className="min-w-[8rem] max-w-[14rem] shrink-0 grid place-items-center px-3 py-3 font-black text-lg text-neutral-900 text-center uppercase tracking-wider break-words whitespace-normal leading-tight"
+                        className="w-32 md:w-36 shrink-0 grid place-items-center px-3 py-3 font-black text-lg text-neutral-900 text-center uppercase tracking-wider break-words whitespace-normal leading-tight"
                         style={{ background: tier.color || "#334155" }}
                       >
                         {tier.text}
                       </div>
-                      <div className="flex-1 min-w-0 bg-muted/30 p-2 flex flex-wrap gap-2 items-start content-start">
+                      <div className="flex-1 min-w-0 overflow-hidden bg-muted/30 p-2 flex flex-wrap gap-2 items-center content-center">
 
                         {items.map((it, i) => (
                           <div key={it.id} className="contents">
