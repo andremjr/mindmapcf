@@ -8,6 +8,37 @@ import { AvatarLayer } from "@/components/shared/AvatarLayer";
 import { aspectDims, parseTierListConfig, type ItemAspect } from "@/lib/tierlistConfig";
 
 
+function manualRankInsertIndexFromPointer(container: HTMLElement, clientY: number): number {
+  const slots = Array.from(container.querySelectorAll<HTMLElement>("[data-rank-slot]"));
+  for (let i = 0; i < slots.length; i += 1) {
+    const r = slots[i].getBoundingClientRect();
+    if (clientY < r.top + r.height / 2) return i;
+  }
+  return slots.length;
+}
+
+function manualRankInsertLineY(container: HTMLElement, idx: number): number {
+  const slots = Array.from(container.querySelectorAll<HTMLElement>("[data-rank-slot]"));
+  const containerRect = container.getBoundingClientRect();
+  if (idx === 0 && slots[0]) return slots[0].getBoundingClientRect().top - containerRect.top - 2;
+  const previous = slots[idx - 1] ?? slots[slots.length - 1];
+  if (previous) return previous.getBoundingClientRect().bottom - containerRect.top + 1;
+  return 4;
+}
+
+
+function shouldPreviewManualShift(
+  rank: number,
+  node: MindNode | undefined,
+  dragId: string | null,
+  hover: { idx: number; y: number } | null,
+  total: number,
+): boolean {
+  if (!dragId || !hover || hover.idx >= total) return false;
+  if (node?.id === dragId) return false;
+  return rank - 1 >= hover.idx;
+}
+
 
 /* ---------- image ---------- */
 function useResolvedImage(node: MindNode | undefined) {
@@ -331,6 +362,7 @@ export function RankingPresentation({
   /* ============ MANUAL MODE ============ */
   const updateNode = useStore((s) => s.updateNode);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [rankHover, setRankHover] = useState<{ idx: number; y: number } | null>(null);
   const manualRanked = useMemo(
     () => manualMode
       ? [...callOrder].filter((n) => typeof n.rank === "number").sort((a, b) => a.rank! - b.rank!)
@@ -396,26 +428,51 @@ export function RankingPresentation({
                   Ranking
                 </div>
                 <div ref={rankColRef} className="flex-1 min-h-0">
-                  <div className="flex flex-col" style={{ gap: rowGap }}>
+                  <div
+                    className="relative flex flex-col"
+                    style={{ gap: rowGap }}
+                    onDragOver={(e) => {
+                      if (!dragId) return;
+                      e.preventDefault();
+                      const container = e.currentTarget as HTMLElement;
+                      const idx = manualRankInsertIndexFromPointer(container, e.clientY);
+                      const y = manualRankInsertLineY(container, idx);
+                      if (rankHover?.idx !== idx || rankHover.y !== y) setRankHover({ idx, y });
+                    }}
+                    onDragLeave={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setRankHover(null);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dragId) {
+                        const container = e.currentTarget as HTMLElement;
+                        const idx = manualRankInsertIndexFromPointer(container, e.clientY);
+                        assignRankLive(dragId, idx + 1);
+                      }
+                      setDragId(null);
+                      setRankHover(null);
+                    }}
+                  >
                     {Array.from({ length: N }).map((_, i) => {
                       const rank = i + 1;
                       const node = manualRanked.find((n) => n.rank === rank);
                       return (
-                        <div
+                        <motion.div
                           key={`slot-${rank}`}
-                          onDragOver={(e) => { if (dragId) e.preventDefault(); }}
-                          onDrop={(e) => {
-                            e.preventDefault();
-                            if (dragId) assignRankLive(dragId, rank);
-                            setDragId(null);
+                          data-rank-slot={rank}
+                          layout
+                          animate={{
+                            y: shouldPreviewManualShift(rank, node, dragId, rankHover, N) ? 18 : 0,
+                            scale: dragId && rankHover?.idx === i ? 0.985 : 1,
                           }}
-                          className={dragId ? "rounded-xl ring-2 ring-primary/40" : ""}
+                          transition={{ type: "spring", stiffness: 340, damping: 30 }}
+                          className={dragId ? "rounded-xl ring-2 ring-primary/25" : ""}
                         >
                           {node ? (
                             <div
                               draggable
                               onDragStart={() => setDragId(node.id)}
-                              onDragEnd={() => setDragId(null)}
+                              onDragEnd={() => { setDragId(null); setRankHover(null); }}
                               className="cursor-grab active:cursor-grabbing"
                             >
                               <RankRow node={node} rank={rank} height={rowHeight} aspect={itemAspect} />
@@ -423,9 +480,19 @@ export function RankingPresentation({
                           ) : (
                             <EmptySlot rank={rank} height={rowHeight} />
                           )}
-                        </div>
+                        </motion.div>
                       );
                     })}
+                    {dragId && rankHover && (
+                      <motion.div
+                        aria-hidden
+                        initial={{ opacity: 0, scaleX: 0.86 }}
+                        animate={{ opacity: 1, scaleX: 1 }}
+                        exit={{ opacity: 0, scaleX: 0.86 }}
+                        className="absolute left-0 right-0 h-1 rounded-full bg-primary shadow-[0_0_18px_3px_hsl(var(--primary)/0.75)] pointer-events-none z-30 origin-center"
+                        style={{ top: rankHover.y }}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -451,7 +518,7 @@ export function RankingPresentation({
                           key={n.id}
                           draggable={!placed}
                           onDragStart={() => !placed && setDragId(n.id)}
-                          onDragEnd={() => setDragId(null)}
+                          onDragEnd={() => { setDragId(null); setRankHover(null); }}
                           className={!placed ? "cursor-grab active:cursor-grabbing" : ""}
                         >
                           <PoolCard
