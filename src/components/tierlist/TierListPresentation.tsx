@@ -335,66 +335,74 @@ export function TierListPresentation({
   };
 
   /**
-   * Fit-to-frame sizing. The tier area itself stays proportional — every tier
-   * shares the available height from the title to the pool. Items only shrink
-   * when a tier/pool needs extra wrap rows inside that fixed frame.
+   * Fit-to-frame layout. Cards keep their natural presentation size, so a tier
+   * with many cards is allowed to wrap into 2+ lines and become taller. When the
+   * natural board becomes taller than the frame, the whole board is scaled down
+   * like browser zoom instead of shrinking cards until they fit on one line.
    */
-  const { itemBase, poolBase } = useMemo(() => {
-    if (!tiers.length || size.w < 100 || size.h < 100) {
-      return { itemBase: 86, poolBase: 64 };
-    }
-
-    const OUTER_PAD_Y = 48;
+  const layout = useMemo(() => {
     const OUTER_PAD_X = 48;
+    const OUTER_PAD_Y = 48;
     const TITLE_H = 40;
     const MANUAL_HINT_H = manualMode ? 22 : 0;
     const TIER_GAP = 8;
-    const TIER_LABEL_W = 144;
     const TIER_PAD_X = 16;
     const TIER_PAD_Y = 16;
     const POOL_MT = 12;
     const POOL_HEADER_H = 18;
+    const POOL_HEADER_MB = 4;
     const POOL_PAD_Y = 16;
     const POOL_PAD_X = 24;
     const ITEM_GAP = 8;
-    const DESIRED_BASE = 86;
-    const MIN_BASE = 28;
+    const ITEM_BASE = 86;
+    const POOL_BASE = 64;
 
-    const tierItemW = Math.max(120, size.w - OUTER_PAD_X - TIER_LABEL_W - TIER_PAD_X);
-    const poolItemW = Math.max(120, size.w - OUTER_PAD_X - POOL_PAD_X);
-    const countsInTiers = tiers.map((t) => placedByTier.get(t.id)?.length ?? 0);
-    const poolCount = remaining.length;
+    const contentW = Math.max(280, size.w - OUTER_PAD_X);
+    const availableH = Math.max(180, size.h - OUTER_PAD_Y);
+    const tierLabelW = contentW < 760 ? 128 : 144;
+    const { w: itemW, h: itemH } = aspectDims(ITEM_BASE, itemAspect);
+    const { w: poolItemW, h: poolItemH } = aspectDims(POOL_BASE, itemAspect);
+    const tierItemsW = Math.max(itemW, contentW - tierLabelW - TIER_PAD_X);
+    const poolItemsW = Math.max(poolItemW, contentW - POOL_PAD_X);
+    const tierPerRow = Math.max(1, Math.floor((tierItemsW + ITEM_GAP) / (itemW + ITEM_GAP)));
+    const poolPerRow = Math.max(1, Math.floor((poolItemsW + ITEM_GAP) / (poolItemW + ITEM_GAP)));
 
-    for (let base = DESIRED_BASE; base >= MIN_BASE; base -= 2) {
-      const poolCandidate = Math.max(24, Math.round(base * 0.74));
-      const { w: pw, h: ph } = aspectDims(poolCandidate, itemAspect);
-      const poolPerRow = Math.max(1, Math.floor((poolItemW + ITEM_GAP) / (pw + ITEM_GAP)));
-      const poolRows = poolCount > 0 ? Math.ceil(poolCount / poolPerRow) : 1;
-      const poolH = POOL_HEADER_H + POOL_PAD_Y + poolRows * ph + Math.max(0, poolRows - 1) * ITEM_GAP;
+    const tierMinimums = tiers.map((tier) => {
+      const count = placedByTier.get(tier.id)?.length ?? 0;
+      const rows = count > 0 ? Math.ceil(count / tierPerRow) : 1;
+      const contentH = rows * itemH + Math.max(0, rows - 1) * ITEM_GAP + TIER_PAD_Y;
+      return { id: tier.id, height: Math.max(52, contentH) };
+    });
+    const naturalTiersH = tierMinimums.reduce((sum, row) => sum + row.height, 0)
+      + Math.max(0, tiers.length - 1) * TIER_GAP;
 
-      const tierAreaH = Math.max(
-        80,
-        size.h - OUTER_PAD_Y - TITLE_H - MANUAL_HINT_H - POOL_MT - poolH,
-      );
-      const tierRowH = Math.max(
-        36,
-        (tierAreaH - Math.max(0, tiers.length - 1) * TIER_GAP) / tiers.length,
-      );
+    const poolRows = remaining.length > 0 ? Math.ceil(remaining.length / poolPerRow) : 1;
+    const poolItemsH = remaining.length > 0
+      ? poolRows * poolItemH + Math.max(0, poolRows - 1) * ITEM_GAP
+      : 18;
+    const poolHeight = POOL_HEADER_H + POOL_HEADER_MB + POOL_PAD_Y + poolItemsH;
+    const naturalBoardH = TITLE_H + MANUAL_HINT_H + naturalTiersH + POOL_MT + poolHeight;
+    const extraToFill = Math.max(0, availableH - naturalBoardH);
+    const extraPerTier = tiers.length > 0 ? extraToFill / tiers.length : 0;
+    const tierHeights = tierMinimums.reduce<Record<string, number>>((acc, row) => {
+      acc[row.id] = row.height + extraPerTier;
+      return acc;
+    }, {});
+    const tiersHeight = naturalTiersH + extraToFill;
+    const boardNaturalH = naturalBoardH + extraToFill;
+    const boardScale = Math.min(1, availableH / Math.max(1, boardNaturalH));
 
-      const { w: iw, h: ih } = aspectDims(base, itemAspect);
-      const tierPerRow = Math.max(1, Math.floor((tierItemW + ITEM_GAP) / (iw + ITEM_GAP)));
-      const tallestTierContent = countsInTiers.reduce((max, count) => {
-        const rows = count > 0 ? Math.ceil(count / tierPerRow) : 1;
-        const contentH = rows * ih + Math.max(0, rows - 1) * ITEM_GAP + TIER_PAD_Y;
-        return Math.max(max, contentH);
-      }, 0);
-
-      if (tallestTierContent <= tierRowH) {
-        return { itemBase: base, poolBase: poolCandidate };
-      }
-    }
-
-    return { itemBase: MIN_BASE, poolBase: Math.max(24, Math.round(MIN_BASE * 0.74)) };
+    return {
+      itemBase: ITEM_BASE,
+      poolBase: POOL_BASE,
+      boardScale,
+      contentW,
+      boardNaturalH,
+      tiersHeight,
+      tierHeights,
+      tierLabelW,
+      poolHeight,
+    };
   }, [size, tiers, itemAspect, placedByTier, remaining.length, manualMode]);
 
 
