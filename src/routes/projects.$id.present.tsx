@@ -7,6 +7,7 @@ import { IcebergPresentation } from "@/components/iceberg/IcebergPresentation";
 import { BracketPresentation } from "@/components/bracket/BracketPresentation";
 import { MatrixPresentation } from "@/components/matrix/MatrixPresentation";
 import { RankingPresentation } from "@/components/ranking/RankingPresentation";
+import { ScalePresentation } from "@/components/scale/ScalePresentation";
 import { Button } from "@/components/ui/button";
 
 const searchSchema = z.object({
@@ -47,6 +48,7 @@ function PresentRoute() {
   if (template === "bracket") return <BracketPresentation project={project} recording={recording} />;
   if (template === "matrix") return <MatrixPresentation project={project} recording={recording} />;
   if (template === "ranking") return <RankingPresentation project={project} recording={recording} />;
+  if (template === "scale") return <ScalePresentation project={project} recording={recording} />;
   return <Presentation project={project} recording={recording} />;
 }
 

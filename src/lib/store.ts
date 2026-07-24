@@ -336,6 +336,7 @@ function defaultTitleForTemplate(t: ProjectTemplate): string {
   if (t === "bracket") return "Novo chaveamento";
   if (t === "matrix") return "Nova matriz";
   if (t === "ranking") return "Novo ranking";
+  if (t === "scale") return "Nova comparação de escala";
   return "Novo mapa mental";
 }
 
@@ -406,6 +407,21 @@ export function seedNodesForTemplate(template: ProjectTemplate, title: string): 
     const rootId = uid2();
     return [
       { id: rootId, text: title.trim() || "Ranking", x: 0, y: 0, width: 400, parentId: null, role: "ranking" },
+    ];
+  }
+
+  if (template === "scale") {
+    const rootId = uid2();
+    const config = JSON.stringify({
+      unit: "",
+      scaleMode: "visual",
+      sortMode: "asc",
+      accentColor: "#fbbf24",
+      barColor: "#38bdf8",
+      caption: "Uma comparação em escala.",
+    });
+    return [
+      { id: rootId, text: title.trim() || "Comparação de escala", x: 0, y: 0, width: 400, parentId: null, role: "scale", body: config },
     ];
   }
 
