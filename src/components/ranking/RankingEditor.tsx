@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useStore } from "@/lib/store";
 import type { MindNode, Project } from "@/lib/types";
-import { pickMediaAndStore, resolveImage } from "@/lib/imageStorage";
+import { pickMediaAndStore, pickMediaMultipleAndStore, resolveImage } from "@/lib/imageStorage";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { RecordFormatMenu } from "@/components/RecordFormatMenu";
@@ -19,6 +19,20 @@ import type { RecordFormat } from "@/lib/recordFormats";
 import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
 import { visualInsertIndexVertical } from "@/components/shared/DropIndicator";
 import { NarrationDock } from "@/components/shared/NarrationDock";
+import {
+  ASPECT_OPTIONS,
+  aspectDims,
+  parseTierListConfig,
+  serializeTierListConfig,
+  type ItemAspect,
+} from "@/lib/tierlistConfig";
+
+/** Width of the thumbnail strip for a card of height `h`, given aspect. */
+function thumbWidth(h: number, aspect: ItemAspect): number {
+  const d = aspectDims(100, aspect);
+  return Math.round(h * (d.w / d.h));
+}
+
 
 /* ---------- image resolution ---------- */
 function useResolvedImage(node: MindNode | undefined) {
