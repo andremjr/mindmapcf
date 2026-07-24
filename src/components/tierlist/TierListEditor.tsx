@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, Plus, Trash2, Image as ImageIcon, X, Play, Circle, GripVertical } from "lucide-react";
 
@@ -374,8 +374,9 @@ export function TierListEditor({ project }: { project: Project }) {
 
       <main className="flex-1 min-h-0 overflow-hidden p-4">
         <div className="mx-auto max-w-[1600px] h-full grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px_300px] gap-4">
-          {/* TIERS column — scrolls internally so the pool never goes off-screen */}
-          <section className="min-h-0 overflow-auto pr-1 space-y-3">
+          {/* TIERS column — auto-scales so every tier stays visible without scroll,
+              matching the presentation/recording fit-to-frame behavior. */}
+          <TiersFitColumn>
             {tiers.map((tier) => {
               const items = itemsByTier.get(tier.id) ?? [];
               return (
@@ -466,7 +467,8 @@ export function TierListEditor({ project }: { project: Project }) {
                 <Plus className="size-4" /> Adicionar tier
               </Button>
             </div>
-          </section>
+          </TiersFitColumn>
+
 
           {/* POOL column — side-by-side with tiers so items are always reachable */}
           <section className="min-h-0 flex flex-col rounded-lg border border-dashed border-border/60 bg-muted/20">
@@ -643,3 +645,51 @@ export function TierListEditor({ project }: { project: Project }) {
     </div>
   );
 }
+
+/**
+ * Column wrapper that measures its available height and the natural content
+ * height, then applies a CSS scale so every tier stays visible without
+ * requiring the user to scroll — mirroring the fit-to-frame logic used in
+ * TierListPresentation for recording.
+ */
+function TiersFitColumn({ children }: { children: React.ReactNode }) {
+  const outerRef = useRef<HTMLDivElement | null>(null);
+  const innerRef = useRef<HTMLDivElement | null>(null);
+  const [scale, setScale] = useState(1);
+
+  useLayoutEffect(() => {
+    const outer = outerRef.current;
+    const inner = innerRef.current;
+    if (!outer || !inner) return;
+    const recompute = () => {
+      const availH = outer.clientHeight;
+      const availW = outer.clientWidth;
+      const naturalH = inner.scrollHeight;
+      const naturalW = inner.scrollWidth;
+      if (naturalH <= 0 || naturalW <= 0) return;
+      const s = Math.min(1, availH / naturalH, availW / naturalW);
+      setScale(s > 0 ? s : 1);
+    };
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(outer);
+    ro.observe(inner);
+    return () => ro.disconnect();
+  });
+
+  return (
+    <section ref={outerRef} className="min-h-0 overflow-hidden pr-1">
+      <div
+        ref={innerRef}
+        className="space-y-3 origin-top-left"
+        style={{
+          transform: `scale(${scale})`,
+          width: scale < 1 ? `${100 / scale}%` : "100%",
+        }}
+      >
+        {children}
+      </div>
+    </section>
+  );
+}
+
