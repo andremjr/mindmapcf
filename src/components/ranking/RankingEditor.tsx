@@ -209,10 +209,12 @@ export function RankingEditor({ project }: { project: Project }) {
     });
   }
 
+  function reindexCallOrder(next: MindNode[]) {
     next.forEach((n, i) => {
       if ((n.order ?? -1) !== i) updateNode(project.id, n.id, { order: i } as Partial<MindNode>);
     });
   }
+
 
   function moveCall(id: string, targetIdx: number) {
     const src = items.findIndex((n) => n.id === id);
