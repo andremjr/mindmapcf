@@ -168,11 +168,6 @@ export function ScalePresentation({ project, recording }: { project: Project; re
   const active = steps[stepIdx] ?? { kind: "overview" };
   const focusIndex = active.kind === "focus" ? active.index : null;
 
-  const setSonicAvatar = useStore((s) => s.setSonicAvatar);
-  const onAvatarMove = (xPct: number, yPct: number) => {
-    setSonicAvatar(project.id, { xPct, yPct });
-  };
-
   return (
     <PresentationShell
       project={project}
@@ -192,7 +187,6 @@ export function ScalePresentation({ project, recording }: { project: Project; re
           focusIndex={focusIndex}
           isOverview={active.kind === "overview"}
           project={project}
-          onAvatarMove={onAvatarMove}
         />
       )}
     </PresentationShell>
