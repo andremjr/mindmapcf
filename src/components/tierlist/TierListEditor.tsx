@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useStore } from "@/lib/store";
 import type { MindNode, Project } from "@/lib/types";
-import { pickMediaAndStore, resolveImage } from "@/lib/imageStorage";
+import { pickMediaAndStore, pickMediaMultipleAndStore, resolveImage } from "@/lib/imageStorage";
 import { RecordFormatMenu } from "@/components/RecordFormatMenu";
 import { launchRecording } from "@/lib/launchRecording";
 import { useAuth } from "@/hooks/useAuth";
