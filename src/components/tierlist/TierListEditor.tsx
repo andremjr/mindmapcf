@@ -15,6 +15,13 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
 import { DropIndicator, visualInsertIndex } from "@/components/shared/DropIndicator";
 import { NarrationDock } from "@/components/shared/NarrationDock";
+import {
+  ASPECT_OPTIONS,
+  aspectDims,
+  parseTierListConfig,
+  serializeTierListConfig,
+  type ItemAspect,
+} from "@/lib/tierlistConfig";
 
 const TIER_COLORS = [
   "rgb(255, 127, 127)", "rgb(255, 191, 127)", "rgb(255, 223, 127)",
@@ -40,16 +47,19 @@ function useResolvedImage(node: MindNode | null | undefined) {
 
 function ItemThumb({
   node,
+  aspect,
   selected,
   onClick,
   onRemove,
 }: {
   node: MindNode;
+  aspect: ItemAspect;
   selected?: boolean;
   onClick?: () => void;
   onRemove: () => void;
 }) {
   const url = useResolvedImage(node);
+  const { w, h } = aspectDims(104, aspect);
   return (
     <div
       onClick={onClick}
@@ -58,7 +68,7 @@ function ItemThumb({
           ? "border-primary ring-2 ring-primary/40"
           : "border-border/60 hover:border-primary/50"
       }`}
-      style={{ width: 104, height: 104 }}
+      style={{ width: w, height: h }}
     >
       {url && (
         <img src={url} alt="" className="absolute inset-0 size-full object-cover" />
@@ -141,6 +151,15 @@ export function TierListEditor({ project }: { project: Project }) {
   const selected = selectedId ? allItems.find((n) => n.id === selectedId) ?? null : null;
   const [selectedTierId, setSelectedTierId] = useState<string | null>(null);
   const selectedTier = selectedTierId ? tiers.find((t) => t.id === selectedTierId) ?? null : null;
+
+  const config = useMemo(() => parseTierListConfig(board?.body), [board?.body]);
+  const itemAspect: ItemAspect = config.itemAspect;
+  function setItemAspect(a: ItemAspect) {
+    if (!board) return;
+    updateNode(project.id, board.id, {
+      body: serializeTierListConfig({ ...config, itemAspect: a }),
+    } as Partial<MindNode>);
+  }
 
   function addTier() {
     if (!board) return;
@@ -368,10 +387,30 @@ export function TierListEditor({ project }: { project: Project }) {
                     Adicione itens em ordem de chamada e arraste para os tiers — ou deixe todos aqui para posicionar ao vivo na apresentação/gravação.
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-end">
                   <span className="text-[11px] text-muted-foreground">
                     {allItems.length} total · {placedCount} nos tiers
                   </span>
+                  <div
+                    className="inline-flex rounded-md border border-border/60 overflow-hidden"
+                    title="Formato de exibição das imagens"
+                  >
+                    {ASPECT_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setItemAspect(opt.id)}
+                        className={`px-2 py-1 text-[11px] leading-none transition ${
+                          itemAspect === opt.id
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-background hover:bg-muted"
+                        }`}
+                      >
+                        {opt.label}
+                        <span className="ml-1 opacity-60">{opt.hint}</span>
+                      </button>
+                    ))}
+                  </div>
                   <Button size="sm" variant="outline" onClick={addItem} className="gap-1.5">
                     <Plus className="size-3.5" /> Item
                   </Button>
@@ -415,6 +454,7 @@ export function TierListEditor({ project }: { project: Project }) {
                       </div>
                       <ItemThumb
                         node={it}
+                        aspect={itemAspect}
                         selected={selectedId === it.id}
                         onClick={() => { setSelectedId(it.id); setSelectedTierId(null); }}
                         onRemove={() => deleteNode(project.id, it.id)}
@@ -490,6 +530,7 @@ export function TierListEditor({ project }: { project: Project }) {
                           </div>
                           <ItemThumb
                             node={it}
+                            aspect={itemAspect}
                             selected={selectedId === it.id}
                             onClick={() => { setSelectedId(it.id); setSelectedTierId(null); }}
                             onRemove={() => deleteNode(project.id, it.id)}

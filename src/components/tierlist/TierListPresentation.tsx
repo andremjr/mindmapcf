@@ -21,6 +21,7 @@ import { RecorderHUD } from "@/components/mindmap/RecorderHUD";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AvatarLayer } from "@/components/shared/AvatarLayer";
 import { DropIndicator, visualInsertIndex } from "@/components/shared/DropIndicator";
+import { aspectDims, parseTierListConfig, type ItemAspect } from "@/lib/tierlistConfig";
 
 function fmtDur(ms: number) {
   const s = Math.floor(ms / 1000);
@@ -45,6 +46,7 @@ function useResolvedImage(node: MindNode | null | undefined) {
 function TierItem({
   node,
   size = 92,
+  aspect = "square",
   highlighted = false,
   draggable = false,
   onDragStart,
@@ -52,12 +54,14 @@ function TierItem({
 }: {
   node: MindNode;
   size?: number;
+  aspect?: ItemAspect;
   highlighted?: boolean;
   draggable?: boolean;
   onDragStart?: () => void;
   onDragEnd?: () => void;
 }) {
   const url = useResolvedImage(node);
+  const { w, h } = aspectDims(size, aspect);
   const ring = highlighted
     ? { boxShadow: `0 0 28px ${node.color ?? "rgba(255,255,255,0.55)"}` }
     : undefined;
@@ -71,7 +75,7 @@ function TierItem({
           ? "ring-2 ring-white border-white"
           : "border-white/20"
       } ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
-      style={{ width: size, height: size, background: node.color ?? "#111", ...ring }}
+      style={{ width: w, height: h, background: node.color ?? "#111", ...ring }}
     >
       {url ? (
         <img src={url} alt="" className="absolute inset-0 size-full object-cover" />
@@ -169,6 +173,7 @@ export function TierListPresentation({
   }, [recording, cropOk]);
 
   const board = project.nodes.find((n) => n.role === "board" || !n.parentId);
+  const itemAspect: ItemAspect = useMemo(() => parseTierListConfig(board?.body).itemAspect, [board?.body]);
   const tiers = useMemo(
     () => project.nodes
       .filter((n) => n.role === "tier" && n.parentId === board?.id)
@@ -433,6 +438,7 @@ export function TierListPresentation({
                             >
                               <TierItem
                                 node={it}
+                                aspect={itemAspect}
                                 highlighted={!manualMode && currentItemId === it.id}
                                 draggable={manualMode}
                                 onDragStart={() => setDragId(it.id)}
@@ -485,6 +491,7 @@ export function TierListPresentation({
                         <TierItem
                           node={it}
                           size={72}
+                          aspect={itemAspect}
                           highlighted={!manualMode && i === 0}
                           draggable={manualMode}
                           onDragStart={() => setDragId(it.id)}
