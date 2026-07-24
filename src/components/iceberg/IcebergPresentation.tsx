@@ -180,11 +180,11 @@ export function IcebergPresentation({
     return m;
   }, [project.nodes, levels]);
 
-  /** Nav order: [level1, item1a, item1b, level2, item2a, ...] */
+  /** Nav order: items only, grouped by level. Camera zoom-to-level happens
+   *  automatically when the level of the current item changes. */
   const nav = useMemo(() => {
-    const arr: Array<{ type: "level" | "item"; levelId: string; itemId?: string }> = [];
+    const arr: Array<{ type: "item"; levelId: string; itemId: string }> = [];
     for (const lvl of levels) {
-      arr.push({ type: "level", levelId: lvl.id });
       for (const it of itemsByLevel.get(lvl.id) ?? []) {
         arr.push({ type: "item", levelId: lvl.id, itemId: it.id });
       }
@@ -194,8 +194,11 @@ export function IcebergPresentation({
 
   const [idx, setIdx] = useState(0);
   const [itemOpen, setItemOpen] = useState(false);
+  // Final beat: after the last item closes, one more click shows the whole
+  // iceberg in overview so the video can end on that shot.
+  const [finalOverview, setFinalOverview] = useState(false);
   const current = nav[idx];
-  const activeItem = current?.itemId && itemOpen
+  const activeItem = current?.itemId && itemOpen && !finalOverview
     ? project.nodes.find((n) => n.id === current.itemId) ?? null
     : null;
 
@@ -219,15 +222,25 @@ export function IcebergPresentation({
     prevLevelIdRef.current = current.levelId;
   }, [current?.levelId]);
 
+  const effectivePhase: "focus" | "overview" = finalOverview ? "overview" : phase;
+
   const next = () => {
     if (countdown !== null) return;
+    if (finalOverview) return; // final beat — no further steps
     // Two-click per item: 1st opens the card, 2nd closes it and moves on.
     if (current?.type === "item" && !itemOpen) { setItemOpen(true); return; }
+    // Closing the last item → final overview shot of the entire iceberg.
+    if (idx >= nav.length - 1) {
+      setItemOpen(false);
+      setFinalOverview(true);
+      return;
+    }
     setItemOpen(false);
     setIdx((i) => Math.min(nav.length - 1, i + 1));
   };
   const prev = () => {
     if (countdown !== null) return;
+    if (finalOverview) { setFinalOverview(false); return; }
     if (current?.type === "item" && itemOpen) { setItemOpen(false); return; }
     setItemOpen(false);
     setIdx((i) => Math.max(0, i - 1));
