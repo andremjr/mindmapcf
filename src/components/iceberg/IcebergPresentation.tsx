@@ -354,7 +354,7 @@ export function IcebergPresentation({
                         key={lvl.id}
                         data-level-id={lvl.id}
                         className={`relative px-10 py-10 flex flex-col gap-6 transition-opacity duration-500 ${
-                          phase === "overview" || isActive ? "opacity-100" : "opacity-40"
+                          effectivePhase === "overview" || isActive ? "opacity-100" : "opacity-40"
                         }`}
                         style={{
                           background: `linear-gradient(180deg, ${grad.from}cc 0%, ${grad.to}cc 100%)`,
