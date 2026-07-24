@@ -11,6 +11,7 @@ import { pickMediaAndStore, resolveImage } from "@/lib/imageStorage";
 import { IcebergBackground } from "./IcebergBackground";
 import { RecordFormatMenu } from "@/components/RecordFormatMenu";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { NarrationDock } from "@/components/shared/NarrationDock";
 import { launchRecording } from "@/lib/launchRecording";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
@@ -251,6 +252,7 @@ export function IcebergEditor({ project }: { project: Project }) {
           />
           <span className="text-xs text-muted-foreground shrink-0">Iceberg</span>
         </div>
+        <NarrationDock projectId={project.id} narrationRef={project.narrationRef} />
         <ThemeToggle />
         <Button variant="destructive" size="sm" onClick={() => setRecordOpen(true)} className="gap-1.5">
           <Circle className="size-3 fill-current" /> Gravar
