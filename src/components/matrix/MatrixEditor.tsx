@@ -275,6 +275,9 @@ export function MatrixEditor({ project }: { project: Project }) {
         <Button size="sm" variant="outline" onClick={addCard} className="gap-1.5">
           <Plus className="size-3.5" /> Card
         </Button>
+        <Button size="sm" variant="outline" onClick={addBulkImages} className="gap-1.5">
+          <Images className="size-3.5" /> Imagens
+        </Button>
         <NarrationDock projectId={project.id} narrationRef={project.narrationRef} />
         <ThemeToggle />
         <Button variant="destructive" size="sm" onClick={() => setRecordOpen(true)} className="gap-1.5">
