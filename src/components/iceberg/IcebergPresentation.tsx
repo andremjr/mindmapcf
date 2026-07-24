@@ -276,7 +276,7 @@ export function IcebergPresentation({
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nav.length, recording]);
+  }, [nav.length, recording, idx, itemOpen, countdown]);
 
   const [, setRecTick] = useState(0);
   useEffect(() => {
