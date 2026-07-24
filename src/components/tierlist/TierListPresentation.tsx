@@ -334,6 +334,49 @@ export function TierListPresentation({
     if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) setHover(null);
   };
 
+  /**
+   * Fit-to-frame sizing. The recording frame must never scroll — items shrink
+   * so all tiers + the pool are always fully visible. Recomputes when the
+   * frame resizes, tiers change, or items wrap to a new row.
+   */
+  const itemBase = useMemo(() => {
+    if (!tiers.length || size.w < 100 || size.h < 100) return 92;
+    const TITLE_H = 60;
+    const POOL_H = 120;
+    const OUTER_PAD = 48; // p-6 top+bottom
+    const availH = Math.max(80, size.h - TITLE_H - POOL_H - OUTER_PAD - (manualMode ? 24 : 0));
+    const LABEL_W = 160;
+    const INNER_PAD = 24;
+    const availW = Math.max(120, size.w - 48 - LABEL_W - INNER_PAD);
+    const GAP = 8;
+    const countsInTiers = tiers.map((t) => placedByTier.get(t.id)?.length ?? 0);
+    const poolCount = remaining.length;
+
+    let base = 100;
+    const min = 28;
+    while (base > min) {
+      const { w: iw, h: ih } = aspectDims(base, itemAspect);
+      const rowH = ih + GAP;
+      const perRow = Math.max(1, Math.floor((availW + GAP) / (iw + GAP)));
+      let totalTiersH = 0;
+      for (const n of countsInTiers) {
+        const rows = Math.max(1, Math.ceil(Math.max(n, 1) / perRow));
+        totalTiersH += Math.max(rowH, rows * rowH) + GAP;
+      }
+      // Pool uses a slightly smaller icon (0.78×) and one wrap row max target.
+      const poolBase = Math.round(base * 0.78);
+      const { w: pw, h: ph } = aspectDims(poolBase, itemAspect);
+      const poolPerRow = Math.max(1, Math.floor((size.w - 48 - 24 + GAP) / (pw + GAP)));
+      const poolRows = Math.max(1, Math.ceil(Math.max(poolCount, 1) / poolPerRow));
+      const poolTotalH = poolRows * (ph + GAP) + 40;
+      if (totalTiersH <= availH && poolTotalH <= POOL_H + 40) break;
+      base -= 4;
+    }
+    return Math.max(min, base);
+  }, [size, tiers, itemAspect, placedByTier, remaining.length, manualMode]);
+  const poolBase = Math.max(24, Math.round(itemBase * 0.78));
+
+
 
   async function stopAndDownload() {
     const narr = getRecordingNarrationEl();
