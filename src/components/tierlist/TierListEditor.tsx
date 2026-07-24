@@ -375,6 +375,9 @@ export function TierListEditor({ project }: { project: Project }) {
                   <Button size="sm" variant="outline" onClick={addItem} className="gap-1.5">
                     <Plus className="size-3.5" /> Item
                   </Button>
+                  <Button size="sm" variant="outline" onClick={addItemsFromImages} className="gap-1.5" title="Selecione várias imagens de uma pasta para criar um item por imagem">
+                    <ImageIcon className="size-3.5" /> Importar imagens
+                  </Button>
                 </div>
               </div>
               <div
