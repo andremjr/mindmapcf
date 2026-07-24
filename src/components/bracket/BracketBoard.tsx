@@ -346,7 +346,7 @@ function MatchBox({
 }
 
 function RoundColumn({
-  round, mode, currentStep, stepIdx, steps, side, onPickWinner, label, aspect, accentColor,
+  round, mode, currentStep, stepIdx, steps, side, onPickWinner, onMatchClick, label, aspect, accentColor,
 }: {
   round: Match[];
   mode: "edit" | "present";
@@ -355,6 +355,7 @@ function RoundColumn({
   steps: string[];
   side: "L" | "R";
   onPickWinner?: (matchKey: string, id: string) => void;
+  onMatchClick?: (matchKey: string) => void;
   label: string;
   aspect: ItemAspect;
   accentColor: string;
