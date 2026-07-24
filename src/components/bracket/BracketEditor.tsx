@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  ChevronLeft, Plus, Trash2, Image as ImageIcon, Play, Circle, RotateCcw, X,
+  ChevronLeft, Plus, Trash2, Image as ImageIcon, Play, Circle, RotateCcw, X, Shuffle,
 } from "lucide-react";
+
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ import type { RecordFormat } from "@/lib/recordFormats";
 import { BracketBoard, clearDownstreamWinners, type WinnersMap } from "./BracketBoard";
 import { PanZoom } from "@/components/ui/PanZoom";
 import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
-import { parseBracketConfig, serializeBracketConfig } from "@/lib/bracketConfig";
+import { parseBracketConfig, serializeBracketConfig, seatCompetitors, drawSeedOrder } from "@/lib/bracketConfig";
 import { ASPECT_OPTIONS, aspectDims, type ItemAspect } from "@/lib/tierlistConfig";
 
 
@@ -107,6 +108,12 @@ export function BracketEditor({ project }: { project: Project }) {
   const winners: WinnersMap = cfg.winners;
   const itemAspect: ItemAspect = cfg.itemAspect;
   const accentColor: string = cfg.accentColor;
+  const seedOrder = cfg.seedOrder;
+  const seatedCompetitors = useMemo(
+    () => seatCompetitors(competitors, seedOrder),
+    [competitors, seedOrder],
+  );
+  const hasDraw = !!seedOrder && seedOrder.length > 0;
 
   function persistConfig(next: Partial<typeof cfg>) {
     if (!root) return;
@@ -116,6 +123,19 @@ export function BracketEditor({ project }: { project: Project }) {
   }
   function setItemAspect(a: ItemAspect) { persistConfig({ itemAspect: a }); }
   function setAccentColor(c: string | undefined) { persistConfig({ accentColor: c || "#fbbf24" }); }
+
+  function drawBracket() {
+    if (competitors.length < 2) { alert("Adicione pelo menos 2 competidores antes de sortear."); return; }
+    if (Object.keys(winners).length > 0 || hasDraw) {
+      if (!confirm("Isto vai sortear novamente os confrontos e limpar todos os vencedores. Continuar?")) return;
+    }
+    persistConfig({ seedOrder: drawSeedOrder(competitors), winners: {} });
+  }
+  function clearDraw() {
+    if (!confirm("Limpar o sorteio atual? Os competidores voltam à ordem original do editor.")) return;
+    persistConfig({ seedOrder: undefined, winners: {} });
+  }
+
 
 
   function addCompetitor() {
@@ -174,9 +194,10 @@ export function BracketEditor({ project }: { project: Project }) {
 
   function pickWinner(matchKey: string, id: string) {
     if (!root) return;
-    const next = clearDownstreamWinners(competitors, { ...winners, [matchKey]: id }, matchKey);
+    const next = clearDownstreamWinners(seatedCompetitors, { ...winners, [matchKey]: id }, matchKey);
     persistConfig({ winners: next });
   }
+
 
   function resetWinners() {
     if (!root) return;
@@ -338,18 +359,42 @@ export function BracketEditor({ project }: { project: Project }) {
 
           {competitors.length >= 2 && (
             <div className="rounded-lg border border-border/60 bg-neutral-950 text-white p-4">
-              <div className="mb-3">
-                <div className="text-sm font-semibold">Definir vencedores</div>
-                <div className="text-xs text-white/60">Arraste para navegar · scroll para zoom · clique no vencedor de cada confronto.</div>
+              <div className="mb-3 flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <div className="text-sm font-semibold">
+                    {hasDraw ? "Definir vencedores" : "Sortear o chaveamento"}
+                  </div>
+                  <div className="text-xs text-white/60">
+                    {hasDraw
+                      ? "Arraste para navegar · scroll para zoom · clique no vencedor de cada confronto. Deixe todos vazios para escolher ao vivo na apresentação."
+                      : "Sorteie os confrontos iniciais para começar a decidir os vencedores — ou pule esta etapa e sorteie ao vivo no modo manual da apresentação."}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant={hasDraw ? "outline" : "default"}
+                    onClick={drawBracket}
+                    className="gap-1.5"
+                    title="Sortear aleatoriamente as posições dos competidores"
+                  >
+                    <Shuffle className="size-3.5" /> {hasDraw ? "Sortear novamente" : "Sortear chaveamento"}
+                  </Button>
+                  {hasDraw && (
+                    <Button size="sm" variant="ghost" onClick={clearDraw} className="gap-1.5 text-white/70 hover:text-white" title="Voltar à ordem original do editor">
+                      <X className="size-3.5" /> Limpar sorteio
+                    </Button>
+                  )}
+                </div>
               </div>
               <PanZoom className="h-[75vh] min-h-[480px] rounded-md bg-gradient-to-br from-neutral-950 via-slate-900 to-neutral-950" initialScale={0.85}>
                 <div className="p-6" style={{ width: "max-content" }}>
                   <BracketBoard
-                    competitors={competitors}
+                    competitors={seatedCompetitors}
                     winners={winners}
                     currentStep={null}
                     mode="edit"
-                    onPickWinner={pickWinner}
+                    onPickWinner={hasDraw ? pickWinner : undefined}
                     aspect={itemAspect}
                     accentColor={accentColor}
                   />
@@ -358,6 +403,7 @@ export function BracketEditor({ project }: { project: Project }) {
 
             </div>
           )}
+
 
         </div>
 
