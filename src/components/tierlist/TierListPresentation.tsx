@@ -450,7 +450,8 @@ export function TierListPresentation({
                                 node={it}
                                 aspect={itemAspect}
                                 highlighted={!manualMode && currentItemId === it.id}
-                                draggable={manualMode}
+                                draggable={manualMode && spotlightId !== it.id}
+                                onClick={manualMode ? () => toggleSpotlight(it.id) : undefined}
                                 onDragStart={() => setDragId(it.id)}
                                 onDragEnd={() => { setDragId(null); setHover(null); }}
                               />
