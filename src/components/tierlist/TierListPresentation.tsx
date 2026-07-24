@@ -262,6 +262,13 @@ export function TierListPresentation({
   /* ============ DRAG (manual mode) ============ */
   const [dragId, setDragId] = useState<string | null>(null);
   const [hover, setHover] = useState<{ key: string; idx: number } | null>(null);
+  /** Item currently "spotlighted" (enlarged in center). Manual mode only. */
+  const [spotlightId, setSpotlightId] = useState<string | null>(null);
+  const spotlightNode = spotlightId ? allItems.find((n) => n.id === spotlightId) ?? null : null;
+  const spotlightUrl = useResolvedImage(spotlightNode);
+  function toggleSpotlight(id: string) {
+    setSpotlightId((prev) => (prev === id ? null : id));
+  }
   const updateNode = useStore((s) => s.updateNode);
 
   /** Where the user drops is where the item stays: compute insertion index
