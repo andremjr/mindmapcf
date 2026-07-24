@@ -194,9 +194,10 @@ export function BracketEditor({ project }: { project: Project }) {
 
   function pickWinner(matchKey: string, id: string) {
     if (!root) return;
-    const next = clearDownstreamWinners(competitors, { ...winners, [matchKey]: id }, matchKey);
+    const next = clearDownstreamWinners(seatedCompetitors, { ...winners, [matchKey]: id }, matchKey);
     persistConfig({ winners: next });
   }
+
 
   function resetWinners() {
     if (!root) return;
