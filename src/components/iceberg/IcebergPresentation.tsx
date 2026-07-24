@@ -380,7 +380,7 @@ export function IcebergPresentation({
                         }`}
                         style={{
                           background: moody
-                            ? `linear-gradient(180deg, rgba(0,0,0,${0.05 + i * 0.06}) 0%, rgba(0,0,0,${0.15 + i * 0.08}) 100%)`
+                            ? "transparent"
                             : `linear-gradient(180deg, ${grad.from}cc 0%, ${grad.to}cc 100%)`,
                           color: moody ? "#f8fafc" : grad.text,
                           height: levelH,
