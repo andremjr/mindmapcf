@@ -245,11 +245,17 @@ export function TierListPresentation({
   }, [tiers, manualMode, allItems, idx, preplacedQueue]);
 
 
-  /** Auto-mode spotlight: item shown enlarged before flying to its tier. */
+  /**
+   * Auto-mode is a user-driven 3-click cycle per item:
+   *   1) idle           → open spotlight (item enlarges in the center)
+   *   2) spotlight      → collapse (item returns to the pool)
+   *   3) ready-to-place → animate item flying into its tier (idx += 1)
+   * Then it loops back to idle for the next item. `prev()` rewinds one step
+   * in the same cycle.
+   */
+  type AutoPhase = "idle" | "spotlight" | "ready-to-place";
+  const [autoPhase, setAutoPhase] = useState<AutoPhase>("idle");
   const [autoSpotlightId, setAutoSpotlightId] = useState<string | null>(null);
-  const autoTimers = useRef<number[]>([]);
-  const autoBusy = useRef(false);
-  useEffect(() => () => { autoTimers.current.forEach((t) => window.clearTimeout(t)); }, []);
 
   const remaining = manualMode
     ? allItems.filter((n) => !n.parentId || !tierIds.has(n.parentId))
@@ -265,26 +271,32 @@ export function TierListPresentation({
 
   const next = () => {
     if (manualMode || countdown !== null) return;
-    if (autoBusy.current) return;
-    setIdx((i) => {
-      if (i >= preplacedQueue.length) return i;
-      const nextItem = preplacedQueue[i];
-      autoBusy.current = true;
-      setAutoSpotlightId(nextItem.id);
-      // Hold the spotlight, then collapse and let LayoutGroup fly the card into its tier.
-      autoTimers.current.push(window.setTimeout(() => {
-        setAutoSpotlightId(null);
-        autoTimers.current.push(window.setTimeout(() => {
-          setIdx((cur) => Math.min(preplacedQueue.length, cur + 1));
-          autoBusy.current = false;
-        }, 220));
-      }, 1400));
-      return i; // increment happens after spotlight closes
-    });
+    if (autoPhase === "idle") {
+      if (idx >= preplacedQueue.length) return;
+      setAutoSpotlightId(preplacedQueue[idx].id);
+      setAutoPhase("spotlight");
+    } else if (autoPhase === "spotlight") {
+      // Collapse the spotlight — item goes back to the pool visually.
+      setAutoSpotlightId(null);
+      setAutoPhase("ready-to-place");
+    } else {
+      // Fly the card from the pool into its tier via LayoutGroup.
+      setIdx((cur) => Math.min(preplacedQueue.length, cur + 1));
+      setAutoPhase("idle");
+    }
   };
   const prev = () => {
-    if (manualMode || countdown !== null || autoBusy.current) return;
-    setIdx((i) => Math.max(0, i - 1));
+    if (manualMode || countdown !== null) return;
+    if (autoPhase === "ready-to-place") {
+      // Re-open the spotlight for the current item.
+      if (idx < preplacedQueue.length) setAutoSpotlightId(preplacedQueue[idx].id);
+      setAutoPhase("spotlight");
+    } else if (autoPhase === "spotlight") {
+      setAutoSpotlightId(null);
+      setAutoPhase("idle");
+    } else {
+      setIdx((i) => Math.max(0, i - 1));
+    }
   };
 
   /* ============ DRAG (manual mode) ============ */
@@ -756,13 +768,13 @@ export function TierListPresentation({
 
       {!manualMode && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-foreground/10 backdrop-blur border border-border text-foreground px-2 py-2">
-          <button onClick={prev} disabled={idx === 0} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
+          <button onClick={prev} disabled={idx === 0 && autoPhase === "idle"} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
             <ChevronLeft className="size-5" />
           </button>
           <span className="px-3 text-sm font-mono tabular-nums min-w-[70px] text-center">
             {`${idx} / ${preplacedQueue.length}`}
           </span>
-          <button onClick={next} disabled={idx >= preplacedQueue.length} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
+          <button onClick={next} disabled={idx >= preplacedQueue.length && autoPhase === "idle"} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
             <ChevronRight className="size-5" />
           </button>
         </div>
