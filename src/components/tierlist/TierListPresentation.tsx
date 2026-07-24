@@ -293,6 +293,8 @@ export function TierListPresentation({
   const [spotlightId, setSpotlightId] = useState<string | null>(null);
   const spotlightNode = spotlightId ? allItems.find((n) => n.id === spotlightId) ?? null : null;
   const spotlightUrl = useResolvedImage(spotlightNode);
+  const autoSpotlightNode = autoSpotlightId ? allItems.find((n) => n.id === autoSpotlightId) ?? null : null;
+  const autoSpotlightUrl = useResolvedImage(autoSpotlightNode);
   function toggleSpotlight(id: string) {
     setSpotlightId((prev) => (prev === id ? null : id));
   }
