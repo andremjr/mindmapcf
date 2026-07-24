@@ -257,6 +257,15 @@ export function TierListPresentation({
   const [autoPhase, setAutoPhase] = useState<AutoPhase>("idle");
   const [autoSpotlightId, setAutoSpotlightId] = useState<string | null>(null);
 
+  /** FLIP flight: on the third click, the card physically travels from its
+   *  pool slot to its tier slot instead of teleporting. `from` is captured
+   *  synchronously before `idx` increments; `to` is measured after the tier
+   *  re-renders the (hidden) landing card. */
+  type FlyRect = { x: number; y: number; w: number; h: number };
+  const [flying, setFlying] = useState<null | { id: string; from: FlyRect; to?: FlyRect }>(null);
+  const flyingNode = flying ? preplacedQueue.find((n) => n.id === flying.id) ?? null : null;
+  const flyingUrl = useResolvedImage(flyingNode);
+
   const remaining = manualMode
     ? allItems.filter((n) => !n.parentId || !tierIds.has(n.parentId))
     : preplacedQueue.slice(idx).filter((n) => n.id !== autoSpotlightId);
@@ -270,7 +279,7 @@ export function TierListPresentation({
 
 
   const next = () => {
-    if (manualMode || countdown !== null) return;
+    if (manualMode || countdown !== null || flying) return;
     if (autoPhase === "idle") {
       if (idx >= preplacedQueue.length) return;
       setAutoSpotlightId(preplacedQueue[idx].id);
@@ -280,13 +289,26 @@ export function TierListPresentation({
       setAutoSpotlightId(null);
       setAutoPhase("ready-to-place");
     } else {
-      // Fly the card from the pool into its tier via LayoutGroup.
+      // Third click: capture source rect BEFORE the pool item unmounts, then
+      // let idx increment. A layout-effect measures the destination and starts
+      // the overlay flight.
+      const item = preplacedQueue[idx];
+      const frame = frameRef.current;
+      const src = frame?.querySelector<HTMLElement>(`[data-item-id="${item.id}"]`);
+      if (frame && src) {
+        const f = frame.getBoundingClientRect();
+        const s = src.getBoundingClientRect();
+        setFlying({
+          id: item.id,
+          from: { x: s.left - f.left, y: s.top - f.top, w: s.width, h: s.height },
+        });
+      }
       setIdx((cur) => Math.min(preplacedQueue.length, cur + 1));
       setAutoPhase("idle");
     }
   };
   const prev = () => {
-    if (manualMode || countdown !== null) return;
+    if (manualMode || countdown !== null || flying) return;
     if (autoPhase === "ready-to-place") {
       // Re-open the spotlight for the current item.
       if (idx < preplacedQueue.length) setAutoSpotlightId(preplacedQueue[idx].id);
@@ -298,6 +320,25 @@ export function TierListPresentation({
       setIdx((i) => Math.max(0, i - 1));
     }
   };
+
+  // Once the landing card is mounted (idx incremented), measure its rect and
+  // populate `flying.to` so the overlay animation can start.
+  useLayoutEffect(() => {
+    if (!flying || flying.to) return;
+    const frame = frameRef.current;
+    if (!frame) return;
+    const dst = frame.querySelector<HTMLElement>(
+      `[data-placed-id="${flying.id}"]`,
+    );
+    if (!dst) return;
+    const f = frame.getBoundingClientRect();
+    const d = dst.getBoundingClientRect();
+    setFlying((cur) => (cur && !cur.to ? {
+      ...cur,
+      to: { x: d.left - f.left, y: d.top - f.top, w: d.width, h: d.height },
+    } : cur));
+  }, [flying, idx, placedByTier]);
+
 
   /* ============ DRAG (manual mode) ============ */
   const [dragId, setDragId] = useState<string | null>(null);
