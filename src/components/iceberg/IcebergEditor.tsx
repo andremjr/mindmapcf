@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ChevronLeft, Plus, Trash2, Image as ImageIcon, X, Play, Circle, Sparkles, Skull } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Image as ImageIcon, X, Play, Circle, Sparkles, Skull, Camera } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import type { MindNode, Project } from "@/lib/types";
 import { pickMediaAndStore, resolveImage } from "@/lib/imageStorage";
 import { IcebergBackground } from "./IcebergBackground";
 import { IcebergBackgroundRealista } from "./IcebergBackgroundRealista";
+import { IcebergBackgroundUltra } from "./IcebergBackgroundUltra";
 import { RecordFormatMenu } from "@/components/RecordFormatMenu";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NarrationDock } from "@/components/shared/NarrationDock";
@@ -272,6 +273,14 @@ export function IcebergEditor({ project }: { project: Project }) {
           >
             <Skull className="size-3.5" /> Realista
           </button>
+          <button
+            onClick={() => setIcebergAtmosphere(project.id, "ultra")}
+            className={`px-2.5 py-1.5 text-xs flex items-center gap-1.5 transition ${
+              atmosphere === "ultra" ? "bg-primary text-primary-foreground" : "bg-transparent hover:bg-muted"
+            }`}
+          >
+            <Camera className="size-3.5" /> Ultra
+          </button>
         </div>
         <NarrationDock projectId={project.id} narrationRef={project.narrationRef} />
         <ThemeToggle />
@@ -286,7 +295,9 @@ export function IcebergEditor({ project }: { project: Project }) {
       <main className="flex-1 overflow-auto">
         <div className="mx-auto max-w-4xl flex flex-col relative">
           <div className="absolute inset-0 pointer-events-none">
-            {atmosphere === "realista" ? (
+            {atmosphere === "ultra" ? (
+              <IcebergBackgroundUltra levels={Math.max(1, levels.length)} />
+            ) : atmosphere === "realista" ? (
               <IcebergBackgroundRealista levels={Math.max(1, levels.length)} />
             ) : (
               <IcebergBackground levels={Math.max(1, levels.length)} />

@@ -20,6 +20,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { resolveEmbed } from "@/lib/embedUrl";
 import { AvatarLayer } from "@/components/shared/AvatarLayer";
 import { IcebergBackgroundRealista } from "./IcebergBackgroundRealista";
+import { IcebergBackgroundUltra } from "./IcebergBackgroundUltra";
 
 function fmtDur(ms: number) {
   const s = Math.floor(ms / 1000);
@@ -345,16 +346,18 @@ export function IcebergPresentation({
                     willChange: "transform",
                   }}
                 >
-                  {(project.icebergAtmosphere ?? "ludico") === "realista" ? (
-                    <IcebergBackgroundRealista levels={N} />
-                  ) : (
-                    <IcebergArt levels={N} />
-                  )}
+                  {(() => {
+                    const atm = project.icebergAtmosphere ?? "ludico";
+                    if (atm === "ultra") return <IcebergBackgroundUltra levels={N} />;
+                    if (atm === "realista") return <IcebergBackgroundRealista levels={N} />;
+                    return <IcebergArt levels={N} />;
+                  })()}
                   {levels.map((lvl, i) => {
                     const grad = GRADS[Math.min(i, GRADS.length - 1)];
                     const items = itemsByLevel.get(lvl.id) ?? [];
                     const isActive = current?.levelId === lvl.id;
-                    const realista = (project.icebergAtmosphere ?? "ludico") === "realista";
+                    const atm = project.icebergAtmosphere ?? "ludico";
+                    const moody = atm === "realista" || atm === "ultra";
                     return (
                       <div
                         key={lvl.id}
@@ -363,13 +366,14 @@ export function IcebergPresentation({
                           effectivePhase === "overview" || isActive ? "opacity-100" : "opacity-40"
                         }`}
                         style={{
-                          background: realista
+                          background: moody
                             ? `linear-gradient(180deg, rgba(0,0,0,${0.05 + i * 0.06}) 0%, rgba(0,0,0,${0.15 + i * 0.08}) 100%)`
                             : `linear-gradient(180deg, ${grad.from}cc 0%, ${grad.to}cc 100%)`,
-                          color: realista ? "#f8fafc" : grad.text,
+                          color: moody ? "#f8fafc" : grad.text,
                           height: levelH,
                         }}
                       >
+
                         <div
                           className="font-bold text-3xl md:text-4xl relative z-10 text-center"
                           style={{ textShadow: "0 2px 12px rgba(0,0,0,0.55)" }}
