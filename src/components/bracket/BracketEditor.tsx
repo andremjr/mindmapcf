@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
-  ChevronLeft, Plus, Trash2, Image as ImageIcon, Play, Circle, RotateCcw, X,
+  ChevronLeft, Plus, Trash2, Image as ImageIcon, Play, Circle, RotateCcw, X, Shuffle,
 } from "lucide-react";
+
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
