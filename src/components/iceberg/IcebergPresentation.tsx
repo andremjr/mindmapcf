@@ -356,33 +356,41 @@ export function IcebergPresentation({
                           {lvl.text}
                         </div>
                         <div className="relative z-10 flex-1 w-full">
-                          {items.map((it, k) => {
-                            const n = items.length;
-                            const cols = Math.min(n, Math.max(1, Math.ceil(Math.sqrt(n * 1.8))));
-                            const rows = Math.ceil(n / cols);
-                            const col = k % cols;
-                            const row = Math.floor(k / cols);
-                            const slotW = 84 / cols;
-                            const slotH = 80 / rows;
-                            const jitterX = (seeded(it.id + "x") - 0.5) * slotW * 0.35;
-                            const jitterY = (seeded(it.id + "y") - 0.5) * slotH * 0.35;
-                            const leftPct = 8 + slotW * (col + 0.5) + jitterX;
-                            const topPct = 10 + slotH * (row + 0.5) + jitterY;
-                            const rotate = (seeded(it.id + "r") - 0.5) * 16;
-                            const tileSize = 100 + Math.round(seeded(it.id + "s") * 20);
-                            return (
-                              <ItemTile
-                                key={it.id}
-                                node={it}
-                                active={activeItem?.id === it.id}
-                                onClick={() => {
-                                  const j = nav.findIndex((x) => x.itemId === it.id);
-                                  if (j >= 0) { setIdx(j); setItemOpen(true); }
-                                }}
-                                scatter={{ left: `${leftPct}%`, top: `${topPct}%`, rotate, size: tileSize }}
-                              />
-                            );
-                          })}
+                          {(() => {
+                            // Constrain items to the iceberg silhouette per level.
+                            // Width peaks near the middle levels (widest belly) and
+                            // narrows at the tip and the deep bottom.
+                            const wPct = 46 + 44 * Math.sin(Math.PI * (i + 0.5) / N);
+                            const bandLeft = 50 - wPct / 2 + 3;
+                            const bandWidth = wPct - 6;
+                            return items.map((it, k) => {
+                              const n = items.length;
+                              const cols = Math.min(n, Math.max(1, Math.ceil(Math.sqrt(n * 1.6))));
+                              const rows = Math.ceil(n / cols);
+                              const col = k % cols;
+                              const row = Math.floor(k / cols);
+                              const slotW = bandWidth / cols;
+                              const slotH = 78 / rows;
+                              const jitterX = (seeded(it.id + "x") - 0.5) * slotW * 0.3;
+                              const jitterY = (seeded(it.id + "y") - 0.5) * slotH * 0.3;
+                              const leftPct = bandLeft + slotW * (col + 0.5) + jitterX;
+                              const topPct = 11 + slotH * (row + 0.5) + jitterY;
+                              const rotate = (seeded(it.id + "r") - 0.5) * 14;
+                              const tileSize = 96 + Math.round(seeded(it.id + "s") * 22);
+                              return (
+                                <ItemTile
+                                  key={it.id}
+                                  node={it}
+                                  active={activeItem?.id === it.id}
+                                  onClick={() => {
+                                    const j = nav.findIndex((x) => x.itemId === it.id);
+                                    if (j >= 0) { setIdx(j); setItemOpen(true); }
+                                  }}
+                                  scatter={{ left: `${leftPct}%`, top: `${topPct}%`, rotate, size: tileSize }}
+                                />
+                              );
+                            });
+                          })()}
                         </div>
                       </div>
                     );
