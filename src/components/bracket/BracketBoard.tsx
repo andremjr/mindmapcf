@@ -8,6 +8,9 @@ import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { Trophy } from "lucide-react";
 import type { MindNode } from "@/lib/types";
 import { resolveImage } from "@/lib/imageStorage";
+import { aspectDims, type ItemAspect } from "@/lib/tierlistConfig";
+import { DEFAULT_ACCENT_COLOR } from "@/lib/bracketConfig";
+
 
 export type WinnersMap = Record<string, string>;
 
