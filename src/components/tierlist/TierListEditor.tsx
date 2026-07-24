@@ -387,10 +387,30 @@ export function TierListEditor({ project }: { project: Project }) {
                     Adicione itens em ordem de chamada e arraste para os tiers — ou deixe todos aqui para posicionar ao vivo na apresentação/gravação.
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-end">
                   <span className="text-[11px] text-muted-foreground">
                     {allItems.length} total · {placedCount} nos tiers
                   </span>
+                  <div
+                    className="inline-flex rounded-md border border-border/60 overflow-hidden"
+                    title="Formato de exibição das imagens"
+                  >
+                    {ASPECT_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setItemAspect(opt.id)}
+                        className={`px-2 py-1 text-[11px] leading-none transition ${
+                          itemAspect === opt.id
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-background hover:bg-muted"
+                        }`}
+                      >
+                        {opt.label}
+                        <span className="ml-1 opacity-60">{opt.hint}</span>
+                      </button>
+                    ))}
+                  </div>
                   <Button size="sm" variant="outline" onClick={addItem} className="gap-1.5">
                     <Plus className="size-3.5" /> Item
                   </Button>
