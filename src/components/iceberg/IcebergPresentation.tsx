@@ -448,13 +448,13 @@ export function IcebergPresentation({
       </div>
 
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-foreground/10 backdrop-blur border border-border text-foreground px-2 py-2">
-        <button onClick={prev} disabled={idx === 0} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
+        <button onClick={prev} disabled={idx === 0 && !itemOpen && !finalOverview} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
           <ChevronLeft className="size-5" />
         </button>
         <span className="px-3 text-sm font-mono tabular-nums min-w-[70px] text-center">
-          {nav.length > 0 ? `${idx + 1} / ${nav.length}` : "0 / 0"}
+          {finalOverview ? "★" : nav.length > 0 ? `${idx + 1} / ${nav.length}` : "0 / 0"}
         </span>
-        <button onClick={next} disabled={idx >= nav.length - 1} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
+        <button onClick={next} disabled={finalOverview} className="size-9 grid place-items-center rounded-full hover:bg-foreground/10 disabled:opacity-40">
           <ChevronRight className="size-5" />
         </button>
       </div>
