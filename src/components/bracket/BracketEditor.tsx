@@ -350,9 +350,12 @@ export function BracketEditor({ project }: { project: Project }) {
                     currentStep={null}
                     mode="edit"
                     onPickWinner={pickWinner}
+                    aspect={itemAspect}
+                    accentColor={accentColor}
                   />
                 </div>
               </PanZoom>
+
             </div>
           )}
 
