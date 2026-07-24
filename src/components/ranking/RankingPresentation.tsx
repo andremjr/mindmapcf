@@ -61,14 +61,16 @@ function useAutoGrid(count: number, aspect = 1) {
 
 /* ---------- ranked row ---------- */
 function RankRow({
-  node, rank, height,
-}: { node: MindNode; rank: number; height: number }) {
+  node, rank, height, aspect,
+}: { node: MindNode; rank: number; height: number; aspect: ItemAspect }) {
   const url = useResolvedImage(node);
   const goldish = rank === 1;
   const pad = Math.max(6, Math.min(14, height * 0.14));
   const rankSize = Math.max(18, Math.min(40, height * 0.55));
   const titleSize = Math.max(12, Math.min(20, height * 0.32));
-  const thumb = Math.max(28, height - pad * 2);
+  const thumbH = Math.max(28, height - pad * 2);
+  const ratio = aspectDims(100, aspect);
+  const thumbW = Math.round(thumbH * (ratio.w / ratio.h));
   return (
     <div
       className="flex items-center gap-3 rounded-xl border border-border bg-card/60 backdrop-blur transition-colors duration-500"
@@ -81,7 +83,7 @@ function RankRow({
         {rank}
       </div>
       {url ? (
-        <div className="rounded-lg overflow-hidden bg-muted shrink-0" style={{ width: thumb, height: thumb }}>
+        <div className="rounded-lg overflow-hidden bg-muted shrink-0" style={{ width: thumbW, height: thumbH }}>
           <img src={url} alt="" className="size-full object-cover" />
         </div>
       ) : null}
@@ -94,6 +96,7 @@ function RankRow({
     </div>
   );
 }
+
 
 /* ---------- empty slot ---------- */
 function EmptySlot({ rank, height }: { rank: number; height: number }) {
