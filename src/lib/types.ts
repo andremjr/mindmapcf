@@ -59,7 +59,7 @@ export interface MindNode {
 
 /** Which canvas renderer this project uses. Default = mindmap. */
 export type ProjectTemplate =
-  | "mindmap" | "tierlist" | "iceberg" | "bracket" | "matrix" | "ranking";
+  | "mindmap" | "tierlist" | "iceberg" | "bracket" | "matrix" | "ranking" | "scale";
 
 /**
  * A user-owned "sonic avatar" from the global library (persisted in
