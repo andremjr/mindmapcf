@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, X, Download } from "lucide-react";
-import { LayoutGroup, motion } from "framer-motion";
+import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import type { MindNode, Project } from "@/lib/types";
 import { resolveImage } from "@/lib/imageStorage";
 import { useStore } from "@/lib/store";
@@ -51,6 +51,7 @@ function TierItem({
   draggable = false,
   onDragStart,
   onDragEnd,
+  onClick,
 }: {
   node: MindNode;
   size?: number;
@@ -59,6 +60,7 @@ function TierItem({
   draggable?: boolean;
   onDragStart?: () => void;
   onDragEnd?: () => void;
+  onClick?: () => void;
 }) {
   const url = useResolvedImage(node);
   const { w, h } = aspectDims(size, aspect);
@@ -70,11 +72,12 @@ function TierItem({
       draggable={draggable}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
+      onClick={onClick}
       className={`relative rounded-md overflow-hidden border ${
         highlighted
           ? "ring-2 ring-white border-white"
           : "border-white/20"
-      } ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      } ${draggable ? "cursor-grab active:cursor-grabbing" : ""} ${onClick ? "cursor-pointer" : ""}`}
       style={{ width: w, height: h, background: node.color ?? "#111", ...ring }}
     >
       {url ? (
@@ -259,6 +262,13 @@ export function TierListPresentation({
   /* ============ DRAG (manual mode) ============ */
   const [dragId, setDragId] = useState<string | null>(null);
   const [hover, setHover] = useState<{ key: string; idx: number } | null>(null);
+  /** Item currently "spotlighted" (enlarged in center). Manual mode only. */
+  const [spotlightId, setSpotlightId] = useState<string | null>(null);
+  const spotlightNode = spotlightId ? allItems.find((n) => n.id === spotlightId) ?? null : null;
+  const spotlightUrl = useResolvedImage(spotlightNode);
+  function toggleSpotlight(id: string) {
+    setSpotlightId((prev) => (prev === id ? null : id));
+  }
   const updateNode = useStore((s) => s.updateNode);
 
   /** Where the user drops is where the item stays: compute insertion index
@@ -440,7 +450,8 @@ export function TierListPresentation({
                                 node={it}
                                 aspect={itemAspect}
                                 highlighted={!manualMode && currentItemId === it.id}
-                                draggable={manualMode}
+                                draggable={manualMode && spotlightId !== it.id}
+                                onClick={manualMode ? () => toggleSpotlight(it.id) : undefined}
                                 onDragStart={() => setDragId(it.id)}
                                 onDragEnd={() => { setDragId(null); setHover(null); }}
                               />
@@ -493,7 +504,8 @@ export function TierListPresentation({
                           size={72}
                           aspect={itemAspect}
                           highlighted={!manualMode && i === 0}
-                          draggable={manualMode}
+                          draggable={manualMode && spotlightId !== it.id}
+                          onClick={manualMode ? () => toggleSpotlight(it.id) : undefined}
                           onDragStart={() => setDragId(it.id)}
                           onDragEnd={() => { setDragId(null); setHover(null); }}
                         />
@@ -505,6 +517,61 @@ export function TierListPresentation({
               </div>
             </div>
           </LayoutGroup>
+
+          {/* Spotlight (manual mode): enlarge the tapped item for the camera,
+              then tap the backdrop to collapse and drag it into a tier. */}
+          <AnimatePresence>
+            {manualMode && spotlightNode && (
+              <motion.div
+                key="spotlight-backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                onClick={() => setSpotlightId(null)}
+                className="absolute inset-0 z-40 grid place-items-center bg-black/70 backdrop-blur-sm cursor-pointer"
+              >
+                <motion.div
+                  initial={{ scale: 0.6, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.6, opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 26 }}
+                  className="relative rounded-2xl overflow-hidden border-2 border-white/40 shadow-2xl"
+                  style={{
+                    ...(() => {
+                      const base = Math.min(size.w, size.h) * 0.7;
+                      const { w, h } = aspectDims(base, itemAspect);
+                      return { width: w, height: h };
+                    })(),
+                    background: spotlightNode.color ?? "#111",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {spotlightUrl && (
+                    <img src={spotlightUrl} alt="" className="absolute inset-0 size-full object-cover" />
+                  )}
+                  {spotlightNode.text && (
+                    <div className="absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-6 py-4">
+                      <div className="text-white text-2xl md:text-4xl font-bold break-words">
+                        {spotlightNode.text}
+                      </div>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setSpotlightId(null)}
+                    className="absolute top-3 right-3 size-9 grid place-items-center rounded-full bg-black/60 text-white hover:bg-black/80"
+                    aria-label="Fechar"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </motion.div>
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/80 text-xs uppercase tracking-widest">
+                  Toque fora para recolher e arrastar
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
 
           {countdown !== null && (
             <div className="absolute inset-0 grid place-items-center pointer-events-none z-30">
