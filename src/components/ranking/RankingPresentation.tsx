@@ -209,12 +209,21 @@ export function RankingPresentation({
   project, recording = false,
 }: { project: Project; recording?: boolean }) {
   const root = project.nodes.find((n) => n.role === "ranking" || !n.parentId);
+  const itemAspect: ItemAspect = useMemo(
+    () => parseTierListConfig(root?.body).itemAspect,
+    [root?.body],
+  );
+  const aspectRatioNum = useMemo(() => {
+    const d = aspectDims(100, itemAspect);
+    return d.w / d.h;
+  }, [itemAspect]);
   const callOrder = useMemo(
     () => project.nodes
       .filter((n) => n.role === "item" && n.parentId === root?.id)
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
     [project.nodes, root?.id],
   );
+
 
   const rankOf = useMemo(() => {
     const map = new Map<string, number>();
