@@ -198,12 +198,25 @@ export function IcebergPresentation({
     ? project.nodes.find((n) => n.id === current.itemId) ?? null
     : null;
 
-  // Auto-scroll to active level
+  // Cinematic zoom: on level change, briefly zoom out to show the whole
+  // iceberg, then zoom in to the target level.
+  const [phase, setPhase] = useState<"focus" | "overview">("focus");
+  const prevLevelIdRef = useRef<string | null>(null);
+  const levelIndex = useMemo(
+    () => (current ? levels.findIndex((l) => l.id === current.levelId) : 0),
+    [levels, current?.levelId],
+  );
   useEffect(() => {
-    if (!scrollRef.current || !current) return;
-    const el = scrollRef.current.querySelector<HTMLElement>(`[data-level-id="${current.levelId}"]`);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [idx, current?.levelId]);
+    if (!current) return;
+    const prev = prevLevelIdRef.current;
+    if (prev !== null && prev !== current.levelId) {
+      setPhase("overview");
+      const t = window.setTimeout(() => setPhase("focus"), 900);
+      prevLevelIdRef.current = current.levelId;
+      return () => window.clearTimeout(t);
+    }
+    prevLevelIdRef.current = current.levelId;
+  }, [current?.levelId]);
 
   const next = () => { if (countdown === null) setIdx((i) => Math.min(nav.length - 1, i + 1)); };
   const prev = () => { if (countdown === null) setIdx((i) => Math.max(0, i - 1)); };
