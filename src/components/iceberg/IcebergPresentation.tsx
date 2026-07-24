@@ -193,8 +193,9 @@ export function IcebergPresentation({
   }, [levels, itemsByLevel]);
 
   const [idx, setIdx] = useState(0);
+  const [itemOpen, setItemOpen] = useState(false);
   const current = nav[idx];
-  const activeItem = current?.itemId
+  const activeItem = current?.itemId && itemOpen
     ? project.nodes.find((n) => n.id === current.itemId) ?? null
     : null;
 
@@ -218,8 +219,19 @@ export function IcebergPresentation({
     prevLevelIdRef.current = current.levelId;
   }, [current?.levelId]);
 
-  const next = () => { if (countdown === null) setIdx((i) => Math.min(nav.length - 1, i + 1)); };
-  const prev = () => { if (countdown === null) setIdx((i) => Math.max(0, i - 1)); };
+  const next = () => {
+    if (countdown !== null) return;
+    // Two-click per item: 1st opens the card, 2nd closes it and moves on.
+    if (current?.type === "item" && !itemOpen) { setItemOpen(true); return; }
+    setItemOpen(false);
+    setIdx((i) => Math.min(nav.length - 1, i + 1));
+  };
+  const prev = () => {
+    if (countdown !== null) return;
+    if (current?.type === "item" && itemOpen) { setItemOpen(false); return; }
+    setItemOpen(false);
+    setIdx((i) => Math.max(0, i - 1));
+  };
 
   async function stopAndDownload() {
     const narr = getRecordingNarrationEl();
