@@ -661,35 +661,41 @@ function TiersFitColumn({ children }: { children: React.ReactNode }) {
     const outer = outerRef.current;
     const inner = innerRef.current;
     if (!outer || !inner) return;
+    let raf = 0;
     const recompute = () => {
-      const availH = outer.clientHeight;
-      const availW = outer.clientWidth;
-      const naturalH = inner.scrollHeight;
-      const naturalW = inner.scrollWidth;
-      if (naturalH <= 0 || naturalW <= 0) return;
-      const s = Math.min(1, availH / naturalH, availW / naturalW);
-      setScale(s > 0 ? s : 1);
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const availH = outer.clientHeight;
+        // scrollHeight ignores CSS transforms, so it stays the "natural"
+        // (unscaled) height even after we apply scale() to `inner`.
+        const naturalH = inner.scrollHeight;
+        if (!availH || !naturalH) return;
+        const s = Math.min(1, availH / naturalH);
+        setScale((prev) => (Math.abs(prev - s) < 0.005 ? prev : s));
+      });
     };
     recompute();
     const ro = new ResizeObserver(recompute);
     ro.observe(outer);
     ro.observe(inner);
-    return () => ro.disconnect();
-  });
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
+  }, []);
 
   return (
     <section ref={outerRef} className="min-h-0 overflow-hidden pr-1">
       <div
         ref={innerRef}
         className="space-y-3 origin-top-left"
-        style={{
-          transform: `scale(${scale})`,
-          width: scale < 1 ? `${100 / scale}%` : "100%",
-        }}
+        style={{ transform: `scale(${scale})`, width: "100%" }}
       >
         {children}
       </div>
     </section>
   );
 }
+
+
 
