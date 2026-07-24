@@ -255,6 +255,24 @@ export function IcebergEditor({ project }: { project: Project }) {
           />
           <span className="text-xs text-muted-foreground shrink-0">Iceberg</span>
         </div>
+        <div className="flex items-center rounded-md border border-border overflow-hidden" title="Atmosfera visual do iceberg">
+          <button
+            onClick={() => setIcebergAtmosphere(project.id, "ludico")}
+            className={`px-2.5 py-1.5 text-xs flex items-center gap-1.5 transition ${
+              atmosphere === "ludico" ? "bg-primary text-primary-foreground" : "bg-transparent hover:bg-muted"
+            }`}
+          >
+            <Sparkles className="size-3.5" /> Lúdico
+          </button>
+          <button
+            onClick={() => setIcebergAtmosphere(project.id, "realista")}
+            className={`px-2.5 py-1.5 text-xs flex items-center gap-1.5 transition ${
+              atmosphere === "realista" ? "bg-primary text-primary-foreground" : "bg-transparent hover:bg-muted"
+            }`}
+          >
+            <Skull className="size-3.5" /> Realista
+          </button>
+        </div>
         <NarrationDock projectId={project.id} narrationRef={project.narrationRef} />
         <ThemeToggle />
         <Button variant="destructive" size="sm" onClick={() => setRecordOpen(true)} className="gap-1.5">
