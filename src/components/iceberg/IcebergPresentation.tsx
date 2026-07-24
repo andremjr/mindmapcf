@@ -345,7 +345,11 @@ export function IcebergPresentation({
                     willChange: "transform",
                   }}
                 >
-                  <IcebergArt levels={N} />
+                  {(project.icebergAtmosphere ?? "ludico") === "realista" ? (
+                    <IcebergBackgroundRealista levels={N} />
+                  ) : (
+                    <IcebergArt levels={N} />
+                  )}
                   {levels.map((lvl, i) => {
                     const grad = GRADS[Math.min(i, GRADS.length - 1)];
                     const items = itemsByLevel.get(lvl.id) ?? [];
