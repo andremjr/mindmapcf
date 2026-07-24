@@ -286,7 +286,11 @@ export function IcebergEditor({ project }: { project: Project }) {
       <main className="flex-1 overflow-auto">
         <div className="mx-auto max-w-4xl flex flex-col relative">
           <div className="absolute inset-0 pointer-events-none">
-            <IcebergBackground levels={Math.max(1, levels.length)} />
+            {atmosphere === "realista" ? (
+              <IcebergBackgroundRealista levels={Math.max(1, levels.length)} />
+            ) : (
+              <IcebergBackground levels={Math.max(1, levels.length)} />
+            )}
           </div>
           {levels.map((lvl, i) => {
             const grad = LEVEL_GRADIENTS[Math.min(i, LEVEL_GRADIENTS.length - 1)];
