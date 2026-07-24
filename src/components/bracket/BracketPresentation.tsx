@@ -4,7 +4,7 @@ import type { MindNode, Project } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { PresentationShell } from "@/components/shared/PresentationShell";
 import { AvatarLayer } from "@/components/shared/AvatarLayer";
-import { PanZoom } from "@/components/ui/PanZoom";
+
 import {
   BracketBoard,
   buildBracket,
