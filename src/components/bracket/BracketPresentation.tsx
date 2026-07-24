@@ -371,7 +371,7 @@ export function BracketPresentation({
                       >
                         <CompetitorCard node={focusedMatch.a} state={stateFor(focusedMatch.a.id)} expanded aspect={itemAspect} accentColor={accentColor} />
                       </motion.div>
-                      <div className="self-center text-2xl font-bold uppercase tracking-widest text-amber-300/90">vs</div>
+                      <div className="self-center text-2xl font-bold uppercase tracking-widest" style={{ color: `${accentColor}e6` }}>vs</div>
                       <motion.div
                         className="w-[280px]"
                         animate={
