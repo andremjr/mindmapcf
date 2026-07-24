@@ -491,6 +491,7 @@ export function TierListPresentation({
                         <TierItem
                           node={it}
                           size={72}
+                          aspect={itemAspect}
                           highlighted={!manualMode && i === 0}
                           draggable={manualMode}
                           onDragStart={() => setDragId(it.id)}
