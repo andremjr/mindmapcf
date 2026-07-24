@@ -340,6 +340,24 @@ export function RankingEditor({ project }: { project: Project }) {
         <Button size="sm" variant="outline" onClick={addItem} className="gap-1.5">
           <Plus className="size-3.5" /> Item
         </Button>
+        <Button size="sm" variant="outline" onClick={addItemsFromImages} className="gap-1.5" title="Selecione várias imagens de uma pasta para criar um item por imagem">
+          <ImageIcon className="size-3.5" /> Importar imagens
+        </Button>
+        <div className="inline-flex rounded-md border border-border/60 overflow-hidden" title="Formato de exibição das imagens">
+          {ASPECT_OPTIONS.map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => setItemAspect(opt.id)}
+              className={`px-2 py-1 text-[11px] leading-none transition ${
+                itemAspect === opt.id ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
         <NarrationDock projectId={project.id} narrationRef={project.narrationRef} />
         <ThemeToggle />
         <Button variant="destructive" size="sm" onClick={() => setRecordOpen(true)} className="gap-1.5">
