@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ChevronLeft, Plus, Trash2, Image as ImageIcon, X, Play, Circle } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Image as ImageIcon, X, Play, Circle, Sparkles, Skull } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
