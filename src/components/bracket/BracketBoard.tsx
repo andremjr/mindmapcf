@@ -492,6 +492,7 @@ export function BracketBoard({
                 isCurrent={finalIsCurrent}
                 isRevealed={finalRevealed}
                 onPickWinner={onPickWinner}
+                onMatchClick={onMatchClick}
                 side="F"
                 aspect={aspect}
                 accentColor={accentColor}
