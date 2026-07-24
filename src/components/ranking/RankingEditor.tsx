@@ -209,21 +209,7 @@ export function RankingEditor({ project }: { project: Project }) {
     });
   }
 
-  function reindexCallOrder(next: MindNode[]) {
-    next.forEach((n, i) => {
-      if ((n.order ?? -1) !== i) updateNode(project.id, n.id, { order: i } as Partial<MindNode>);
-    });
-  }
 
-
-  function moveCall(id: string, targetIdx: number) {
-    const src = items.findIndex((n) => n.id === id);
-    if (src === -1 || src === targetIdx) return;
-    const next = [...items];
-    const [n] = next.splice(src, 1);
-    next.splice(Math.max(0, Math.min(N - 1, targetIdx)), 0, n);
-    reindexCallOrder(next);
-  }
 
   function assignRank(itemId: string, targetRank: number) {
     const item = itemsById.get(itemId);
