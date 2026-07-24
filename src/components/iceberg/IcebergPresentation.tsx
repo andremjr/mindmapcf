@@ -382,10 +382,23 @@ export function IcebergPresentation({
                         </div>
                         <div className="relative z-10 flex-1 w-full">
                           {(() => {
-                            // Iceberg silhouette band for this level (widest belly, narrow tips).
-                            const wPct = 46 + 44 * Math.sin(Math.PI * (i + 0.5) / N);
-                            const bandLeft = 50 - wPct / 2 + 3;
-                            const bandWidth = wPct - 6;
+                            // Real iceberg silhouette per level: narrow tip
+                            // above water on level 0, widest just below the
+                            // waterline on level 1, tapering to a point at
+                            // the bottom. Matches the ultra/realista art.
+                            let wPct: number;
+                            if (i === 0) {
+                              wPct = 24; // exposed tip — narrow, centered
+                            } else if (N <= 2) {
+                              wPct = 46;
+                            } else {
+                              const u = (i - 1) / (N - 2); // 0..1 underwater
+                              // ease-out taper: wide near the surface, sharp
+                              // point at the abyss
+                              wPct = Math.max(10, 50 - 40 * Math.pow(u, 1.15));
+                            }
+                            const bandLeft = 50 - wPct / 2;
+                            const bandWidth = wPct;
                             const n = items.length;
                             if (n === 0) return null;
                             // Auto-fit tiles per level so they never overflow the band.
