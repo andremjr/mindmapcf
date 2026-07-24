@@ -2,14 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ChevronLeft, Plus, Trash2, Play, Circle, X, Image as ImageIcon, Video as VideoIcon,
-  Grid2x2, ScatterChart, Minus, Target,
+  Grid2x2, ScatterChart, Minus, Target, Images,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useStore } from "@/lib/store";
 import type { MindNode, Project } from "@/lib/types";
-import { pickMediaAndStore, resolveImage } from "@/lib/imageStorage";
+import { pickMediaAndStore, pickMediaMultipleAndStore, resolveImage } from "@/lib/imageStorage";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { RecordFormatMenu } from "@/components/RecordFormatMenu";
@@ -18,6 +18,7 @@ import { NarrationDock } from "@/components/shared/NarrationDock";
 import { launchRecording } from "@/lib/launchRecording";
 import type { RecordFormat } from "@/lib/recordFormats";
 import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
+import { ASPECT_OPTIONS, aspectDims, type ItemAspect } from "@/lib/tierlistConfig";
 
 export type ChartType = "quadrants" | "scatter" | "line" | "bullseye";
 export interface RingConfig { color: string; label: string }
@@ -32,6 +33,10 @@ export interface AxisConfig {
   rings: RingConfig[];
   /** Optional milestones drawn on the timeline. */
   linePoints: LinePoint[];
+  /** Image aspect for cards (shared with tier list / bracket / ranking). */
+  itemAspect: ItemAspect;
+  /** Chart accent color — used for axes glow, active card ring, spotlight border. */
+  accentColor: string;
 }
 
 export const DEFAULT_RINGS: RingConfig[] = [
@@ -50,6 +55,8 @@ const DEFAULT_AXIS: AxisConfig = {
   bullseyeLabel: "Prioridade (centro = topo)",
   rings: DEFAULT_RINGS,
   linePoints: [],
+  itemAspect: "square",
+  accentColor: "#fbbf24",
 };
 
 export function parseAxis(body: string | undefined): AxisConfig {
@@ -58,6 +65,8 @@ export function parseAxis(body: string | undefined): AxisConfig {
     const merged: AxisConfig = { ...DEFAULT_AXIS, ...p };
     if (!Array.isArray(merged.rings) || merged.rings.length !== 4) merged.rings = DEFAULT_RINGS;
     if (!Array.isArray(merged.linePoints)) merged.linePoints = [];
+    if (merged.itemAspect !== "portrait" && merged.itemAspect !== "landscape") merged.itemAspect = "square";
+    if (typeof merged.accentColor !== "string" || !merged.accentColor) merged.accentColor = "#fbbf24";
     return merged;
   } catch { return DEFAULT_AXIS; }
 }
