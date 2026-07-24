@@ -193,8 +193,9 @@ export function IcebergPresentation({
   }, [levels, itemsByLevel]);
 
   const [idx, setIdx] = useState(0);
+  const [itemOpen, setItemOpen] = useState(false);
   const current = nav[idx];
-  const activeItem = current?.itemId
+  const activeItem = current?.itemId && itemOpen
     ? project.nodes.find((n) => n.id === current.itemId) ?? null
     : null;
 
@@ -218,8 +219,19 @@ export function IcebergPresentation({
     prevLevelIdRef.current = current.levelId;
   }, [current?.levelId]);
 
-  const next = () => { if (countdown === null) setIdx((i) => Math.min(nav.length - 1, i + 1)); };
-  const prev = () => { if (countdown === null) setIdx((i) => Math.max(0, i - 1)); };
+  const next = () => {
+    if (countdown !== null) return;
+    // Two-click per item: 1st opens the card, 2nd closes it and moves on.
+    if (current?.type === "item" && !itemOpen) { setItemOpen(true); return; }
+    setItemOpen(false);
+    setIdx((i) => Math.min(nav.length - 1, i + 1));
+  };
+  const prev = () => {
+    if (countdown !== null) return;
+    if (current?.type === "item" && itemOpen) { setItemOpen(false); return; }
+    setItemOpen(false);
+    setIdx((i) => Math.max(0, i - 1));
+  };
 
   async function stopAndDownload() {
     const narr = getRecordingNarrationEl();
@@ -264,7 +276,7 @@ export function IcebergPresentation({
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nav.length, recording]);
+  }, [nav.length, recording, idx, itemOpen, countdown]);
 
   const [, setRecTick] = useState(0);
   useEffect(() => {
@@ -344,33 +356,41 @@ export function IcebergPresentation({
                           {lvl.text}
                         </div>
                         <div className="relative z-10 flex-1 w-full">
-                          {items.map((it, k) => {
-                            const n = items.length;
-                            const cols = Math.min(n, Math.max(1, Math.ceil(Math.sqrt(n * 1.8))));
-                            const rows = Math.ceil(n / cols);
-                            const col = k % cols;
-                            const row = Math.floor(k / cols);
-                            const slotW = 84 / cols;
-                            const slotH = 80 / rows;
-                            const jitterX = (seeded(it.id + "x") - 0.5) * slotW * 0.35;
-                            const jitterY = (seeded(it.id + "y") - 0.5) * slotH * 0.35;
-                            const leftPct = 8 + slotW * (col + 0.5) + jitterX;
-                            const topPct = 10 + slotH * (row + 0.5) + jitterY;
-                            const rotate = (seeded(it.id + "r") - 0.5) * 16;
-                            const tileSize = 100 + Math.round(seeded(it.id + "s") * 20);
-                            return (
-                              <ItemTile
-                                key={it.id}
-                                node={it}
-                                active={activeItem?.id === it.id}
-                                onClick={() => {
-                                  const j = nav.findIndex((x) => x.itemId === it.id);
-                                  if (j >= 0) setIdx(j);
-                                }}
-                                scatter={{ left: `${leftPct}%`, top: `${topPct}%`, rotate, size: tileSize }}
-                              />
-                            );
-                          })}
+                          {(() => {
+                            // Constrain items to the iceberg silhouette per level.
+                            // Width peaks near the middle levels (widest belly) and
+                            // narrows at the tip and the deep bottom.
+                            const wPct = 46 + 44 * Math.sin(Math.PI * (i + 0.5) / N);
+                            const bandLeft = 50 - wPct / 2 + 3;
+                            const bandWidth = wPct - 6;
+                            return items.map((it, k) => {
+                              const n = items.length;
+                              const cols = Math.min(n, Math.max(1, Math.ceil(Math.sqrt(n * 1.6))));
+                              const rows = Math.ceil(n / cols);
+                              const col = k % cols;
+                              const row = Math.floor(k / cols);
+                              const slotW = bandWidth / cols;
+                              const slotH = 78 / rows;
+                              const jitterX = (seeded(it.id + "x") - 0.5) * slotW * 0.3;
+                              const jitterY = (seeded(it.id + "y") - 0.5) * slotH * 0.3;
+                              const leftPct = bandLeft + slotW * (col + 0.5) + jitterX;
+                              const topPct = 11 + slotH * (row + 0.5) + jitterY;
+                              const rotate = (seeded(it.id + "r") - 0.5) * 14;
+                              const tileSize = 96 + Math.round(seeded(it.id + "s") * 22);
+                              return (
+                                <ItemTile
+                                  key={it.id}
+                                  node={it}
+                                  active={activeItem?.id === it.id}
+                                  onClick={() => {
+                                    const j = nav.findIndex((x) => x.itemId === it.id);
+                                    if (j >= 0) { setIdx(j); setItemOpen(true); }
+                                  }}
+                                  scatter={{ left: `${leftPct}%`, top: `${topPct}%`, rotate, size: tileSize }}
+                                />
+                              );
+                            });
+                          })()}
                         </div>
                       </div>
                     );
@@ -382,11 +402,7 @@ export function IcebergPresentation({
 
 
           {/* Item card overlay */}
-          {activeItem && <ItemCard node={activeItem} onClose={() => {
-            // step back to the level entry
-            const j = nav.findIndex((x) => x.type === "level" && x.levelId === current!.levelId);
-            if (j >= 0) setIdx(j);
-          }} />}
+          {activeItem && <ItemCard node={activeItem} onClose={() => setItemOpen(false)} />}
 
           {countdown !== null && (
             <div className="absolute inset-0 grid place-items-center pointer-events-none z-30">
@@ -511,10 +527,10 @@ function IcebergArt({ levels }: { levels: number }) {
             <stop offset="100%" stopColor="#0c1e3a" stopOpacity="0.2" />
           </linearGradient>
         </defs>
-        <polygon points="42,3 58,6 68,12 62,17 74,19 30,19 36,14" fill="url(#ig)" opacity="0.5" />
-        <polygon points="30,19 74,19 88,44 80,72 55,96 24,88 14,60 20,32" fill="url(#ig)" opacity="0.28" />
-        <path d="M40 22 L46 55 L42 90" stroke="#fff" strokeOpacity="0.12" strokeWidth="0.2" fill="none" />
-        <path d="M60 22 L58 50 L64 85" stroke="#fff" strokeOpacity="0.12" strokeWidth="0.2" fill="none" />
+        <polygon points="40,2 60,5 72,12 66,18 82,20 18,20 34,14" fill="url(#ig)" opacity="0.55" />
+        <polygon points="18,20 82,20 96,42 92,72 62,98 12,90 4,60 8,32" fill="url(#ig)" opacity="0.32" />
+        <path d="M38 22 L46 55 L40 92" stroke="#fff" strokeOpacity="0.12" strokeWidth="0.2" fill="none" />
+        <path d="M62 22 L58 50 L66 88" stroke="#fff" strokeOpacity="0.12" strokeWidth="0.2" fill="none" />
       </svg>
       {Array.from({ length: Math.max(0, levels) }).map((_, levelIdx) => {
         const depthRatio = levels > 1 ? levelIdx / (levels - 1) : 0;
