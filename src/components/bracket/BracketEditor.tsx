@@ -42,45 +42,34 @@ function useResolvedImage(node: MindNode | null | undefined) {
 function CompetitorThumb({
   node,
   aspect,
-  onPickImage,
-  onClearImage,
+  selected,
+  onSelect,
 }: {
   node: MindNode;
   aspect: ItemAspect;
-  onPickImage: () => void;
-  onClearImage: () => void;
+  selected: boolean;
+  onSelect: () => void;
 }) {
   const url = useResolvedImage(node);
   const { w, h } = aspectDims(140, aspect);
   return (
-    <div
-      className="relative bg-muted rounded-md overflow-hidden mx-auto group/img"
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`relative bg-muted rounded-md overflow-hidden mx-auto block transition ${
+        selected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:opacity-90"
+      }`}
       style={{ width: w, height: h }}
     >
       {url ? (
-        <>
-          <img src={url} alt="" className="absolute inset-0 size-full object-cover" />
-          <div className="absolute inset-0 opacity-0 group-hover/img:opacity-100 transition bg-black/50 grid place-items-center gap-2">
-            <button
-              onClick={onPickImage}
-              className="text-[11px] px-2 py-1 rounded bg-white/90 text-black font-medium hover:bg-white"
-            >Trocar</button>
-            <button
-              onClick={onClearImage}
-              className="text-[11px] px-2 py-1 rounded bg-black/70 text-white font-medium hover:bg-black/90"
-            >Remover</button>
-          </div>
-        </>
+        <img src={url} alt="" className="absolute inset-0 size-full object-cover" />
       ) : (
-        <button
-          onClick={onPickImage}
-          className="absolute inset-0 grid place-items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 transition"
-        >
+        <span className="absolute inset-0 grid place-items-center gap-1 text-xs text-muted-foreground">
           <ImageIcon className="size-5" />
-          Adicionar imagem
-        </button>
+          Sem imagem
+        </span>
       )}
-    </div>
+    </button>
   );
 }
 
