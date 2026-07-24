@@ -374,8 +374,9 @@ export function TierListEditor({ project }: { project: Project }) {
 
       <main className="flex-1 min-h-0 overflow-hidden p-4">
         <div className="mx-auto max-w-[1600px] h-full grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px_300px] gap-4">
-          {/* TIERS column — scrolls internally so the pool never goes off-screen */}
-          <section className="min-h-0 overflow-auto pr-1 space-y-3">
+          {/* TIERS column — auto-scales so every tier stays visible without scroll,
+              matching the presentation/recording fit-to-frame behavior. */}
+          <TiersFitColumn>
             {tiers.map((tier) => {
               const items = itemsByTier.get(tier.id) ?? [];
               return (
@@ -466,7 +467,8 @@ export function TierListEditor({ project }: { project: Project }) {
                 <Plus className="size-4" /> Adicionar tier
               </Button>
             </div>
-          </section>
+          </TiersFitColumn>
+
 
           {/* POOL column — side-by-side with tiers so items are always reachable */}
           <section className="min-h-0 flex flex-col rounded-lg border border-dashed border-border/60 bg-muted/20">
