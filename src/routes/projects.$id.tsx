@@ -6,6 +6,7 @@ import { IcebergEditor } from "@/components/iceberg/IcebergEditor";
 import { BracketEditor } from "@/components/bracket/BracketEditor";
 import { MatrixEditor } from "@/components/matrix/MatrixEditor";
 import { RankingEditor } from "@/components/ranking/RankingEditor";
+import { ScaleEditor } from "@/components/scale/ScaleEditor";
 import { Button } from "@/components/ui/button";
 
 
@@ -44,6 +45,7 @@ function EditorRoute() {
   if (template === "bracket") return <BracketEditor project={project} />;
   if (template === "matrix") return <MatrixEditor project={project} />;
   if (template === "ranking") return <RankingEditor project={project} />;
+  if (template === "scale") return <ScaleEditor project={project} />;
   return <MindMapEditor project={project} />;
 }
 

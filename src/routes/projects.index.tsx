@@ -138,7 +138,7 @@ function ProjectsDashboard() {
   const { isPro, loading: subscriptionLoading, subscription } = useSubscription(session?.user.id);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [template, setTemplate] = useState<"mindmap" | "tierlist" | "iceberg" | "bracket" | "matrix" | "ranking">("mindmap");
+  const [template, setTemplate] = useState<"mindmap" | "tierlist" | "iceberg" | "bracket" | "matrix" | "ranking" | "scale">("mindmap");
   const [importOpen, setImportOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [avatarsOpen, setAvatarsOpen] = useState(false);
@@ -375,6 +375,7 @@ function ProjectsDashboard() {
                         { key: "bracket", label: "Chaveamento", desc: "Torneio eliminatório", pro: true },
                         { key: "matrix", label: "Matriz 2×2", desc: "Cards em plano de eixos", pro: true },
                         { key: "ranking", label: "Ranking", desc: "Lista ordenada progressiva", pro: true },
+                        { key: "scale", label: "Comparação de escala", desc: "Barras 3D com câmera", pro: true },
                       ] as const).map((opt) => {
                         const locked = opt.pro && !isPro;
                         const active = template === opt.key;
