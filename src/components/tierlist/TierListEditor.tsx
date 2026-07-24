@@ -47,16 +47,19 @@ function useResolvedImage(node: MindNode | null | undefined) {
 
 function ItemThumb({
   node,
+  aspect,
   selected,
   onClick,
   onRemove,
 }: {
   node: MindNode;
+  aspect: ItemAspect;
   selected?: boolean;
   onClick?: () => void;
   onRemove: () => void;
 }) {
   const url = useResolvedImage(node);
+  const { w, h } = aspectDims(104, aspect);
   return (
     <div
       onClick={onClick}
@@ -65,7 +68,7 @@ function ItemThumb({
           ? "border-primary ring-2 ring-primary/40"
           : "border-border/60 hover:border-primary/50"
       }`}
-      style={{ width: 104, height: 104 }}
+      style={{ width: w, height: h }}
     >
       {url && (
         <img src={url} alt="" className="absolute inset-0 size-full object-cover" />
