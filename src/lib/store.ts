@@ -348,7 +348,7 @@ export function seedNodesForTemplate(template: ProjectTemplate, title: string): 
   if (template === "tierlist") {
     const boardId = uid2();
     const tiers = ["S", "A", "B", "C", "D"];
-    const tierColors = ["#f43f5e", "#f97316", "#eab308", "#22c55e", "#3b82f6"];
+    const tierColors = ["rgb(255, 127, 127)", "rgb(255, 191, 127)", "rgb(255, 223, 127)", "rgb(255, 255, 127)", "rgb(191, 255, 127)"];
     return [
       { id: boardId, text: title.trim() || "Tier list", x: 0, y: 0, width: 400, parentId: null, role: "board" },
       ...tiers.map((t, i) => ({
