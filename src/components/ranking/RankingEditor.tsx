@@ -667,15 +667,17 @@ function CallCard({
 
 /* ---------- Ranking slot ---------- */
 function RankSlot({
-  rank, node, selected, dragging, dropActive,
-  onClickNode, onDragStart, onDragEnd, onDrop, onClear,
+  rank, node, selected, dragging, dropActive, aspect,
+  onClickNode, onDragStart, onDragEnd, onClear,
 }: {
   rank: number; node: MindNode | undefined;
   selected: boolean; dragging: boolean; dropActive: boolean;
+  aspect: ItemAspect;
   onClickNode: () => void;
   onDragStart: () => void; onDragEnd: () => void;
-  onDrop: () => void; onClear: () => void;
+  onClear: () => void;
 }) {
+  const ratio = aspectDims(100, aspect);
   const medal = rank === 1
     ? "bg-amber-400 text-amber-950"
     : rank === 2
@@ -686,8 +688,7 @@ function RankSlot({
 
   return (
     <div
-      onDragOver={(e) => { if (dropActive) e.preventDefault(); }}
-      onDrop={(e) => { e.preventDefault(); onDrop(); }}
+      data-item-id={node?.id ?? `empty-${rank}`}
       className={[
         "relative min-h-0 rounded-lg overflow-hidden flex items-stretch transition",
         node
@@ -720,7 +721,10 @@ function RankSlot({
             onClick={onClickNode}
             className="flex-1 min-w-0 flex cursor-grab active:cursor-grabbing"
           >
-            <div className="relative h-full aspect-square shrink-0 bg-muted grid place-items-center overflow-hidden border-r border-border/50">
+            <div
+              className="relative h-full shrink-0 bg-muted grid place-items-center overflow-hidden border-r border-border/50"
+              style={{ aspectRatio: `${ratio.w} / ${ratio.h}` }}
+            >
               <Thumb node={node} />
               {!node.imageRef && !node.image && (
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">sem imagem</span>
@@ -743,3 +747,4 @@ function RankSlot({
     </div>
   );
 }
+
