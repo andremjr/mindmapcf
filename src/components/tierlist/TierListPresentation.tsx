@@ -637,7 +637,48 @@ export function TierListPresentation({
               </div>
 
             </div>
+
+            {/* Auto-mode spotlight: item opens, pauses, then flies to its tier
+                via LayoutGroup shared-element transition (layoutId item-<id>). */}
+            <AnimatePresence>
+              {!manualMode && autoSpotlightNode && (
+                <motion.div
+                  key="auto-spotlight-backdrop"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="absolute inset-0 z-40 grid place-items-center bg-black/70 backdrop-blur-sm pointer-events-none"
+                >
+                  <motion.div
+                    layoutId={`item-${autoSpotlightNode.id}`}
+                    transition={{ type: "spring", stiffness: 220, damping: 26 }}
+                    className="relative rounded-2xl overflow-hidden border-2 border-white/40 shadow-2xl"
+                    style={{
+                      ...(() => {
+                        const base = Math.min(size.w, size.h) * 0.6;
+                        const { w, h } = aspectDims(base, itemAspect);
+                        return { width: w, height: h };
+                      })(),
+                      background: autoSpotlightNode.color ?? "#111",
+                    }}
+                  >
+                    {autoSpotlightUrl && (
+                      <img src={autoSpotlightUrl} alt="" className="absolute inset-0 size-full object-cover" />
+                    )}
+                    {autoSpotlightNode.text && (
+                      <div className="absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-6 py-4">
+                        <div className="text-white text-2xl md:text-4xl font-bold break-words">
+                          {autoSpotlightNode.text}
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </LayoutGroup>
+
 
           {/* Spotlight (manual mode): enlarge the tapped item for the camera,
               then tap the backdrop to collapse and drag it into a tier. */}
