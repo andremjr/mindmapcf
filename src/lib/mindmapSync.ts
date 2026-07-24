@@ -14,6 +14,7 @@ interface Row {
     sonicAvatar?: Project["sonicAvatar"];
     narrationRef?: Project["narrationRef"];
     template?: Project["template"];
+    icebergAtmosphere?: Project["icebergAtmosphere"];
   };
   created_at: string;
   updated_at: string;
