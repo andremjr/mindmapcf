@@ -345,7 +345,7 @@ export function BracketPresentation({
                   className="absolute inset-0 flex items-center justify-center pointer-events-none"
                 >
                   <div className="flex flex-col items-center gap-3 max-w-[80%] rounded-2xl bg-neutral-950/85 border border-white/15 shadow-[0_20px_80px_rgba(0,0,0,0.6)] px-8 py-6">
-                    <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.35em] text-amber-200/90">
+                    <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.35em]" style={{ color: `${accentColor}e6` }}>
                       <span>{roundLabelFor(focusKey)}</span>
                       {(() => {
                         const c = matchCounterFor(focusKey);
