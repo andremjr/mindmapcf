@@ -1,71 +1,65 @@
-# Chaveamento estilo Copa do Mundo
+# Plano — Melhorias no formato Matriz (Graphs)
 
-Refatoração do formato Chaveamento em três frentes: layout bracket duplo, editor de vencedores por confronto e apresentação animada com avanço rodada a rodada.
+Objetivo: elevar o ritmo visual e o acabamento do formato Matriz (Quadrantes, Dispersão, Linha, Alvo) para vídeos de YouTube, tanto no editor quanto nos modos apresentação e gravação (automático e manual).
 
-## 1. Layout de dois lados (bracket estilo Copa do Mundo)
+## 1. Editor (`MatrixEditor.tsx`)
 
-Substituir o layout atual (todas as rodadas em colunas da esquerda para a direita) por bracket duplo simétrico:
+**Fluxo de dados de entrada mais rápido**
+- Botão "Adicionar item" único (remover a exigência de imagem+texto) e importação em lote de imagens, alinhado ao padrão de Ranking/Bracket.
+- Seletor de proporção da imagem (Quadrado / Vertical / Horizontal) por projeto, reutilizando `tierlistConfig`. Reflete no editor e na apresentação.
+- Painel inspetor lateral (aside) para editar o item selecionado: título, descrição (usada no spotlight), cor de acento, imagem.
 
-```text
-Esq R1   Esq R2   Esq SF     FINAL     Dir SF   Dir R2   Dir R1
-[A vs B] ─┐                                              ┌─ [G vs H]
-          ├─ [W]─┐                              ┌─[W] ─┤
-[C vs D] ─┘      ├─ [SF-E]─┐        ┌─[SF-D]─┤       [E vs F]
-[...]            │         [CHAMPION]         │       [...]
-```
+**Posicionamento no gráfico com feedback preciso**
+- Arraste dos itens direto sobre o gráfico do editor (hoje só existe pool → apresentação manual). Snap opcional a grid (5%/10%) e linhas-guia dos eixos centrais.
+- Coordenadas numéricas visíveis ao passar o mouse (X%, Y%) e tooltip com nome do item.
+- Botão "Auto-posicionar" para distribuir itens não posicionados em uma grade suave, útil como ponto de partida.
 
-- Competidores dividem-se ao meio: primeiros N/2 vão para o lado esquerdo, restantes para o direito (mesmo seeding atual, apenas separado).
-- Colunas da esquerda avançam da esquerda para o centro; colunas da direita avançam da direita para o centro; troféu/campeão no meio.
-- Mantém suporte a BYE quando o número de competidores não é potência de 2.
+**Configuração dos eixos e temas do gráfico**
+- Cor de acento global do gráfico (usada em eixos, glow dos cards ativos, spotlight) e alternância de "estilo visual": Studio (fundo neutro), Blueprint (linhas técnicas), Neon (glow forte para thumbnails).
+- No Bullseye: reordenar anéis por drag e editor de nome/cor por anel diretamente na legenda.
+- No Line: adicionar/editar milestones clicando na linha do tempo em vez de formulário separado.
 
-## 2. Editor: definir vencedores previamente
+## 2. Apresentação — modo automático (`MatrixPresentation.tsx`)
 
-No `BracketEditor`, adicionar uma seção "Definir vencedores" abaixo da lista de competidores:
+**Ritmo cinematográfico do reveal**
+- Trocar o `activeIdx` estático por uma câmera virtual: zoom-in no card revelado (fit-to-view a ~55% do frame) e zoom-out contextual entre revelações, com transição 1.6s ease-in-out — mesmo padrão dos outros formatos.
+- Sequência de intro por tipo:
+  - Quadrantes: desenha eixo Y, eixo X, tinta as 4 zonas com legenda breve, então revela cards por quadrante (agrupar visualmente).
+  - Dispersão: eixos + grid crescendo, depois "sweep" da esquerda pra direita revelando pontos.
+  - Linha: linha desenha do início ao fim, milestones pulsam, cards passam pela câmera em sequência tipo timeline scroll.
+  - Bullseye: anéis expandindo de fora pra dentro; câmera parte do anel externo e faz zoom até o centro à medida que os itens são revelados.
+- Card ativo: leve parallax do fundo, glow com a cor de acento, contador "3/12" discreto no canto.
 
-- Renderiza o mesmo bracket duplo em modo leitura.
-- Em cada confronto ativo (com ambos slots preenchidos), o usuário clica em um dos dois cards para marcá-lo como vencedor. O vencedor sobe para o próximo confronto e o botão do próximo confronto fica clicável.
-- Mudar um vencedor em rodada anterior invalida (limpa) os vencedores das rodadas seguintes que dependiam dele.
-- Botão "Resetar vencedores" continua no header.
-- O resultado é persistido em `root.body` como JSON `{ "r{round}i{idx}": nodeId }` (formato atual mantido).
+**Spotlight mais informativo**
+- Substituir modal por painel lateral 1/3 do frame (não cobre o gráfico), com título grande, descrição, cor de acento e "posição na matriz" traduzida em texto ("Alto potencial · Baixo custo", "Anel 2 — Considerar", "Etapa 3 de 5").
+- Auto-avanço opcional (timer configurável) para gravações sem cliques.
 
-## 3. Apresentação animada
+**Legibilidade em 1080p**
+- Tipografia dos rótulos dos eixos maior e com backplate translúcido.
+- Fundo com gradiente sutil por tipo (Quadrantes = radial suave; Bullseye = radial escuro no centro) em vez do `bg-muted` liso, mantendo suporte a tema claro/escuro.
+- Vinheta leve durante o spotlight para focar a atenção.
 
-Sequência de navegação com setas (funciona igual em Apresentar e Gravar):
+## 3. Apresentação — modo manual
 
-1. **Passo 0**: todos os competidores em fila embaixo da tela (grade horizontal, ordem = seeding).
-2. **Passo 1**: competidores voam para seus slots iniciais dos dois lados (rodada 1 vazia com nomes).
-3. **Passo 2..N**: cada seta revela o próximo confronto na ordem: R1 esq #1, R1 dir #1, R1 esq #2, R1 dir #2, ..., SF esq, SF dir, Final. Cada revelação:
-   - Destaca o confronto atual (glow âmbar).
-   - Após uma pausa curta, o vencedor pré-definido no editor "vence": card do perdedor esmaece, card do vencedor pulsa em verde e sobe animando para o slot da próxima rodada.
-4. **Passo final**: card do campeão amplia no centro com brilho dourado.
+- Mesma câmera do modo automático: ao soltar um card no gráfico, faz zoom-in até ~55% e mantém 1.2s, depois zoom-out. Isso dá continuidade narrativa em vídeos ao vivo.
+- Pool inferior com miniaturas na proporção escolhida e badge de restantes; ao pegar um card, aparecem linhas-guia dos eixos e a zona/anel destacada em tempo real.
+- Clique num card já posicionado abre o mesmo painel de spotlight do modo automático (paridade com Bracket/Ranking).
 
-Se um confronto não tem vencedor definido no editor, ele é pulado (sem animação de vitória) e o slot da próxima rodada fica marcado como "?".
+## 4. Gravação
 
-Animações via `framer-motion` (já instalado) com `layoutId` para transições suaves entre a fila inicial, os slots de rodada e o troféu.
+- Aplicar o mesmo padrão de "primeiro frame limpo" já usado nos outros formatos: `beginArmedRecording` + double `requestAnimationFrame` para descartar countdown e overlays.
+- Garantir que a `AvatarLayer` permaneça visível durante toda a sequência (já ok; apenas revalidar após o novo layout do spotlight lateral).
+- Testar as 4 variações (Quadrantes, Dispersão, Linha, Bullseye) em modo automático e manual, gravando um clipe curto de cada e verificando fit do frame.
 
-## Detalhes técnicos
+## 5. Notas técnicas (para implementação)
 
-### Estrutura de dados
-- `MindNode` do root do bracket continua guardando o mapa de vencedores em `body` (JSON).
-- Chaves de match reformuladas para incluir lado: `L-r{round}i{idx}` e `R-r{round}i{idx}` para os dois brackets; `FINAL` para o confronto central.
+- `MatrixEditor.tsx`: extrair `ChartCanvas` reutilizável entre editor e apresentação para evitar divergência de layout. Adicionar helpers `snapToGrid`, `readPointerPct`.
+- `MatrixPresentation.tsx`: introduzir `useCamera({ target, zoom })` compartilhado (poderia viver em `components/shared/PanZoom.tsx`, já usado no Bracket). Steps continuam definidas por `buildSteps`, mas cada `reveal`/`focus` calcula alvo da câmera a partir de `pctX/pctY`.
+- Reaproveitar `tierlistConfig` para `ItemAspect` e `NodeColorPicker` para cor de acento.
+- Sem mudanças de schema Supabase: `pctX/pctY`, `color`, `body`, `imageRef` já cobrem o necessário.
 
-### Ordem de navegação
-- Array plano `navSteps` construído em `useMemo`:
-  ```
-  ['pool', 'seat',
-   'L-r0i0', 'R-r0i0', 'L-r0i1', 'R-r0i1', ...,
-   'L-r1i0', 'R-r1i0', ...,
-   'FINAL', 'CHAMPION']
-  ```
-- Cada step avança 1 na navegação. Confrontos com BYE são pulados automaticamente.
+## 6. Fora do escopo desta iteração
 
-### Componentes tocados
-- `src/components/bracket/BracketPresentation.tsx`: reescrita para bracket duplo + engine de steps + animações framer-motion.
-- `src/components/bracket/BracketEditor.tsx`: adicionar painel "Bracket" abaixo dos competidores reutilizando um novo componente compartilhado `BracketBoard.tsx` com prop `mode: "edit" | "present"`.
-- Novo: `src/components/bracket/BracketBoard.tsx` — renderização do bracket duplo (usado por editor e apresentação), recebendo `winners`, `revealedMatches`, `currentMatchKey`, `onPickWinner?`.
-- Nenhuma migração de banco necessária; o schema JSON no `body` do root permanece compatível (chaves antigas serão ignoradas ao migrar; usuário clica Resetar se preferir recomeçar).
-
-## Fora do escopo
-- Não estamos mudando outros formatos.
-- Sem placar/pontuação; só quem vence.
-- Sem repescagem / chave da perdedores.
+- Novos tipos de gráfico (barras, radar) — plano só refina os 4 existentes.
+- Edição multi-usuário do gráfico em tempo real.
+- Exportação estática (PNG/PDF) do gráfico fora do modo gravação.
