@@ -2,14 +2,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ChevronLeft, Plus, Trash2, Play, Circle, X, Image as ImageIcon, Video as VideoIcon,
-  Grid2x2, ScatterChart, Minus, Target,
+  Grid2x2, ScatterChart, Minus, Target, Images,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useStore } from "@/lib/store";
 import type { MindNode, Project } from "@/lib/types";
-import { pickMediaAndStore, resolveImage } from "@/lib/imageStorage";
+import { pickMediaAndStore, pickMediaMultipleAndStore, resolveImage } from "@/lib/imageStorage";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { RecordFormatMenu } from "@/components/RecordFormatMenu";
@@ -18,6 +18,7 @@ import { NarrationDock } from "@/components/shared/NarrationDock";
 import { launchRecording } from "@/lib/launchRecording";
 import type { RecordFormat } from "@/lib/recordFormats";
 import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
+import { ASPECT_OPTIONS, aspectDims, type ItemAspect } from "@/lib/tierlistConfig";
 
 export type ChartType = "quadrants" | "scatter" | "line" | "bullseye";
 export interface RingConfig { color: string; label: string }
@@ -32,6 +33,10 @@ export interface AxisConfig {
   rings: RingConfig[];
   /** Optional milestones drawn on the timeline. */
   linePoints: LinePoint[];
+  /** Image aspect for cards (shared with tier list / bracket / ranking). */
+  itemAspect: ItemAspect;
+  /** Chart accent color — used for axes glow, active card ring, spotlight border. */
+  accentColor: string;
 }
 
 export const DEFAULT_RINGS: RingConfig[] = [
@@ -50,6 +55,8 @@ const DEFAULT_AXIS: AxisConfig = {
   bullseyeLabel: "Prioridade (centro = topo)",
   rings: DEFAULT_RINGS,
   linePoints: [],
+  itemAspect: "square",
+  accentColor: "#fbbf24",
 };
 
 export function parseAxis(body: string | undefined): AxisConfig {
@@ -58,6 +65,8 @@ export function parseAxis(body: string | undefined): AxisConfig {
     const merged: AxisConfig = { ...DEFAULT_AXIS, ...p };
     if (!Array.isArray(merged.rings) || merged.rings.length !== 4) merged.rings = DEFAULT_RINGS;
     if (!Array.isArray(merged.linePoints)) merged.linePoints = [];
+    if (merged.itemAspect !== "portrait" && merged.itemAspect !== "landscape") merged.itemAspect = "square";
+    if (typeof merged.accentColor !== "string" || !merged.accentColor) merged.accentColor = "#fbbf24";
     return merged;
   } catch { return DEFAULT_AXIS; }
 }
@@ -86,18 +95,23 @@ function useResolvedImage(node: MindNode | undefined) {
 }
 
 function MatrixCard({
-  node, onDelete, onEdit, compact,
-}: { node: MindNode; onDelete: () => void; onEdit: () => void; compact?: boolean }) {
+  node, onDelete, onEdit, compact, aspect, selected,
+}: {
+  node: MindNode; onDelete: () => void; onEdit: () => void;
+  compact?: boolean; aspect: ItemAspect; selected?: boolean;
+}) {
   const url = useResolvedImage(node);
-  const width = compact ? 96 : 132;
+  const base = compact ? 92 : 128;
+  const { w } = aspectDims(base, aspect);
+  const imgBox = aspectDims(base, aspect);
   const accent = node.color;
   return (
     <div
-      className="relative rounded-lg bg-card border-2 shadow-md overflow-hidden hover:brightness-105 transition group"
-      style={{ width, borderColor: accent ?? "hsl(var(--border))" }}
+      className={`relative rounded-lg bg-card border-2 shadow-md overflow-hidden hover:brightness-105 transition group ${selected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
+      style={{ width: w, borderColor: accent ?? "hsl(var(--border))" }}
     >
       {url && (
-        <div className="aspect-square bg-muted">
+        <div className="bg-muted overflow-hidden" style={{ width: imgBox.w, height: imgBox.h }}>
           <img src={url} alt="" className="size-full object-cover" />
         </div>
       )}
@@ -161,6 +175,25 @@ export function MatrixEditor({ project }: { project: Project }) {
       role: "item",
       width: 132,
     } as Partial<MindNode>);
+  }
+
+  /** Bulk import: one card per picked image, all landing in the pool. Author
+   *  can then drag them onto the chart or use manual mode live. */
+  async function addBulkImages() {
+    if (!root) return;
+    const refs = await pickMediaMultipleAndStore("image");
+    for (const ref of refs) {
+      const id = addNode(project.id, { parentId: root.id });
+      if (!id) continue;
+      const cleanName = ref.name.replace(/\.[a-z0-9]+$/i, "");
+      updateNode(project.id, id, {
+        text: cleanName,
+        role: "item",
+        width: 132,
+        imageRef: ref,
+        imageName: ref.name,
+      } as Partial<MindNode>);
+    }
   }
 
   // Drag existing (placed) card around the chart
@@ -261,6 +294,9 @@ export function MatrixEditor({ project }: { project: Project }) {
         <Button size="sm" variant="outline" onClick={addCard} className="gap-1.5">
           <Plus className="size-3.5" /> Card
         </Button>
+        <Button size="sm" variant="outline" onClick={addBulkImages} className="gap-1.5">
+          <Images className="size-3.5" /> Imagens
+        </Button>
         <NarrationDock projectId={project.id} narrationRef={project.narrationRef} />
         <ThemeToggle />
         <Button variant="destructive" size="sm" onClick={() => setRecordOpen(true)} className="gap-1.5">
@@ -295,6 +331,35 @@ export function MatrixEditor({ project }: { project: Project }) {
                 </button>
               );
             })}
+          </div>
+
+          {/* Visual controls: image aspect + accent color used across chart+presentation */}
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border/60 bg-card/40 px-3 py-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Proporção</span>
+              {ASPECT_OPTIONS.map((opt) => (
+                <button
+                  key={opt.id}
+                  onClick={() => setAxis({ itemAspect: opt.id })}
+                  className={`text-xs px-2 py-1 rounded-md border transition ${
+                    axis.itemAspect === opt.id
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-background hover:bg-muted border-border/60"
+                  }`}
+                  title={opt.hint}
+                >{opt.label}</button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Cor de acento</span>
+              <input
+                type="color"
+                value={axis.accentColor}
+                onChange={(e) => setAxis({ accentColor: e.target.value })}
+                className="size-8 rounded border border-border/60 bg-transparent cursor-pointer"
+                aria-label="Cor de acento do gráfico"
+              />
+            </div>
           </div>
 
           {/* Axis config */}
@@ -381,6 +446,7 @@ export function MatrixEditor({ project }: { project: Project }) {
                   <MatrixCard
                     node={c}
                     compact
+                    aspect={axis.itemAspect}
                     onDelete={() => deleteNode(project.id, c.id)}
                     onEdit={() => setEditingId(c.id)}
                   />
@@ -503,7 +569,7 @@ function ChartPlane({
               className="absolute cursor-grab active:cursor-grabbing"
               style={{ left: `${c.pctX ?? 50}%`, top: "50%", transform: "translate(-50%, -50%)" }}
             >
-              <MatrixCard node={c} compact onDelete={() => onDelete(c.id)} onEdit={() => onEdit(c.id)} />
+              <MatrixCard node={c} compact aspect={axis.itemAspect} onDelete={() => onDelete(c.id)} onEdit={() => onEdit(c.id)} />
             </div>
           ))}
           {empty && <EmptyMsg text={emptyMsg} />}
@@ -543,7 +609,7 @@ function ChartPlane({
                   transform: "translate(-50%, -50%)",
                 }}
               >
-                <MatrixCard node={c} compact onDelete={() => onDelete(c.id)} onEdit={() => onEdit(c.id)} />
+                <MatrixCard node={c} compact aspect={axis.itemAspect} onDelete={() => onDelete(c.id)} onEdit={() => onEdit(c.id)} />
               </div>
             ))}
             {empty && <EmptyMsg text={emptyMsg} />}
@@ -605,7 +671,7 @@ function ChartPlane({
                 transform: "translate(-50%, -50%)",
               }}
             >
-              <MatrixCard node={c} onDelete={() => onDelete(c.id)} onEdit={() => onEdit(c.id)} />
+              <MatrixCard node={c} aspect={axis.itemAspect} onDelete={() => onDelete(c.id)} onEdit={() => onEdit(c.id)} />
             </div>
           ))}
           {empty && <EmptyMsg text={emptyMsg} />}

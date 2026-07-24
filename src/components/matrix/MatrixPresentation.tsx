@@ -4,11 +4,10 @@ import { resolveImage } from "@/lib/imageStorage";
 import { useStore } from "@/lib/store";
 import { PresentationShell } from "@/components/shared/PresentationShell";
 import { AvatarLayer } from "@/components/shared/AvatarLayer";
+import { aspectDims, type ItemAspect } from "@/lib/tierlistConfig";
 import { parseAxis, RingLegend, type AxisConfig, type ChartType } from "./MatrixEditor";
 
-
-
-/* ---------- Card ---------- */
+/* ---------- Image resolver ---------- */
 function useResolvedImage(node: MindNode | undefined) {
   const [url, setUrl] = useState<string | null>(null);
   const key = node?.imageRef?.id ?? node?.image ?? "";
@@ -24,28 +23,26 @@ function useResolvedImage(node: MindNode | undefined) {
   return url;
 }
 
-function Card({ node, active }: { node: MindNode; active: boolean }) {
+/* ---------- Card (aspect-aware, accent glow when active) ---------- */
+function Card({
+  node, active, aspect, accent,
+}: { node: MindNode; active: boolean; aspect: ItemAspect; accent: string }) {
   const url = useResolvedImage(node);
-  const accent = node.color;
-  const activeStyle: React.CSSProperties = active
-    ? {
-        borderColor: accent ?? "hsl(var(--primary))",
-        boxShadow: `0 0 30px ${accent ? `${accent}88` : "hsl(var(--primary) / 0.55)"}`,
-      }
-    : { borderColor: accent ?? "hsl(var(--border) / 0.6)" };
+  const { w } = aspectDims(96, aspect);
+  const img = aspectDims(96, aspect);
+  const cardAccent = node.color ?? accent;
+  const style: React.CSSProperties = {
+    width: w,
+    borderColor: active ? cardAccent : (node.color ?? "hsl(var(--border) / 0.6)"),
+    boxShadow: active ? `0 0 28px ${cardAccent}99, 0 0 60px ${cardAccent}55` : undefined,
+  };
   return (
     <div
-      className={`rounded-lg overflow-hidden border-2 shadow-lg transition-all duration-500 bg-card ${
-        active ? "ring-2 ring-offset-1 ring-offset-background" : ""
-      }`}
-      style={{
-        width: 118,
-        ...activeStyle,
-        ...(active && accent ? ({ ["--tw-ring-color" as any]: accent } as React.CSSProperties) : {}),
-      }}
+      className="rounded-lg overflow-hidden border-2 shadow-lg transition-all duration-500 bg-card"
+      style={style}
     >
       {url && (
-        <div className="aspect-square bg-muted">
+        <div className="bg-muted overflow-hidden" style={{ width: img.w, height: img.h }}>
           <img src={url} alt="" className="size-full object-cover" />
         </div>
       )}
@@ -56,50 +53,61 @@ function Card({ node, active }: { node: MindNode; active: boolean }) {
   );
 }
 
-/* ---------- Pool thumb (manual-mode drag source) ---------- */
-function PoolThumb({ node }: { node: MindNode }) {
+/* ---------- Pool thumb (manual mode) ---------- */
+function PoolThumb({ node, aspect }: { node: MindNode; aspect: ItemAspect }) {
   const url = useResolvedImage(node);
-  if (!url) return <div className="aspect-square bg-muted" />;
-  return <div className="aspect-square bg-muted"><img src={url} alt="" className="size-full object-cover" /></div>;
+  const { w, h } = aspectDims(64, aspect);
+  return (
+    <div className="bg-muted overflow-hidden" style={{ width: w, height: h }}>
+      {url ? <img src={url} alt="" className="size-full object-cover" /> : null}
+    </div>
+  );
 }
 
-
-/* ---------- Spotlight modal (justification focus) ---------- */
-function Spotlight({ node, onClose }: { node: MindNode; onClose: () => void }) {
+/* ---------- Side spotlight (does NOT cover the chart) ----------
+ * Occupies right ~34% of the frame; the chart shrinks to the remaining space
+ * so the audience keeps the context of where the card sits on the graph. */
+function SideSpotlight({
+  node, accent, zoneLabel, onClose,
+}: { node: MindNode; accent: string; zoneLabel: string; onClose: () => void }) {
   const url = useResolvedImage(node);
-  const accent = node.color ?? "hsl(var(--primary))";
   const body = (node.body || "").trim();
+  const cardAccent = node.color ?? accent;
   return (
-    <div
-      className="absolute inset-0 z-30 grid place-items-center bg-background/80 backdrop-blur-sm animate-fade-in"
+    <aside
+      className="absolute top-0 right-0 h-full w-[34%] min-w-[280px] max-w-[420px] z-30 p-4 animate-slide-in-right"
       onClick={onClose}
     >
       <div
-        className="w-[min(620px,82vw)] max-h-[82vh] rounded-2xl overflow-hidden border-2 bg-card shadow-2xl flex flex-col animate-scale-in"
-        style={{ borderColor: accent, boxShadow: `0 20px 80px ${accent}55` }}
+        className="h-full rounded-2xl border-2 bg-card/95 backdrop-blur-md shadow-2xl flex flex-col overflow-hidden"
+        style={{ borderColor: cardAccent, boxShadow: `0 20px 80px ${cardAccent}55` }}
         onClick={(e) => e.stopPropagation()}
       >
         {url && (
-          <div className="w-full aspect-[16/10] bg-muted grid place-items-center overflow-hidden shrink-0">
-            <img src={url} alt="" className="size-full object-contain" />
+          <div className="w-full aspect-[4/3] bg-muted overflow-hidden shrink-0">
+            <img src={url} alt="" className="size-full object-cover" />
           </div>
         )}
-        <div className="px-6 py-5 flex flex-col items-center gap-3 text-center overflow-hidden">
-          <div className={`font-bold leading-tight text-foreground ${url ? "text-2xl" : "text-3xl"}`}>
-            {node.text || "Card"}
-          </div>
+        <div className="px-5 py-4 flex flex-col gap-2 overflow-auto">
+          {zoneLabel && (
+            <div
+              className="inline-flex self-start text-[10px] uppercase tracking-widest font-semibold px-2 py-0.5 rounded-full"
+              style={{ background: `${cardAccent}22`, color: cardAccent, border: `1px solid ${cardAccent}55` }}
+            >{zoneLabel}</div>
+          )}
+          <div className="text-xl font-bold leading-tight">{node.text || "Card"}</div>
           {body && (
-            <p className="text-sm leading-relaxed text-muted-foreground max-w-[52ch] whitespace-pre-wrap line-clamp-8">
+            <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
               {body}
             </p>
           )}
         </div>
       </div>
-    </div>
+    </aside>
   );
 }
 
-/* ---------- Narrative step machine ---------- */
+/* ---------- Steps ---------- */
 type Step =
   | { kind: "intro"; caption: string }
   | { kind: "axis"; axis: "x" | "y" | "grid" | "zones" | "rings"; caption: string }
@@ -130,9 +138,6 @@ function buildSteps(chart: ChartType, axis: AxisConfig, cards: MindNode[]): Step
     steps.push({ kind: "axis", axis: "rings", caption: axis.bullseyeLabel });
   }
 
-  // For each card: land it on the chart (reveal) and immediately open the
-  // spotlight so the narrator can justify why it sits there (focus).
-  // A second click closes the spotlight and leaves the card highlighted in place.
   const order = revealOrder(chart, cards);
   order.forEach((i) => {
     steps.push({ kind: "reveal", index: i });
@@ -144,7 +149,6 @@ function buildSteps(chart: ChartType, axis: AxisConfig, cards: MindNode[]): Step
 function revealOrder(chart: ChartType, cards: MindNode[]): number[] {
   const idxs = cards.map((_, i) => i);
   if (chart === "bullseye") {
-    // outer → inner (distance from center descending)
     const dist = (c: MindNode) => {
       const dx = (c.pctX ?? 50) - 50, dy = (c.pctY ?? 50) - 50;
       return dx * dx + dy * dy;
@@ -152,17 +156,57 @@ function revealOrder(chart: ChartType, cards: MindNode[]): number[] {
     return idxs.sort((a, b) => dist(cards[b]) - dist(cards[a]));
   }
   if (chart === "scatter") {
-    // left → right, bottom → top (a data story)
     return idxs.sort((a, b) => {
       const dx = (cards[a].pctX ?? 50) - (cards[b].pctX ?? 50);
       if (Math.abs(dx) > 3) return dx;
       return (cards[b].pctY ?? 50) - (cards[a].pctY ?? 50);
     });
   }
-  // quadrants and line: keep author order
   return idxs;
 }
 
+/* ---------- Human-readable "where this card sits" ---------- */
+function zoneLabelFor(chart: ChartType, axis: AxisConfig, card: MindNode | null): string {
+  if (!card) return "";
+  const x = card.pctX ?? 50;
+  const y = card.pctY ?? 50;
+  if (chart === "quadrants") {
+    const yPart = y < 50 ? axis.yHigh : axis.yLow;
+    const xPart = x < 50 ? axis.xLow : axis.xHigh;
+    return `${yPart} · ${xPart}`;
+  }
+  if (chart === "bullseye") {
+    const d = Math.hypot(x - 50, y - 50) / 50; // 0..1 (approx)
+    // matches ring radii [0.85, 0.6, 0.35, 0.15] (outer→inner)
+    const ringIdx = d > 0.6 ? 0 : d > 0.35 ? 1 : d > 0.15 ? 2 : 3;
+    return axis.rings[ringIdx]?.label || `Anel ${ringIdx + 1}`;
+  }
+  if (chart === "line") {
+    return `${Math.round(x)}% — ${axis.xLow} → ${axis.xHigh}`;
+  }
+  // scatter
+  return `X ${Math.round(x)} · Y ${Math.round(100 - y)}`;
+}
+
+/* ---------- Camera ----------
+ * Virtual camera: pans + zooms the chart so the active card is roughly
+ * centered at ~55% of the visible frame. Chart is transformed as a whole
+ * using CSS transform for buttery 1.6s ease-in-out motion. */
+function useCamera(active: { pctX: number; pctY: number } | null, focused: boolean) {
+  // Zoom factor: focused (spotlight open) = tighter; reveal only = medium; idle = 1.
+  const zoom = focused ? 1.7 : active ? 1.35 : 1;
+  const cx = active?.pctX ?? 50;
+  const cy = active?.pctY ?? 50;
+  // We want the point (cx, cy) to land at the frame center (50, 50) after scaling.
+  // translate before scale: t = (50 - cx) * zoom, same for y.
+  const tx = (50 - cx) * zoom;
+  const ty = (50 - cy) * zoom;
+  return {
+    transform: `translate(${tx}%, ${ty}%) scale(${zoom})`,
+    transformOrigin: "50% 50%",
+    transition: "transform 1600ms cubic-bezier(0.22, 1, 0.36, 1)",
+  } as React.CSSProperties;
+}
 
 /* ---------- Main ---------- */
 export function MatrixPresentation({
@@ -171,13 +215,13 @@ export function MatrixPresentation({
   const root = project.nodes.find((n) => n.role === "matrix" || !n.parentId);
   const axis = useMemo(() => parseAxis(root?.body), [root?.body]);
   const chart: ChartType = axis.chartType;
+  const accent = axis.accentColor;
+  const aspect = axis.itemAspect;
   const cards = useMemo(
     () => project.nodes.filter((n) => n.role === "item" && n.parentId === root?.id),
     [project.nodes, root?.id],
   );
 
-  /** Manual mode locked at mount: if no card is placed, the author positions
-   *  cards live during the presentation. */
   const isPlaced = (n: MindNode) =>
     typeof n.pctX === "number" && (chart === "line" || typeof n.pctY === "number");
   const manualMode = useState<boolean>(
@@ -188,6 +232,17 @@ export function MatrixPresentation({
   const [dragPoolId, setDragPoolId] = useState<string | null>(null);
   const placedCards = useMemo(() => cards.filter(isPlaced), [cards, chart]);
   const unplacedCards = useMemo(() => cards.filter((c) => !isPlaced(c)), [cards, chart]);
+
+  // Manual mode: after dropping a card, briefly focus it (zoom camera + spotlight)
+  const [manualFocusId, setManualFocusId] = useState<string | null>(null);
+  const manualFocusTimer = useRef<number | null>(null);
+  function focusManual(id: string, duration = 2200) {
+    if (manualFocusTimer.current) window.clearTimeout(manualFocusTimer.current);
+    setManualFocusId(id);
+    manualFocusTimer.current = window.setTimeout(() => setManualFocusId(null), duration);
+  }
+  useEffect(() => () => { if (manualFocusTimer.current) window.clearTimeout(manualFocusTimer.current); }, []);
+
   function onManualDrop(e: React.DragEvent) {
     if (!dragPoolId || !planeWrapRef.current) return;
     e.preventDefault();
@@ -197,14 +252,15 @@ export function MatrixPresentation({
       ? 50
       : Math.max(3, Math.min(97, ((e.clientY - r.top) / r.height) * 100));
     updateNode(project.id, dragPoolId, { pctX, pctY } as Partial<MindNode>);
+    const droppedId = dragPoolId;
     setDragPoolId(null);
+    focusManual(droppedId, 2000);
   }
 
   const steps = useMemo(() => buildSteps(chart, axis, cards), [chart, axis, cards]);
   const [step, setStep] = useState(0);
   const current = steps[step];
 
-  // What's revealed so far
   const revealedSet = useMemo(() => {
     const s = new Set<number>();
     for (let i = 0; i <= step; i++) {
@@ -220,7 +276,6 @@ export function MatrixPresentation({
       const st = steps[i];
       if (st?.kind === "axis") phase[st.axis] = true;
       if (st?.kind === "reveal" || st?.kind === "focus") {
-        // once cards start revealing, all axis elements are visible
         phase.y = phase.x = phase.grid = phase.zones = phase.rings = true;
       }
     }
@@ -229,21 +284,29 @@ export function MatrixPresentation({
 
   const activeIdx =
     current?.kind === "reveal" || current?.kind === "focus" ? current.index : -1;
-
   const spotlightCard =
     current?.kind === "focus" && activeIdx >= 0 ? cards[activeIdx] : null;
-
   const activeCard = activeIdx >= 0 ? cards[activeIdx] : null;
   const caption =
     current?.kind === "intro" || current?.kind === "axis"
       ? current.caption
-      : current?.kind === "reveal"
-        ? activeCard?.body || activeCard?.text || ""
-        : "";
+      : "";
+  const cameraTarget = activeCard
+    ? { pctX: activeCard.pctX ?? 50, pctY: chart === "line" ? 50 : (activeCard.pctY ?? 50) }
+    : null;
+  const cameraStyle = useCamera(cameraTarget, !!spotlightCard);
 
   const navLabel = manualMode
     ? `${placedCards.length} / ${cards.length}`
     : `${step + 1} / ${steps.length}`;
+
+  // Manual: also compute a camera targeting the currently-focused (just dropped or clicked) card.
+  const manualFocused = manualFocusId ? cards.find((c) => c.id === manualFocusId) ?? null : null;
+  const manualCameraTarget = manualFocused
+    ? { pctX: manualFocused.pctX ?? 50, pctY: chart === "line" ? 50 : (manualFocused.pctY ?? 50) }
+    : null;
+  const manualCameraStyle = useCamera(manualCameraTarget, !!manualFocused);
+  const manualSpotlight = manualFocused;
 
   if (manualMode) {
     return (
@@ -264,20 +327,28 @@ export function MatrixPresentation({
             <div className="text-center text-[11px] uppercase tracking-widest text-muted-foreground mb-2">
               Modo manual — arraste os cards para o gráfico
             </div>
-            <div
-              ref={planeWrapRef}
-              className="flex-1 min-h-0 flex flex-col relative"
-              onDragOver={(e) => { if (dragPoolId) e.preventDefault(); }}
-              onDrop={onManualDrop}
-            >
-              <ChartView
-                chart={chart}
-                axis={axis}
-                cards={placedCards}
-                activeIdx={-1}
-                revealed={new Set(placedCards.map((_, i) => i))}
-                axisPhase={{ y: true, x: true, grid: true, zones: true, rings: true }}
-              />
+            <div className="flex-1 min-h-0 flex">
+              {/* Chart area shrinks when a spotlight is open on the right */}
+              <div
+                ref={planeWrapRef}
+                className={`min-h-0 relative flex flex-col transition-[width] duration-500 ${manualSpotlight ? "w-[66%]" : "w-full"}`}
+                onDragOver={(e) => { if (dragPoolId) e.preventDefault(); }}
+                onDrop={onManualDrop}
+              >
+                <div className="flex-1 min-h-0 relative" style={manualCameraStyle}>
+                  <ChartView
+                    chart={chart}
+                    axis={axis}
+                    cards={placedCards}
+                    activeIdx={manualFocused ? placedCards.findIndex((c) => c.id === manualFocused.id) : -1}
+                    revealed={new Set(placedCards.map((_, i) => i))}
+                    axisPhase={{ y: true, x: true, grid: true, zones: true, rings: true }}
+                    aspect={aspect}
+                    accent={accent}
+                    onCardClick={(id) => focusManual(id, 4000)}
+                  />
+                </div>
+              </div>
             </div>
             {/* Pool */}
             <div className="mt-3 rounded-lg border border-border/60 bg-muted/30 px-3 py-2 shrink-0">
@@ -297,23 +368,30 @@ export function MatrixPresentation({
                     onDragStart={() => setDragPoolId(c.id)}
                     onDragEnd={() => setDragPoolId(null)}
                     className="cursor-grab active:cursor-grabbing shrink-0 rounded-md border-2 bg-card overflow-hidden"
-                    style={{ width: 96, borderColor: c.color ?? "hsl(var(--border))" }}
+                    style={{ borderColor: c.color ?? "hsl(var(--border))" }}
                   >
-                    <PoolThumb node={c} />
-                    <div className="p-1 text-[10px] leading-tight text-center line-clamp-2 min-h-[1.6rem]">
+                    <PoolThumb node={c} aspect={aspect} />
+                    <div className="p-1 text-[10px] leading-tight text-center line-clamp-2 min-h-[1.6rem] w-[64px]">
                       {c.text || "Card"}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
+
+            {manualSpotlight && (
+              <SideSpotlight
+                node={manualSpotlight}
+                accent={accent}
+                zoneLabel={zoneLabelFor(chart, axis, manualSpotlight)}
+                onClose={() => setManualFocusId(null)}
+              />
+            )}
           </div>
         )}
       </PresentationShell>
     );
   }
-
-
 
   return (
     <PresentationShell
@@ -333,26 +411,34 @@ export function MatrixPresentation({
           {cards.length === 0 ? (
             <div className="flex-1 grid place-items-center text-muted-foreground">Adicione cards antes de apresentar.</div>
           ) : (
-            <div className="flex-1 min-h-0 flex flex-col">
-              <ChartView
-                chart={chart}
-                axis={axis}
-                cards={cards}
-                activeIdx={activeIdx}
-                revealed={revealedSet}
-                axisPhase={axisPhase}
-              />
-              {caption && (
-                <div className="mt-3 mx-auto max-w-2xl text-sm bg-card/80 border border-border/60 rounded-md px-4 py-2 text-center animate-fade-in">
-                  {caption}
+            <div className="flex-1 min-h-0 flex">
+              <div className={`min-h-0 relative flex flex-col transition-[width] duration-500 ${spotlightCard ? "w-[66%]" : "w-full"}`}>
+                <div className="flex-1 min-h-0 relative" style={cameraStyle}>
+                  <ChartView
+                    chart={chart}
+                    axis={axis}
+                    cards={cards}
+                    activeIdx={activeIdx}
+                    revealed={revealedSet}
+                    axisPhase={axisPhase}
+                    aspect={aspect}
+                    accent={accent}
+                  />
                 </div>
-              )}
+                {caption && (
+                  <div className="mt-3 mx-auto max-w-2xl text-sm bg-card/80 border border-border/60 rounded-md px-4 py-2 text-center animate-fade-in">
+                    {caption}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
           {spotlightCard && (
-            <Spotlight
+            <SideSpotlight
               node={spotlightCard}
+              accent={accent}
+              zoneLabel={zoneLabelFor(chart, axis, spotlightCard)}
               onClose={() => setStep((s) => Math.min(steps.length - 1, s + 1))}
             />
           )}
@@ -364,7 +450,7 @@ export function MatrixPresentation({
 
 /* ---------- Chart renderer ---------- */
 function ChartView({
-  chart, axis, cards, activeIdx, revealed, axisPhase,
+  chart, axis, cards, activeIdx, revealed, axisPhase, aspect, accent, onCardClick,
 }: {
   chart: ChartType;
   axis: AxisConfig;
@@ -372,9 +458,10 @@ function ChartView({
   activeIdx: number;
   revealed: Set<number>;
   axisPhase: { y: boolean; x: boolean; grid: boolean; zones: boolean; rings: boolean };
+  aspect: ItemAspect;
+  accent: string;
+  onCardClick?: (id: string) => void;
 }) {
-  // For the line/timeline chart the user wants every card visible from the
-  // start of the video — steps only highlight/spotlight in author order.
   const alwaysShown = chart === "line";
   const renderCard = (c: MindNode, i: number, style: React.CSSProperties) => {
     const shown = alwaysShown || revealed.has(i);
@@ -386,45 +473,47 @@ function ChartView({
         style={{
           ...style,
           zIndex: active ? 5 : 1,
-          opacity: shown ? (active ? 1 : 0.75) : 0,
-          transform: `${style.transform ?? ""} ${shown ? (active ? "scale(1.12)" : "scale(1)") : "scale(0.4)"}`,
+          opacity: shown ? (active ? 1 : 0.72) : 0,
+          transform: `${style.transform ?? ""} ${shown ? (active ? "scale(1.08)" : "scale(1)") : "scale(0.4)"}`,
           pointerEvents: shown ? "auto" : "none",
+          cursor: onCardClick ? "pointer" : undefined,
         }}
+        onClick={onCardClick ? () => onCardClick(c.id) : undefined}
       >
-        <Card node={c} active={active} />
+        <Card node={c} active={active} aspect={aspect} accent={accent} />
       </div>
     );
   };
 
+  const backplate = "px-2 py-0.5 rounded bg-background/70 backdrop-blur-sm";
+
   if (chart === "line") {
     return (
-      <div className="flex-1 flex flex-col">
-        <div className={`text-center text-xs font-semibold text-muted-foreground mb-1 transition-opacity duration-500 ${axisPhase.x ? "opacity-100" : "opacity-0"}`}>
-          {axis.lineLabel}
+      <div className="absolute inset-0 flex flex-col">
+        <div className={`text-center text-sm font-semibold text-muted-foreground mb-1 transition-opacity duration-500 ${axisPhase.x ? "opacity-100" : "opacity-0"}`}>
+          <span className={backplate}>{axis.lineLabel}</span>
         </div>
-        <div className="relative flex-1 rounded-xl border-2 border-border/40 bg-muted/20 overflow-hidden">
+        <div className="relative flex-1 rounded-xl border-2 border-border/40 bg-gradient-to-b from-muted/20 to-background overflow-hidden">
           <div className="absolute inset-y-0 left-0 right-0 flex items-center px-4 pointer-events-none">
             <div
-              className="h-0.5 bg-border origin-left transition-all duration-1000 ease-out"
-              style={{ width: axisPhase.x ? "100%" : "0%" }}
+              className="h-0.5 origin-left transition-all duration-1000 ease-out"
+              style={{ width: axisPhase.x ? "100%" : "0%", background: accent }}
             />
           </div>
-          <div className={`absolute top-2 left-3 text-[11px] text-muted-foreground transition-opacity duration-500 ${axisPhase.x ? "opacity-100" : "opacity-0"}`}>← {axis.xLow}</div>
-          <div className={`absolute top-2 right-3 text-[11px] text-muted-foreground transition-opacity duration-500 delay-300 ${axisPhase.x ? "opacity-100" : "opacity-0"}`}>{axis.xHigh} →</div>
-          {/* milestones */}
+          <div className={`absolute top-2 left-3 text-[11px] transition-opacity duration-500 ${axisPhase.x ? "opacity-100" : "opacity-0"}`}><span className={backplate}>← {axis.xLow}</span></div>
+          <div className={`absolute top-2 right-3 text-[11px] transition-opacity duration-500 delay-300 ${axisPhase.x ? "opacity-100" : "opacity-0"}`}><span className={backplate}>{axis.xHigh} →</span></div>
           {axis.linePoints.map((p, i) => (
             <div
               key={p.id}
               className="absolute pointer-events-none transition-opacity duration-500"
               style={{
-                left: `${p.pctX}%`,
-                top: "50%",
+                left: `${p.pctX}%`, top: "50%",
                 transform: "translate(-50%, -50%)",
                 opacity: axisPhase.x ? 1 : 0,
                 transitionDelay: `${400 + i * 80}ms`,
               }}
             >
-              <div className="mx-auto size-2.5 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.6)]" />
+              <div className="mx-auto size-2.5 rounded-full" style={{ background: accent, boxShadow: `0 0 10px ${accent}aa` }} />
               <div
                 className={`absolute left-1/2 -translate-x-1/2 text-[11px] font-medium text-muted-foreground whitespace-nowrap ${p.side === "top" ? "bottom-5" : "top-5"}`}
               >{p.label}</div>
@@ -443,12 +532,18 @@ function ChartView({
 
   if (chart === "bullseye") {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center">
-        <div className={`text-center text-xs font-semibold text-muted-foreground mb-2 transition-opacity duration-500 ${axisPhase.rings ? "opacity-100" : "opacity-0"}`}>
-          {axis.bullseyeLabel}
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <div className={`text-center text-sm font-semibold text-muted-foreground mb-2 transition-opacity duration-500 ${axisPhase.rings ? "opacity-100" : "opacity-0"}`}>
+          <span className={backplate}>{axis.bullseyeLabel}</span>
         </div>
-        <div className="relative rounded-full border-2 border-border/40 bg-muted/10 overflow-hidden"
-          style={{ width: "min(62vh, 82%)", aspectRatio: "1 / 1" }}>
+        <div
+          className="relative rounded-full border-2 overflow-hidden"
+          style={{
+            width: "min(62vh, 82%)", aspectRatio: "1 / 1",
+            borderColor: `${accent}66`,
+            background: `radial-gradient(circle at center, ${accent}18 0%, transparent 70%)`,
+          }}
+        >
           {[0.85, 0.6, 0.35, 0.15].map((r, i) => {
             const ring = axis.rings[i];
             return (
@@ -478,8 +573,6 @@ function ChartView({
     );
   }
 
-
-
   const isScatter = chart === "scatter";
   const yTop    = isScatter ? axis.yLabel : `↑ ${axis.yHigh}`;
   const yBottom = isScatter ? ""          : `↓ ${axis.yLow}`;
@@ -487,14 +580,22 @@ function ChartView({
   const xRight  = isScatter ? axis.xLabel : axis.xHigh;
 
   return (
-    <div className="flex-1 flex flex-col">
-      <div className={`text-center text-xs font-semibold text-muted-foreground mb-1 transition-opacity duration-500 ${axisPhase.y ? "opacity-100" : "opacity-0"}`}>{yTop}</div>
-      <div className="flex-1 flex items-stretch gap-2">
-        <div className={`grid place-items-center text-xs font-semibold text-muted-foreground px-1 transition-opacity duration-500 ${axisPhase.x ? "opacity-100" : "opacity-0"}`}
+    <div className="absolute inset-0 flex flex-col">
+      <div className={`text-center text-sm font-semibold text-muted-foreground mb-1 transition-opacity duration-500 ${axisPhase.y ? "opacity-100" : "opacity-0"}`}>
+        <span className={backplate}>{yTop}</span>
+      </div>
+      <div className="flex-1 flex items-stretch gap-2 min-h-0">
+        <div className={`grid place-items-center text-sm font-semibold text-muted-foreground px-1 transition-opacity duration-500 ${axisPhase.x ? "opacity-100" : "opacity-0"}`}
           style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
-          {xLeft}
+          <span className={backplate}>{xLeft}</span>
         </div>
-        <div className="relative flex-1 rounded-xl border-2 border-border/40 bg-muted/10 overflow-hidden">
+        <div
+          className="relative flex-1 rounded-xl border-2 overflow-hidden"
+          style={{
+            borderColor: `${accent}44`,
+            background: `radial-gradient(ellipse at center, ${accent}10 0%, transparent 60%), hsl(var(--muted) / 0.1)`,
+          }}
+        >
           {isScatter ? (
             <div className="absolute inset-0 pointer-events-none">
               {[20, 40, 60, 80].map((p) => (
@@ -507,14 +608,13 @@ function ChartView({
                   className="absolute inset-x-0 h-px bg-border/30 transition-opacity duration-700"
                   style={{ top: `${p}%`, opacity: axisPhase.grid ? 1 : 0 }} />
               ))}
-              <div className={`absolute inset-y-0 left-0 w-px bg-border/70 origin-bottom transition-transform duration-700 ${axisPhase.y ? "scale-y-100" : "scale-y-0"}`} />
-              <div className={`absolute inset-x-0 bottom-0 h-px bg-border/70 origin-left transition-transform duration-700 ${axisPhase.x ? "scale-x-100" : "scale-x-0"}`} />
+              <div className={`absolute inset-y-0 left-0 w-px origin-bottom transition-transform duration-700 ${axisPhase.y ? "scale-y-100" : "scale-y-0"}`} style={{ background: accent }} />
+              <div className={`absolute inset-x-0 bottom-0 h-px origin-left transition-transform duration-700 ${axisPhase.x ? "scale-x-100" : "scale-x-0"}`} style={{ background: accent }} />
             </div>
           ) : (
             <div className="absolute inset-0 pointer-events-none">
-              <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-px bg-border/50 origin-top transition-transform duration-700 ${axisPhase.y ? "scale-y-100" : "scale-y-0"}`} />
-              <div className={`absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-border/50 origin-left transition-transform duration-700 ${axisPhase.x ? "scale-x-100" : "scale-x-0"}`} />
-              {/* zone tints */}
+              <div className={`absolute inset-y-0 left-1/2 -translate-x-1/2 w-px origin-top transition-transform duration-700 ${axisPhase.y ? "scale-y-100" : "scale-y-0"}`} style={{ background: `${accent}bb` }} />
+              <div className={`absolute inset-x-0 top-1/2 -translate-y-1/2 h-px origin-left transition-transform duration-700 ${axisPhase.x ? "scale-x-100" : "scale-x-0"}`} style={{ background: `${accent}bb` }} />
               {axisPhase.zones && (
                 <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 animate-fade-in">
                   <div className="bg-emerald-500/5" />
@@ -532,12 +632,14 @@ function ChartView({
               transform: "translate(-50%, -50%)",
             }))}
         </div>
-        <div className={`grid place-items-center text-xs font-semibold text-muted-foreground px-1 transition-opacity duration-500 ${axisPhase.x ? "opacity-100" : "opacity-0"}`}
+        <div className={`grid place-items-center text-sm font-semibold text-muted-foreground px-1 transition-opacity duration-500 ${axisPhase.x ? "opacity-100" : "opacity-0"}`}
           style={{ writingMode: "vertical-rl" }}>
-          {xRight}
+          <span className={backplate}>{xRight}</span>
         </div>
       </div>
-      <div className={`text-center text-xs font-semibold text-muted-foreground mt-1 transition-opacity duration-500 ${axisPhase.y ? "opacity-100" : "opacity-0"}`}>{yBottom}</div>
+      <div className={`text-center text-sm font-semibold text-muted-foreground mt-1 transition-opacity duration-500 ${axisPhase.y ? "opacity-100" : "opacity-0"}`}>
+        <span className={backplate}>{yBottom}</span>
+      </div>
     </div>
   );
 }
