@@ -367,7 +367,7 @@ export function seedNodesForTemplate(template: ProjectTemplate, title: string): 
 
   if (template === "iceberg") {
     const rootId = uid2();
-    const levels = ["Conhecido", "Menos conhecido", "Obscuro", "Proibido"];
+    const levels = ["Conhecido", "Menos conhecido", "Obscuro", "Secreto", "Proibido"];
     return [
       { id: rootId, text: title.trim() || "Iceberg", x: 0, y: 0, width: 400, parentId: null, role: "iceberg" },
       ...levels.map((label, i) => ({
