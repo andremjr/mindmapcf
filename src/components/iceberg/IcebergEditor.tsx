@@ -9,6 +9,7 @@ import { useStore } from "@/lib/store";
 import type { MindNode, Project } from "@/lib/types";
 import { pickMediaAndStore, resolveImage } from "@/lib/imageStorage";
 import { IcebergBackground } from "./IcebergBackground";
+import { IcebergBackgroundRealista } from "./IcebergBackgroundRealista";
 import { RecordFormatMenu } from "@/components/RecordFormatMenu";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NarrationDock } from "@/components/shared/NarrationDock";
