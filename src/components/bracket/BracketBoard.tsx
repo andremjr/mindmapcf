@@ -258,7 +258,7 @@ function EmptySlot({ label = "?", expanded = false }: { label?: string; expanded
 }
 
 function MatchBox({
-  match, mode, isCurrent, isRevealed, onPickWinner, side,
+  match, mode, isCurrent, isRevealed, onPickWinner, side, aspect, accentColor,
 }: {
   match: Match;
   mode: "edit" | "present";
@@ -266,6 +266,8 @@ function MatchBox({
   isRevealed: boolean;   // true when both slots are visible
   onPickWinner?: (matchKey: string, id: string) => void;
   side: "L" | "R" | "F";
+  aspect: ItemAspect;
+  accentColor: string;
 }) {
   // In present mode, unrevealed matches show empty placeholders.
   // In edit mode, everything is revealed and clickable.
@@ -280,13 +282,15 @@ function MatchBox({
     return "idle";
   }
   const canPick = mode === "edit" && match.a && match.b && onPickWinner;
+  const currentBoxStyle: React.CSSProperties | undefined = isCurrent
+    ? { background: `${accentColor}0f`, boxShadow: `inset 0 0 0 1px ${accentColor}66` }
+    : undefined;
 
   return (
     <div
       data-match-key={match.key}
-      className={`rounded-lg p-1.5 space-y-1 transition-all ${
-        isCurrent ? "bg-white/5 ring-1 ring-amber-300/40" : ""
-      }`}
+      className="rounded-lg p-1.5 space-y-1 transition-all"
+      style={currentBoxStyle}
     >
 
       {showContents && match.a ? (
@@ -295,6 +299,8 @@ function MatchBox({
             node={match.a}
             state={stateFor(match.a.id)}
             onClick={canPick ? () => onPickWinner!(match.key, match.a!.id) : undefined}
+            aspect={aspect}
+            accentColor={accentColor}
           />
         </motion.div>
       ) : (
@@ -307,6 +313,8 @@ function MatchBox({
             node={match.b}
             state={stateFor(match.b.id)}
             onClick={canPick ? () => onPickWinner!(match.key, match.b!.id) : undefined}
+            aspect={aspect}
+            accentColor={accentColor}
           />
         </motion.div>
       ) : (
@@ -317,7 +325,7 @@ function MatchBox({
 }
 
 function RoundColumn({
-  round, mode, currentStep, stepIdx, steps, side, onPickWinner, label,
+  round, mode, currentStep, stepIdx, steps, side, onPickWinner, label, aspect, accentColor,
 }: {
   round: Match[];
   mode: "edit" | "present";
@@ -327,6 +335,8 @@ function RoundColumn({
   side: "L" | "R";
   onPickWinner?: (matchKey: string, id: string) => void;
   label: string;
+  aspect: ItemAspect;
+  accentColor: string;
 }) {
   const r = parseInt(round[0]?.key.match(/r(\d+)/)?.[1] ?? "0", 10);
   const spacing = 8 * Math.pow(2, r);
@@ -362,6 +372,8 @@ function RoundColumn({
                 isRevealed={revealed}
                 onPickWinner={onPickWinner}
                 side={side}
+                aspect={aspect}
+                accentColor={accentColor}
               />
             </div>
           );
@@ -370,6 +382,7 @@ function RoundColumn({
     </div>
   );
 }
+
 
 export function BracketBoard({
   competitors,
