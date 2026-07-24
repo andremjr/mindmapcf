@@ -263,7 +263,10 @@ export function BracketPresentation({
                     currentStep={null}
                     mode="edit"
                     onPickWinner={pickWinnerLive}
+                    aspect={itemAspect}
+                    accentColor={accentColor}
                   />
+
                 </div>
               </PanZoom>
             </div>
