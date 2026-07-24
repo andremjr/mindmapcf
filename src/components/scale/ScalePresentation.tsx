@@ -351,9 +351,7 @@ function ScaleFrame({
 
       <AvatarLayer
         project={project}
-        frameW={size.w}
-        frameH={size.h}
-        onMove={onAvatarMove}
+        frameSize={size}
       />
     </div>
   );
