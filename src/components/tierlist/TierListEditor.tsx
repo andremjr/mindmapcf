@@ -348,7 +348,7 @@ export function TierListEditor({ project }: { project: Project }) {
   const placedCount = allItems.length - poolItems.length;
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <div className="h-screen bg-background text-foreground flex flex-col overflow-hidden">
       <header className="border-b border-border/60 px-4 py-3 flex items-center gap-3">
         <Button asChild variant="ghost" size="sm">
           <Link to="/projects"><ChevronLeft className="size-4" /> Voltar</Link>
