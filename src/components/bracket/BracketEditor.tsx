@@ -42,45 +42,34 @@ function useResolvedImage(node: MindNode | null | undefined) {
 function CompetitorThumb({
   node,
   aspect,
-  onPickImage,
-  onClearImage,
+  selected,
+  onSelect,
 }: {
   node: MindNode;
   aspect: ItemAspect;
-  onPickImage: () => void;
-  onClearImage: () => void;
+  selected: boolean;
+  onSelect: () => void;
 }) {
   const url = useResolvedImage(node);
   const { w, h } = aspectDims(140, aspect);
   return (
-    <div
-      className="relative bg-muted rounded-md overflow-hidden mx-auto group/img"
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`relative bg-muted rounded-md overflow-hidden mx-auto block transition ${
+        selected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:opacity-90"
+      }`}
       style={{ width: w, height: h }}
     >
       {url ? (
-        <>
-          <img src={url} alt="" className="absolute inset-0 size-full object-cover" />
-          <div className="absolute inset-0 opacity-0 group-hover/img:opacity-100 transition bg-black/50 grid place-items-center gap-2">
-            <button
-              onClick={onPickImage}
-              className="text-[11px] px-2 py-1 rounded bg-white/90 text-black font-medium hover:bg-white"
-            >Trocar</button>
-            <button
-              onClick={onClearImage}
-              className="text-[11px] px-2 py-1 rounded bg-black/70 text-white font-medium hover:bg-black/90"
-            >Remover</button>
-          </div>
-        </>
+        <img src={url} alt="" className="absolute inset-0 size-full object-cover" />
       ) : (
-        <button
-          onClick={onPickImage}
-          className="absolute inset-0 grid place-items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 transition"
-        >
+        <span className="absolute inset-0 grid place-items-center gap-1 text-xs text-muted-foreground">
           <ImageIcon className="size-5" />
-          Adicionar imagem
-        </button>
+          Sem imagem
+        </span>
       )}
-    </div>
+    </button>
   );
 }
 
@@ -103,6 +92,8 @@ export function BracketEditor({ project }: { project: Project }) {
 
   const [titleDraft, setTitleDraft] = useState(project.title);
   const [recordOpen, setRecordOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = selectedId ? competitors.find((c) => c.id === selectedId) ?? null : null;
 
   const cfg = useMemo(() => parseBracketConfig(root?.body), [root?.body]);
   const winners: WinnersMap = cfg.winners;
@@ -271,143 +262,202 @@ export function BracketEditor({ project }: { project: Project }) {
         </Button>
       </header>
 
-      <main className="flex-1 overflow-auto p-6">
-        <div className="mx-auto max-w-6xl space-y-4">
-          <div className="rounded-lg border border-border/60 bg-card p-4">
-            <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-              <div>
-                <div className="text-sm font-semibold">Competidores ({competitors.length})</div>
-                <div className="text-xs text-muted-foreground">Adicione pelo menos 2. Ideal: 4, 8, 16 ou 32 — números fora de potência de 2 recebem "BYE" automático.</div>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <div
-                  className="inline-flex rounded-md border border-border/60 overflow-hidden"
-                  title="Formato de exibição das imagens"
-                >
-                  {ASPECT_OPTIONS.map((opt) => (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setItemAspect(opt.id)}
-                      className={`px-2 py-1 text-[11px] leading-none transition ${
-                        itemAspect === opt.id
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-background hover:bg-muted"
-                      }`}
-                    >
-                      {opt.label}
-                      <span className="ml-1 opacity-60">{opt.hint}</span>
-                    </button>
-                  ))}
+      <main className="flex-1 overflow-hidden">
+        <div className="h-full grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="overflow-auto p-6 space-y-4 min-w-0">
+            <div className="rounded-lg border border-border/60 bg-card p-4">
+              <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+                <div>
+                  <div className="text-sm font-semibold">Competidores ({competitors.length})</div>
+                  <div className="text-xs text-muted-foreground">Clique em um competidor para editar no painel à direita. Ideal: 4, 8, 16 ou 32 — números fora de potência de 2 recebem "BYE" automático.</div>
                 </div>
-                <div className="flex items-center gap-2 rounded-md border border-border/60 px-2 py-1" title="Cor de destaque usada no confronto atual, no rótulo Final e no card do campeão">
-                  <span className="text-[11px] text-muted-foreground">Destaque</span>
-                  <NodeColorPicker
-                    value={accentColor}
-                    onChange={setAccentColor}
-                    label=""
-                    size={16}
-                  />
-                </div>
-                <Button size="sm" variant="outline" onClick={addCompetitor} className="gap-1.5">
-                  <Plus className="size-3.5" /> Adicionar competidor
-                </Button>
-                <Button size="sm" variant="outline" onClick={addCompetitorsFromImages} className="gap-1.5" title="Selecione várias imagens de uma pasta para criar um competidor por imagem">
-                  <ImageIcon className="size-3.5" /> Importar imagens
-                </Button>
-              </div>
-
-            </div>
-            {competitors.length === 0 ? (
-              <div className="text-center text-sm text-muted-foreground py-8">Nenhum competidor. Adicione o primeiro acima.</div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {competitors.map((c, i) => (
-                  <div key={c.id} className="rounded-lg border-2 bg-background overflow-hidden group relative"
-                    style={{ borderColor: c.color ?? "hsl(var(--border) / 0.6)" }}>
-                    <div className="pt-3 px-3">
-                      <CompetitorThumb
-                        node={c}
-                        aspect={itemAspect}
-                        onPickImage={() => pickImageFor(c.id)}
-                        onClearImage={() => clearImageFor(c.id)}
-                      />
-                    </div>
-                    <div className="p-2 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground tabular-nums shrink-0">#{i + 1}</span>
-                        <Input value={c.text} onChange={(e) => updateNode(project.id, c.id, { text: e.target.value })}
-                          className="h-8 text-sm" placeholder="Nome do competidor" />
-                      </div>
-                      <NodeColorPicker
-                        value={c.color}
-                        onChange={(col) => updateNode(project.id, c.id, { color: col } as Partial<MindNode>)}
-                        label=""
-                        size={16}
-                      />
-                    </div>
-                    <button onClick={() => deleteNode(project.id, c.id)}
-                      className="absolute top-1 right-1 size-6 rounded-full bg-black/60 text-white grid place-items-center opacity-0 group-hover:opacity-100 transition"
-                      aria-label="Remover">
-                      <Trash2 className="size-3" />
-                    </button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div
+                    className="inline-flex rounded-md border border-border/60 overflow-hidden"
+                    title="Formato de exibição das imagens"
+                  >
+                    {ASPECT_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setItemAspect(opt.id)}
+                        className={`px-2 py-1 text-[11px] leading-none transition ${
+                          itemAspect === opt.id
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-background hover:bg-muted"
+                        }`}
+                      >
+                        {opt.label}
+                        <span className="ml-1 opacity-60">{opt.hint}</span>
+                      </button>
+                    ))}
                   </div>
-                ))}
+                  <div className="flex items-center gap-2 rounded-md border border-border/60 px-2 py-1" title="Cor de destaque usada no confronto atual, no rótulo Final e no card do campeão">
+                    <span className="text-[11px] text-muted-foreground">Destaque</span>
+                    <NodeColorPicker
+                      value={accentColor}
+                      onChange={setAccentColor}
+                      label=""
+                      size={16}
+                    />
+                  </div>
+                  <Button size="sm" variant="outline" onClick={addCompetitor} className="gap-1.5">
+                    <Plus className="size-3.5" /> Adicionar competidor
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={addCompetitorsFromImages} className="gap-1.5" title="Selecione várias imagens de uma pasta para criar um competidor por imagem">
+                    <ImageIcon className="size-3.5" /> Importar imagens
+                  </Button>
+                </div>
+              </div>
+              {competitors.length === 0 ? (
+                <div className="text-center text-sm text-muted-foreground py-8">Nenhum competidor. Adicione o primeiro acima.</div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                  {competitors.map((c, i) => {
+                    const isSel = selectedId === c.id;
+                    return (
+                      <div
+                        key={c.id}
+                        className={`rounded-lg border-2 bg-background overflow-hidden transition ${
+                          isSel ? "border-primary shadow-md" : ""
+                        }`}
+                        style={{ borderColor: isSel ? undefined : (c.color ?? "hsl(var(--border) / 0.6)") }}
+                      >
+                        <div className="pt-3 px-3">
+                          <CompetitorThumb
+                            node={c}
+                            aspect={itemAspect}
+                            selected={isSel}
+                            onSelect={() => setSelectedId(c.id)}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedId(c.id)}
+                          className="w-full p-2 flex items-center gap-2 text-left hover:bg-muted/40 transition"
+                        >
+                          <span className="text-xs text-muted-foreground tabular-nums shrink-0">#{i + 1}</span>
+                          <span className="text-sm truncate">{c.text || "Sem nome"}</span>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {competitors.length >= 2 && (
+              <div className="rounded-lg border border-border/60 bg-neutral-950 text-white p-4">
+                <div className="mb-3 flex items-start justify-between gap-3 flex-wrap">
+                  <div>
+                    <div className="text-sm font-semibold">
+                      {hasDraw ? "Definir vencedores" : "Sortear o chaveamento"}
+                    </div>
+                    <div className="text-xs text-white/60">
+                      {hasDraw
+                        ? "Arraste para navegar · scroll para zoom · clique no vencedor de cada confronto. Deixe todos vazios para escolher ao vivo na apresentação."
+                        : "Sorteie os confrontos iniciais para começar a decidir os vencedores — ou pule esta etapa e sorteie ao vivo no modo manual da apresentação."}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant={hasDraw ? "outline" : "default"}
+                      onClick={drawBracket}
+                      className="gap-1.5"
+                      title="Sortear aleatoriamente as posições dos competidores"
+                    >
+                      <Shuffle className="size-3.5" /> {hasDraw ? "Sortear novamente" : "Sortear chaveamento"}
+                    </Button>
+                    {hasDraw && (
+                      <Button size="sm" variant="ghost" onClick={clearDraw} className="gap-1.5 text-white/70 hover:text-white" title="Voltar à ordem original do editor">
+                        <X className="size-3.5" /> Limpar sorteio
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                <PanZoom className="h-[75vh] min-h-[480px] rounded-md bg-gradient-to-br from-neutral-950 via-slate-900 to-neutral-950" initialScale={0.85}>
+                  <div className="p-6" style={{ width: "max-content" }}>
+                    <BracketBoard
+                      competitors={seatedCompetitors}
+                      winners={winners}
+                      currentStep={null}
+                      mode="edit"
+                      onPickWinner={hasDraw ? pickWinner : undefined}
+                      aspect={itemAspect}
+                      accentColor={accentColor}
+                    />
+                  </div>
+                </PanZoom>
               </div>
             )}
           </div>
 
-          {competitors.length >= 2 && (
-            <div className="rounded-lg border border-border/60 bg-neutral-950 text-white p-4">
-              <div className="mb-3 flex items-start justify-between gap-3 flex-wrap">
-                <div>
-                  <div className="text-sm font-semibold">
-                    {hasDraw ? "Definir vencedores" : "Sortear o chaveamento"}
-                  </div>
-                  <div className="text-xs text-white/60">
-                    {hasDraw
-                      ? "Arraste para navegar · scroll para zoom · clique no vencedor de cada confronto. Deixe todos vazios para escolher ao vivo na apresentação."
-                      : "Sorteie os confrontos iniciais para começar a decidir os vencedores — ou pule esta etapa e sorteie ao vivo no modo manual da apresentação."}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant={hasDraw ? "outline" : "default"}
-                    onClick={drawBracket}
-                    className="gap-1.5"
-                    title="Sortear aleatoriamente as posições dos competidores"
-                  >
-                    <Shuffle className="size-3.5" /> {hasDraw ? "Sortear novamente" : "Sortear chaveamento"}
-                  </Button>
-                  {hasDraw && (
-                    <Button size="sm" variant="ghost" onClick={clearDraw} className="gap-1.5 text-white/70 hover:text-white" title="Voltar à ordem original do editor">
-                      <X className="size-3.5" /> Limpar sorteio
-                    </Button>
-                  )}
-                </div>
+          <aside className="border-l border-border/60 bg-card/40 overflow-auto p-4 space-y-4">
+            {!selected ? (
+              <div className="text-sm text-muted-foreground">
+                Selecione um competidor para editar nome, imagem e cor.
               </div>
-              <PanZoom className="h-[75vh] min-h-[480px] rounded-md bg-gradient-to-br from-neutral-950 via-slate-900 to-neutral-950" initialScale={0.85}>
-                <div className="p-6" style={{ width: "max-content" }}>
-                  <BracketBoard
-                    competitors={seatedCompetitors}
-                    winners={winners}
-                    currentStep={null}
-                    mode="edit"
-                    onPickWinner={hasDraw ? pickWinner : undefined}
-                    aspect={itemAspect}
-                    accentColor={accentColor}
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground">Competidor</div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedId(null)}
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label="Fechar"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+
+                <div>
+                  <label className="text-[11px] text-muted-foreground">Nome</label>
+                  <Input
+                    value={selected.text}
+                    onChange={(e) => updateNode(project.id, selected.id, { text: e.target.value })}
+                    placeholder="Nome do competidor"
                   />
                 </div>
-              </PanZoom>
 
-            </div>
-          )}
+                <div className="space-y-1.5">
+                  <div className="text-[11px] text-muted-foreground">Imagem</div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button size="sm" variant="outline" onClick={() => pickImageFor(selected.id)} className="gap-1.5">
+                      <ImageIcon className="size-3.5" />
+                      {selected.imageRef ? "Trocar imagem" : "Adicionar imagem"}
+                    </Button>
+                    {selected.imageRef && (
+                      <Button size="sm" variant="ghost" onClick={() => clearImageFor(selected.id)} className="gap-1.5 text-destructive">
+                        <X className="size-3.5" /> Remover
+                      </Button>
+                    )}
+                  </div>
+                </div>
 
+                <NodeColorPicker
+                  value={selected.color}
+                  onChange={(col) => updateNode(project.id, selected.id, { color: col } as Partial<MindNode>)}
+                  label="Cor do card"
+                />
 
+                <div className="pt-2 border-t border-border/40">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-destructive w-full justify-start gap-1.5"
+                    onClick={() => { deleteNode(project.id, selected.id); setSelectedId(null); }}
+                  >
+                    <Trash2 className="size-3.5" /> Excluir competidor
+                  </Button>
+                </div>
+              </div>
+            )}
+          </aside>
         </div>
-
       </main>
+
 
       <RecordFormatMenu open={recordOpen} onClose={() => setRecordOpen(false)} onPick={onPickFormat} />
     </div>
