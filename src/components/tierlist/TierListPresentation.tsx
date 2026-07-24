@@ -457,7 +457,7 @@ export function TierListPresentation({
               )}
 
               {/* Tiers — never scroll: items resize to fit the frame */}
-              <div ref={scrollRef} className="flex-1 min-h-0 overflow-hidden space-y-2 pr-1 flex flex-col">
+              <div ref={scrollRef} className="flex-1 min-h-0 overflow-hidden space-y-2 pr-1">
                 {tiers.map((tier) => {
                   const items = placedByTier.get(tier.id) ?? [];
                   const isActive = !manualMode && currentTierId === tier.id;
