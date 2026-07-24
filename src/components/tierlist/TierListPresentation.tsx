@@ -468,7 +468,7 @@ export function TierListPresentation({
                       onDragOver={manualMode ? onHoverOver(`tier:${tier.id}`) : allowDrop}
                       onDragLeave={manualMode ? onHoverLeave : undefined}
                       onDrop={onTierDrop(tier.id)}
-                      className={`flex items-stretch rounded-lg overflow-hidden border border-border transition-all duration-300 flex-1 min-h-0 ${
+                      className={`flex items-stretch rounded-lg overflow-hidden border border-border transition-all duration-300 ${
                         manualMode
                           ? (dragId ? "ring-2 ring-primary/40" : "")
                           : (isActive ? "opacity-100 scale-100" : "opacity-45 scale-[0.98]")
@@ -480,7 +480,8 @@ export function TierListPresentation({
                       >
                         {tier.text}
                       </div>
-                      <div className="flex-1 min-h-0 min-w-0 bg-muted/30 p-2 flex flex-wrap gap-2 items-start content-start overflow-hidden">
+                      <div className="flex-1 min-w-0 bg-muted/30 p-2 flex flex-wrap gap-2 items-start content-start">
+
                         {items.map((it, i) => (
                           <div key={it.id} className="contents">
                             {manualMode && hover?.key === `tier:${tier.id}` && hover.idx === i && <DropIndicator />}
