@@ -518,6 +518,61 @@ export function TierListPresentation({
             </div>
           </LayoutGroup>
 
+          {/* Spotlight (manual mode): enlarge the tapped item for the camera,
+              then tap the backdrop to collapse and drag it into a tier. */}
+          <AnimatePresence>
+            {manualMode && spotlightNode && (
+              <motion.div
+                key="spotlight-backdrop"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                onClick={() => setSpotlightId(null)}
+                className="absolute inset-0 z-40 grid place-items-center bg-black/70 backdrop-blur-sm cursor-pointer"
+              >
+                <motion.div
+                  initial={{ scale: 0.6, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.6, opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 26 }}
+                  className="relative rounded-2xl overflow-hidden border-2 border-white/40 shadow-2xl"
+                  style={{
+                    ...(() => {
+                      const base = Math.min(size.w, size.h) * 0.7;
+                      const { w, h } = aspectDims(base, itemAspect);
+                      return { width: w, height: h };
+                    })(),
+                    background: spotlightNode.color ?? "#111",
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {spotlightUrl && (
+                    <img src={spotlightUrl} alt="" className="absolute inset-0 size-full object-cover" />
+                  )}
+                  {spotlightNode.text && (
+                    <div className="absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-6 py-4">
+                      <div className="text-white text-2xl md:text-4xl font-bold break-words">
+                        {spotlightNode.text}
+                      </div>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setSpotlightId(null)}
+                    className="absolute top-3 right-3 size-9 grid place-items-center rounded-full bg-black/60 text-white hover:bg-black/80"
+                    aria-label="Fechar"
+                  >
+                    <X className="size-4" />
+                  </button>
+                </motion.div>
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/80 text-xs uppercase tracking-widest">
+                  Toque fora para recolher e arrastar
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+
           {countdown !== null && (
             <div className="absolute inset-0 grid place-items-center pointer-events-none z-30">
               <div
