@@ -33,6 +33,24 @@ function thumbWidth(h: number, aspect: ItemAspect): number {
   return Math.round(h * (d.w / d.h));
 }
 
+function rankInsertIndexFromPointer(container: HTMLElement, clientY: number): number {
+  const slots = Array.from(container.querySelectorAll<HTMLElement>("[data-rank-slot]"));
+  for (let i = 0; i < slots.length; i += 1) {
+    const r = slots[i].getBoundingClientRect();
+    if (clientY < r.top + r.height / 2) return i;
+  }
+  return slots.length;
+}
+
+function rankInsertLineY(container: HTMLElement, idx: number): number {
+  const slots = Array.from(container.querySelectorAll<HTMLElement>("[data-rank-slot]"));
+  const containerRect = container.getBoundingClientRect();
+  if (idx === 0 && slots[0]) return slots[0].getBoundingClientRect().top - containerRect.top - 2;
+  const previous = slots[idx - 1] ?? slots[slots.length - 1];
+  if (previous) return previous.getBoundingClientRect().bottom - containerRect.top + 1;
+  return 4;
+}
+
 
 /* ---------- image resolution ---------- */
 function useResolvedImage(node: MindNode | undefined) {
@@ -210,18 +228,6 @@ export function RankingEditor({ project }: { project: Project }) {
   }
 
 
-
-  function assignRank(itemId: string, targetRank: number) {
-    const item = itemsById.get(itemId);
-    if (!item) return;
-    const prev = item.rank;
-    if (prev === targetRank) return;
-    const occupant = byRank.get(targetRank);
-    updateNode(project.id, itemId, { rank: targetRank } as Partial<MindNode>);
-    if (occupant && occupant.id !== itemId) {
-      updateNode(project.id, occupant.id, { rank: prev } as Partial<MindNode>);
-    }
-  }
 
   function clearRank(itemId: string) {
     updateNode(project.id, itemId, { rank: undefined } as Partial<MindNode>);
@@ -491,27 +497,19 @@ export function RankingEditor({ project }: { project: Project }) {
                   if (!drag) return;
                   e.preventDefault();
                   const container = e.currentTarget as HTMLElement;
-                  const idx = visualInsertIndexVertical(container, e.clientY);
-                  const cards = Array.from(container.querySelectorAll<HTMLElement>("[data-item-id]"));
-                  const containerRect = container.getBoundingClientRect();
-                  let y = 4;
-                  if (idx === 0 && cards[0]) {
-                    y = cards[0].getBoundingClientRect().top - containerRect.top - 2;
-                  } else if (cards[idx - 1]) {
-                    const r = cards[idx - 1].getBoundingClientRect();
-                    y = r.bottom - containerRect.top + 1;
-                  } else if (cards.length) {
-                    const r = cards[cards.length - 1].getBoundingClientRect();
-                    y = r.bottom - containerRect.top + 1;
-                  }
-                  if (rankHover?.idx !== idx) setRankHover({ idx, y });
+                  const idx = rankInsertIndexFromPointer(container, e.clientY);
+                  const y = rankInsertLineY(container, idx);
+                  if (rankHover?.idx !== idx || rankHover.y !== y) setRankHover({ idx, y });
                 }}
                 onDragLeave={(e) => {
                   if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setRankHover(null);
                 }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  if (drag && rankHover) insertRank(drag.id, rankHover.idx);
+                  if (drag) {
+                    const container = e.currentTarget as HTMLElement;
+                    insertRank(drag.id, rankInsertIndexFromPointer(container, e.clientY));
+                  }
                   setDrag(null);
                   setRankHover(null);
                 }}
@@ -688,6 +686,7 @@ function RankSlot({
 
   return (
     <div
+      data-rank-slot={rank}
       {...(node ? { "data-item-id": node.id } : {})}
       className={[
         "relative min-h-0 rounded-lg overflow-hidden flex items-stretch transition",
