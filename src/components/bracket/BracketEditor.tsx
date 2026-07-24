@@ -106,6 +106,7 @@ export function BracketEditor({ project }: { project: Project }) {
   const cfg = useMemo(() => parseBracketConfig(root?.body), [root?.body]);
   const winners: WinnersMap = cfg.winners;
   const itemAspect: ItemAspect = cfg.itemAspect;
+  const accentColor: string = cfg.accentColor;
 
   function persistConfig(next: Partial<typeof cfg>) {
     if (!root) return;
@@ -114,6 +115,8 @@ export function BracketEditor({ project }: { project: Project }) {
     } as Partial<MindNode>);
   }
   function setItemAspect(a: ItemAspect) { persistConfig({ itemAspect: a }); }
+  function setAccentColor(c: string | undefined) { persistConfig({ accentColor: c || "#fbbf24" }); }
+
 
   function addCompetitor() {
     if (!root) return;
