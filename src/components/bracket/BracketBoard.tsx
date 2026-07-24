@@ -8,6 +8,9 @@ import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
 import { Trophy } from "lucide-react";
 import type { MindNode } from "@/lib/types";
 import { resolveImage } from "@/lib/imageStorage";
+import { aspectDims, type ItemAspect } from "@/lib/tierlistConfig";
+import { DEFAULT_ACCENT_COLOR } from "@/lib/bracketConfig";
+
 
 export type WinnersMap = Record<string, string>;
 
@@ -136,7 +139,7 @@ function useResolvedImage(node: MindNode | null | undefined) {
 }
 
 export function CompetitorCard({
-  node, state, onClick, small = false, expanded = false,
+  node, state, onClick, small = false, expanded = false, aspect = "square", accentColor = DEFAULT_ACCENT_COLOR,
 }: {
   node: MindNode;
   state: "idle" | "current" | "winner" | "loser";
@@ -144,6 +147,10 @@ export function CompetitorCard({
   small?: boolean;
   /** Big vertical layout used when a match is focused in present mode. */
   expanded?: boolean;
+  /** Image aspect ratio (square / portrait / landscape). */
+  aspect?: ItemAspect;
+  /** Highlight color for the "current" state (from project config). */
+  accentColor?: string;
 }) {
   const url = useResolvedImage(node);
   const accent = node.color;
@@ -151,13 +158,21 @@ export function CompetitorCard({
     state === "winner"
       ? "border-emerald-300 bg-emerald-500/20 shadow-[0_0_18px_rgba(52,211,153,0.4)]"
       : state === "current"
-        ? "border-amber-300 bg-amber-400/10 ring-2 ring-amber-300 shadow-[0_0_18px_rgba(252,211,77,0.45)]"
+        ? "border-transparent bg-white/5 ring-2"
         : state === "loser"
           ? "border-white/10 bg-black/50 opacity-40"
           : "bg-black/60";
   const textCls = state === "loser" ? "line-through text-white/60" : "text-white/95";
+  const currentStyle = state === "current"
+    ? {
+        borderColor: accentColor,
+        boxShadow: `0 0 18px ${accentColor}80, inset 0 0 0 1px ${accentColor}55`,
+        // ring color via CSS var used by Tailwind's ring utility
+        ["--tw-ring-color" as any]: accentColor,
+      } as React.CSSProperties
+    : undefined;
   // For idle state, use the node's own color as border tint; other states keep
-  // their meaningful accent (winner=green, current=amber, loser=grey).
+  // their meaningful accent (winner=green, current=accent, loser=grey).
   const idleBorder = state === "idle"
     ? { borderColor: accent ?? "rgba(255,255,255,0.2)", boxShadow: accent ? `inset 0 0 0 1px ${accent}22` : undefined }
     : undefined;
@@ -165,14 +180,17 @@ export function CompetitorCard({
   if (expanded) {
     const hasImage = !!url;
     const body = (node.body || "").trim();
+    // Aspect ratio for the image area — respects the project setting so
+    // portraits (movie posters) and landscapes (thumbnails) don't get cropped.
+    const ar = aspect === "portrait" ? "3 / 4" : aspect === "landscape" ? "4 / 3" : "1 / 1";
     return (
       <div
         className={`relative w-full rounded-xl overflow-hidden border-2 transition-all duration-500 flex flex-col ${cls}`}
-        style={idleBorder}
+        style={{ ...(idleBorder ?? {}), ...(currentStyle ?? {}) }}
       >
         {hasImage ? (
           <>
-            <div className="w-full aspect-square bg-black/70 grid place-items-center overflow-hidden">
+            <div className="w-full bg-black/70 grid place-items-center overflow-hidden" style={{ aspectRatio: ar }}>
               <img src={url!} alt="" className="size-full object-contain" />
             </div>
             <div className={`px-3 py-2 font-semibold leading-tight line-clamp-3 text-center text-sm ${textCls}`}>
@@ -180,7 +198,7 @@ export function CompetitorCard({
             </div>
           </>
         ) : (
-          <div className="w-full aspect-square flex flex-col items-center justify-center px-4 py-4 gap-2 text-center">
+          <div className="w-full flex flex-col items-center justify-center px-4 py-4 gap-2 text-center" style={{ aspectRatio: ar }}>
             <div className={`font-bold leading-tight ${body ? "text-base line-clamp-3" : "text-xl line-clamp-4"} ${textCls}`}>
               {node.text || "—"}
             </div>
@@ -195,17 +213,24 @@ export function CompetitorCard({
     );
   }
 
+  // Overview card (rows in the bracket columns). Use aspect-aware image box
+  // and `object-contain` so posters/thumbnails aren't cropped into squares.
+  const thumbBase = small ? 32 : 40;
+  const { w: tw, h: th } = aspectDims(thumbBase, aspect);
   return (
     <button
       disabled={!onClick}
       onClick={onClick}
       className={`relative w-full rounded-md overflow-hidden border-2 transition-all text-left ${cls} ${onClick ? "hover:brightness-110 cursor-pointer" : "cursor-default"}`}
-      style={{ minHeight: small ? 42 : 52, ...idleBorder }}
+      style={{ minHeight: small ? 42 : 52, ...(idleBorder ?? {}), ...(currentStyle ?? {}) }}
     >
       <div className="flex items-center gap-2 p-1.5">
         {url ? (
-          <div className={`rounded bg-black/60 overflow-hidden shrink-0 grid place-items-center ${small ? "size-8" : "size-10"}`}>
-            <img src={url} alt="" className="size-full object-cover" />
+          <div
+            className="rounded bg-black/60 overflow-hidden shrink-0 grid place-items-center"
+            style={{ width: tw, height: th }}
+          >
+            <img src={url} alt="" className="size-full object-contain" />
           </div>
         ) : null}
         <div className={`flex-1 font-medium leading-tight line-clamp-2 ${textCls} ${small ? "text-[11px]" : "text-xs"} ${url ? "" : "text-center px-1"}`}>
@@ -215,6 +240,7 @@ export function CompetitorCard({
     </button>
   );
 }
+
 
 function EmptySlot({ label = "?", expanded = false }: { label?: string; expanded?: boolean }) {
   if (expanded) {
@@ -232,7 +258,7 @@ function EmptySlot({ label = "?", expanded = false }: { label?: string; expanded
 }
 
 function MatchBox({
-  match, mode, isCurrent, isRevealed, onPickWinner, side,
+  match, mode, isCurrent, isRevealed, onPickWinner, side, aspect, accentColor,
 }: {
   match: Match;
   mode: "edit" | "present";
@@ -240,6 +266,8 @@ function MatchBox({
   isRevealed: boolean;   // true when both slots are visible
   onPickWinner?: (matchKey: string, id: string) => void;
   side: "L" | "R" | "F";
+  aspect: ItemAspect;
+  accentColor: string;
 }) {
   // In present mode, unrevealed matches show empty placeholders.
   // In edit mode, everything is revealed and clickable.
@@ -254,13 +282,15 @@ function MatchBox({
     return "idle";
   }
   const canPick = mode === "edit" && match.a && match.b && onPickWinner;
+  const currentBoxStyle: React.CSSProperties | undefined = isCurrent
+    ? { background: `${accentColor}0f`, boxShadow: `inset 0 0 0 1px ${accentColor}66` }
+    : undefined;
 
   return (
     <div
       data-match-key={match.key}
-      className={`rounded-lg p-1.5 space-y-1 transition-all ${
-        isCurrent ? "bg-white/5 ring-1 ring-amber-300/40" : ""
-      }`}
+      className="rounded-lg p-1.5 space-y-1 transition-all"
+      style={currentBoxStyle}
     >
 
       {showContents && match.a ? (
@@ -269,6 +299,8 @@ function MatchBox({
             node={match.a}
             state={stateFor(match.a.id)}
             onClick={canPick ? () => onPickWinner!(match.key, match.a!.id) : undefined}
+            aspect={aspect}
+            accentColor={accentColor}
           />
         </motion.div>
       ) : (
@@ -281,6 +313,8 @@ function MatchBox({
             node={match.b}
             state={stateFor(match.b.id)}
             onClick={canPick ? () => onPickWinner!(match.key, match.b!.id) : undefined}
+            aspect={aspect}
+            accentColor={accentColor}
           />
         </motion.div>
       ) : (
@@ -291,7 +325,7 @@ function MatchBox({
 }
 
 function RoundColumn({
-  round, mode, currentStep, stepIdx, steps, side, onPickWinner, label,
+  round, mode, currentStep, stepIdx, steps, side, onPickWinner, label, aspect, accentColor,
 }: {
   round: Match[];
   mode: "edit" | "present";
@@ -301,6 +335,8 @@ function RoundColumn({
   side: "L" | "R";
   onPickWinner?: (matchKey: string, id: string) => void;
   label: string;
+  aspect: ItemAspect;
+  accentColor: string;
 }) {
   const r = parseInt(round[0]?.key.match(/r(\d+)/)?.[1] ?? "0", 10);
   const spacing = 8 * Math.pow(2, r);
@@ -336,6 +372,8 @@ function RoundColumn({
                 isRevealed={revealed}
                 onPickWinner={onPickWinner}
                 side={side}
+                aspect={aspect}
+                accentColor={accentColor}
               />
             </div>
           );
@@ -345,12 +383,15 @@ function RoundColumn({
   );
 }
 
+
 export function BracketBoard({
   competitors,
   winners,
   currentStep,
   mode,
   onPickWinner,
+  aspect = "square",
+  accentColor = DEFAULT_ACCENT_COLOR,
 }: {
   competitors: MindNode[];
   winners: WinnersMap;
@@ -358,6 +399,8 @@ export function BracketBoard({
   currentStep: string | null;
   mode: "edit" | "present";
   onPickWinner?: (matchKey: string, id: string) => void;
+  aspect?: ItemAspect;
+  accentColor?: string;
 }) {
   const data = useMemo(() => buildBracket(competitors, winners), [competitors, winners]);
   const steps = useMemo(() => buildBracketSteps(data), [data]);
@@ -406,12 +449,14 @@ export function BracketBoard({
               side="L"
               onPickWinner={onPickWinner}
               label={r === data.L.rounds.length - 1 ? "Semifinal" : `Rodada ${r + 1}`}
+              aspect={aspect}
+              accentColor={accentColor}
             />
           ))}
 
           {/* Center: FINAL + Champion */}
           <div className="flex flex-col items-center justify-center gap-4 w-[180px] sm:w-[220px] shrink-0 py-6">
-            <div className="text-[10px] uppercase tracking-widest text-amber-300/80">Final</div>
+            <div className="text-[10px] uppercase tracking-widest" style={{ color: `${accentColor}cc` }}>Final</div>
             <div className="w-full">
 
               <MatchBox
@@ -421,6 +466,8 @@ export function BracketBoard({
                 isRevealed={finalRevealed}
                 onPickWinner={onPickWinner}
                 side="F"
+                aspect={aspect}
+                accentColor={accentColor}
               />
             </div>
             <div className="min-h-[110px] w-full grid place-items-center">
@@ -432,12 +479,17 @@ export function BracketBoard({
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ opacity: 0 }}
                     transition={{ type: "spring", stiffness: 180, damping: 18 }}
-                    className="rounded-xl p-3 bg-gradient-to-br from-amber-400/30 to-amber-600/20 border border-amber-300/60 shadow-[0_0_60px_rgba(252,211,77,0.55)] w-full"
+                    className="rounded-xl p-3 w-full"
+                    style={{
+                      background: `linear-gradient(to bottom right, ${accentColor}4d, ${accentColor}26)`,
+                      border: `1px solid ${accentColor}99`,
+                      boxShadow: `0 0 60px ${accentColor}8c`,
+                    }}
                   >
-                    <div className="flex items-center gap-1 text-[10px] uppercase tracking-widest text-amber-200 mb-1 justify-center">
+                    <div className="flex items-center gap-1 text-[10px] uppercase tracking-widest mb-1 justify-center" style={{ color: accentColor }}>
                       <Trophy className="size-3" /> Campeão
                     </div>
-                    <CompetitorCard node={data.champion} state="winner" />
+                    <CompetitorCard node={data.champion} state="winner" aspect={aspect} accentColor={accentColor} />
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -458,10 +510,13 @@ export function BracketBoard({
                 side="R"
                 onPickWinner={onPickWinner}
                 label={r === data.R.rounds.length - 1 ? "Semifinal" : `Rodada ${r + 1}`}
+                aspect={aspect}
+                accentColor={accentColor}
               />
             );
           })}
         </div>
+
 
         {/* Pool row (visible only on 'pool' step in present mode) */}
         <AnimatePresence>
@@ -474,7 +529,7 @@ export function BracketBoard({
             >
               {competitors.map((c) => (
                 <div key={c.id} className="w-[160px]">
-                  <CompetitorCard node={c} state="idle" small />
+                  <CompetitorCard node={c} state="idle" small aspect={aspect} accentColor={accentColor} />
                 </div>
               ))}
             </motion.div>

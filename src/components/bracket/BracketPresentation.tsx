@@ -58,6 +58,9 @@ export function BracketPresentation({
   );
   const cfg = useMemo(() => parseBracketConfig(root?.body), [root?.body]);
   const winners: WinnersMap = cfg.winners;
+  const itemAspect = cfg.itemAspect;
+  const accentColor = cfg.accentColor;
+
 
   /** Manual mode locked at mount: no winners pre-picked → author decides live. */
   const manualMode = useState<boolean>(() => {
@@ -260,7 +263,10 @@ export function BracketPresentation({
                     currentStep={null}
                     mode="edit"
                     onPickWinner={pickWinnerLive}
+                    aspect={itemAspect}
+                    accentColor={accentColor}
                   />
+
                 </div>
               </PanZoom>
             </div>
@@ -307,7 +313,10 @@ export function BracketPresentation({
                 winners={effectiveWinners}
                 currentStep={resolvedStep}
                 mode="present"
+                aspect={itemAspect}
+                accentColor={accentColor}
               />
+
             </div>
 
             {/* Solid backdrop behind overlay for legibility */}
@@ -336,7 +345,7 @@ export function BracketPresentation({
                   className="absolute inset-0 flex items-center justify-center pointer-events-none"
                 >
                   <div className="flex flex-col items-center gap-3 max-w-[80%] rounded-2xl bg-neutral-950/85 border border-white/15 shadow-[0_20px_80px_rgba(0,0,0,0.6)] px-8 py-6">
-                    <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.35em] text-amber-200/90">
+                    <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.35em]" style={{ color: `${accentColor}e6` }}>
                       <span>{roundLabelFor(focusKey)}</span>
                       {(() => {
                         const c = matchCounterFor(focusKey);
@@ -360,9 +369,9 @@ export function BracketPresentation({
                         }
                         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
                       >
-                        <CompetitorCard node={focusedMatch.a} state={stateFor(focusedMatch.a.id)} expanded />
+                        <CompetitorCard node={focusedMatch.a} state={stateFor(focusedMatch.a.id)} expanded aspect={itemAspect} accentColor={accentColor} />
                       </motion.div>
-                      <div className="self-center text-2xl font-bold uppercase tracking-widest text-amber-300/90">vs</div>
+                      <div className="self-center text-2xl font-bold uppercase tracking-widest" style={{ color: `${accentColor}e6` }}>vs</div>
                       <motion.div
                         className="w-[280px]"
                         animate={
@@ -374,7 +383,7 @@ export function BracketPresentation({
                         }
                         transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
                       >
-                        <CompetitorCard node={focusedMatch.b} state={stateFor(focusedMatch.b.id)} expanded />
+                        <CompetitorCard node={focusedMatch.b} state={stateFor(focusedMatch.b.id)} expanded aspect={itemAspect} accentColor={accentColor} />
                       </motion.div>
                     </div>
                   </div>
@@ -391,9 +400,17 @@ export function BracketPresentation({
                   className="absolute inset-0 flex items-center justify-center pointer-events-none"
                 >
                   <div className="flex flex-col items-center gap-4">
-                    <div className="text-[11px] uppercase tracking-[0.35em] text-amber-200/90">Campeão</div>
-                    <div className="w-[340px] rounded-2xl p-4 bg-gradient-to-br from-amber-400/25 to-amber-600/15 border border-amber-300/60 shadow-[0_0_80px_rgba(252,211,77,0.55)]">
-                      <CompetitorCard node={fullData.champion} state="winner" expanded />
+                    <div className="text-[11px] uppercase tracking-[0.35em]" style={{ color: `${accentColor}e6` }}>Campeão</div>
+                    <div
+                      className="w-[340px] rounded-2xl p-4"
+                      style={{
+                        background: `linear-gradient(to bottom right, ${accentColor}40, ${accentColor}26)`,
+                        border: `1px solid ${accentColor}99`,
+                        boxShadow: `0 0 80px ${accentColor}8c`,
+                      }}
+                    >
+                      <CompetitorCard node={fullData.champion} state="winner" expanded aspect={itemAspect} accentColor={accentColor} />
+
                     </div>
                   </div>
                 </motion.div>
