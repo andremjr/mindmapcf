@@ -171,6 +171,38 @@ export function TierListEditor({ project }: { project: Project }) {
     setSelectedTierId(null);
   }
 
+  /**
+   * Bulk-create one item per selected image file. This is the common flow for
+   * tier list creators who save a folder of reference images and want to drop
+   * everything into the pool at once. Each item uses the file basename as text.
+   */
+  async function addItemsFromImages() {
+    if (!board) return;
+    const refs = await pickMediaMultipleAndStore("image");
+    if (refs.length === 0) return;
+    let nextOrder = allItems.reduce((m, n) => Math.max(m, n.order ?? -1), -1) + 1;
+    let firstId: string | null = null;
+    for (const ref of refs) {
+      const id = addNode(project.id, { parentId: board.id });
+      if (!id) continue;
+      const baseName = ref.name.replace(/\.[^.]+$/, "");
+      updateNode(project.id, id, {
+        text: baseName || `Item ${nextOrder + 1}`,
+        role: "item",
+        order: nextOrder,
+        width: 200,
+        imageRef: ref,
+        imageName: ref.name,
+      } as Partial<MindNode>);
+      if (!firstId) firstId = id;
+      nextOrder += 1;
+    }
+    if (firstId) {
+      setSelectedId(firstId);
+      setSelectedTierId(null);
+    }
+  }
+
   async function setSelectedImage() {
     if (!selected) return;
     const ref = await pickMediaAndStore("image");
