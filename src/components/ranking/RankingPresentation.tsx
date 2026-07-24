@@ -365,7 +365,6 @@ export function RankingPresentation({
   const [rankHover, setRankHover] = useState<{ idx: number; y: number } | null>(null);
   const manualRanked = useMemo(
     () => manualMode
-      ? [...callOrder].filter((n) => typeof n.rank === "number").sort((a, b) => a.rank! - b.rank!)
       ? [...callOrder].filter((n) => typeof n.rank === "number").sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))
       : [],
     [manualMode, callOrder],
