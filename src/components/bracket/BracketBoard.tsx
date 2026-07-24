@@ -529,7 +529,7 @@ export function BracketBoard({
             >
               {competitors.map((c) => (
                 <div key={c.id} className="w-[160px]">
-                  <CompetitorCard node={c} state="idle" small />
+                  <CompetitorCard node={c} state="idle" small aspect={aspect} accentColor={accentColor} />
                 </div>
               ))}
             </motion.div>
