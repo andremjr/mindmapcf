@@ -252,6 +252,7 @@ export function RankingEditor({ project }: { project: Project }) {
         <Button size="sm" variant="outline" onClick={addItem} className="gap-1.5">
           <Plus className="size-3.5" /> Item
         </Button>
+        <NarrationDock projectId={project.id} narrationRef={project.narrationRef} />
         <ThemeToggle />
         <Button variant="destructive" size="sm" onClick={() => setRecordOpen(true)} className="gap-1.5">
           <Circle className="size-3 fill-current" /> Gravar
