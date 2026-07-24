@@ -152,6 +152,15 @@ export function TierListEditor({ project }: { project: Project }) {
   const [selectedTierId, setSelectedTierId] = useState<string | null>(null);
   const selectedTier = selectedTierId ? tiers.find((t) => t.id === selectedTierId) ?? null : null;
 
+  const config = useMemo(() => parseTierListConfig(board?.body), [board?.body]);
+  const itemAspect: ItemAspect = config.itemAspect;
+  function setItemAspect(a: ItemAspect) {
+    if (!board) return;
+    updateNode(project.id, board.id, {
+      body: serializeTierListConfig({ ...config, itemAspect: a }),
+    } as Partial<MindNode>);
+  }
+
   function addTier() {
     if (!board) return;
     const id = addNode(project.id, { parentId: board.id });
