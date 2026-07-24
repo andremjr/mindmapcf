@@ -108,6 +108,12 @@ export function BracketEditor({ project }: { project: Project }) {
   const winners: WinnersMap = cfg.winners;
   const itemAspect: ItemAspect = cfg.itemAspect;
   const accentColor: string = cfg.accentColor;
+  const seedOrder = cfg.seedOrder;
+  const seatedCompetitors = useMemo(
+    () => seatCompetitors(competitors, seedOrder),
+    [competitors, seedOrder],
+  );
+  const hasDraw = !!seedOrder && seedOrder.length > 0;
 
   function persistConfig(next: Partial<typeof cfg>) {
     if (!root) return;
@@ -117,6 +123,19 @@ export function BracketEditor({ project }: { project: Project }) {
   }
   function setItemAspect(a: ItemAspect) { persistConfig({ itemAspect: a }); }
   function setAccentColor(c: string | undefined) { persistConfig({ accentColor: c || "#fbbf24" }); }
+
+  function drawBracket() {
+    if (competitors.length < 2) { alert("Adicione pelo menos 2 competidores antes de sortear."); return; }
+    if (Object.keys(winners).length > 0 || hasDraw) {
+      if (!confirm("Isto vai sortear novamente os confrontos e limpar todos os vencedores. Continuar?")) return;
+    }
+    persistConfig({ seedOrder: drawSeedOrder(competitors), winners: {} });
+  }
+  function clearDraw() {
+    if (!confirm("Limpar o sorteio atual? Os competidores voltam à ordem original do editor.")) return;
+    persistConfig({ seedOrder: undefined, winners: {} });
+  }
+
 
 
   function addCompetitor() {
