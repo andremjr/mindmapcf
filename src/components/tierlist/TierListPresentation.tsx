@@ -245,6 +245,12 @@ export function TierListPresentation({
   }, [tiers, manualMode, allItems, idx, preplacedQueue]);
 
 
+  /** Auto-mode spotlight: item shown enlarged before flying to its tier. */
+  const [autoSpotlightId, setAutoSpotlightId] = useState<string | null>(null);
+  const autoTimers = useRef<number[]>([]);
+  const autoBusy = useRef(false);
+  useEffect(() => () => { autoTimers.current.forEach((t) => window.clearTimeout(t)); }, []);
+
   const remaining = manualMode
     ? allItems.filter((n) => !n.parentId || !tierIds.has(n.parentId))
     : preplacedQueue.slice(idx).filter((n) => n.id !== autoSpotlightId);
@@ -256,11 +262,6 @@ export function TierListPresentation({
     if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [idx, currentTierId, manualMode]);
 
-  /** Auto-mode spotlight: item shown enlarged before flying to its tier. */
-  const [autoSpotlightId, setAutoSpotlightId] = useState<string | null>(null);
-  const autoTimers = useRef<number[]>([]);
-  const autoBusy = useRef(false);
-  useEffect(() => () => { autoTimers.current.forEach((t) => window.clearTimeout(t)); }, []);
 
   const next = () => {
     if (manualMode || countdown !== null) return;
