@@ -688,7 +688,7 @@ function RankSlot({
 
   return (
     <div
-      data-item-id={node?.id ?? `empty-${rank}`}
+      {...(node ? { "data-item-id": node.id } : {})}
       className={[
         "relative min-h-0 rounded-lg overflow-hidden flex items-stretch transition",
         node
