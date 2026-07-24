@@ -5,6 +5,8 @@ import { resolveImage } from "@/lib/imageStorage";
 import { useStore } from "@/lib/store";
 import { PresentationShell } from "@/components/shared/PresentationShell";
 import { AvatarLayer } from "@/components/shared/AvatarLayer";
+import { aspectDims, parseTierListConfig, type ItemAspect } from "@/lib/tierlistConfig";
+
 
 
 /* ---------- image ---------- */
@@ -173,18 +175,22 @@ function PoolCard({
 
 
 /* ---------- spotlight ---------- */
-function SpotlightCard({ node }: { node: MindNode }) {
+function SpotlightCard({ node, aspect }: { node: MindNode; aspect: ItemAspect }) {
   const url = useResolvedImage(node);
   const body = (node.body || "").trim();
   const hasImage = !!url;
   const accent = node.color ?? "#f59e0b";
+  const ratio = aspectDims(100, aspect);
   return (
     <div
       className="w-[min(560px,78vw)] max-h-[80vh] rounded-2xl overflow-hidden border-2 bg-card flex flex-col"
       style={{ borderColor: `${accent}99`, boxShadow: `0 20px 80px ${accent}55` }}
     >
       {hasImage && (
-        <div className="w-full aspect-[16/10] bg-muted grid place-items-center overflow-hidden shrink-0">
+        <div
+          className="w-full bg-muted grid place-items-center overflow-hidden shrink-0"
+          style={{ aspectRatio: `${ratio.w} / ${ratio.h}` }}
+        >
           <img src={url!} alt="" className="size-full object-contain" />
         </div>
       )}
@@ -202,17 +208,27 @@ function SpotlightCard({ node }: { node: MindNode }) {
   );
 }
 
+
 /* ---------- main ---------- */
 export function RankingPresentation({
   project, recording = false,
 }: { project: Project; recording?: boolean }) {
   const root = project.nodes.find((n) => n.role === "ranking" || !n.parentId);
+  const itemAspect: ItemAspect = useMemo(
+    () => parseTierListConfig(root?.body).itemAspect,
+    [root?.body],
+  );
+  const aspectRatioNum = useMemo(() => {
+    const d = aspectDims(100, itemAspect);
+    return d.w / d.h;
+  }, [itemAspect]);
   const callOrder = useMemo(
     () => project.nodes
       .filter((n) => n.role === "item" && n.parentId === root?.id)
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
     [project.nodes, root?.id],
   );
+
 
   const rankOf = useMemo(() => {
     const map = new Map<string, number>();
@@ -292,7 +308,7 @@ export function RankingPresentation({
 
   const navLabel = N > 0 ? `${placedCount} / ${N}` : "0 / 0";
 
-  const pool = useAutoGrid(Math.max(1, N), 1);
+  const pool = useAutoGrid(Math.max(1, N), aspectRatioNum);
 
   const rankColRef = useRef<HTMLDivElement>(null);
   const [rankColH, setRankColH] = useState(0);
@@ -538,7 +554,7 @@ export function RankingPresentation({
                   transition={{ type: "spring", stiffness: 200, damping: 22 }}
                   className="absolute inset-0 flex items-center justify-center pointer-events-none p-6"
                 >
-                  <SpotlightCard node={spotlightNode} />
+                  <SpotlightCard node={spotlightNode} aspect={itemAspect} />
                 </motion.div>
               </>
             )}

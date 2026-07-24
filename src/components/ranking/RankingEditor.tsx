@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useStore } from "@/lib/store";
 import type { MindNode, Project } from "@/lib/types";
-import { pickMediaAndStore, resolveImage } from "@/lib/imageStorage";
+import { pickMediaAndStore, pickMediaMultipleAndStore, resolveImage } from "@/lib/imageStorage";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { RecordFormatMenu } from "@/components/RecordFormatMenu";
@@ -19,6 +19,20 @@ import type { RecordFormat } from "@/lib/recordFormats";
 import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
 import { visualInsertIndexVertical } from "@/components/shared/DropIndicator";
 import { NarrationDock } from "@/components/shared/NarrationDock";
+import {
+  ASPECT_OPTIONS,
+  aspectDims,
+  parseTierListConfig,
+  serializeTierListConfig,
+  type ItemAspect,
+} from "@/lib/tierlistConfig";
+
+/** Width of the thumbnail strip for a card of height `h`, given aspect. */
+function thumbWidth(h: number, aspect: ItemAspect): number {
+  const d = aspectDims(100, aspect);
+  return Math.round(h * (d.w / d.h));
+}
+
 
 /* ---------- image resolution ---------- */
 function useResolvedImage(node: MindNode | undefined) {
@@ -103,8 +117,21 @@ export function RankingEditor({ project }: { project: Project }) {
   const [recordOpen, setRecordOpen] = useState(false);
   const [drag, setDrag] = useState<DragPayload | null>(null);
   const [callHover, setCallHover] = useState<{ idx: number; y: number } | null>(null);
+  const [rankHover, setRankHover] = useState<{ idx: number; y: number } | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = selectedId ? itemsById.get(selectedId) ?? null : null;
+
+  /* Aspect ratio config lives on the root node's body (shared with tier list
+     shape). Controls how item thumbs display in editor + presentation. */
+  const config = useMemo(() => parseTierListConfig(root?.body), [root?.body]);
+  const itemAspect: ItemAspect = config.itemAspect;
+  function setItemAspect(a: ItemAspect) {
+    if (!root) return;
+    updateNode(project.id, root.id, {
+      body: serializeTierListConfig({ ...config, itemAspect: a }),
+    } as Partial<MindNode>);
+  }
+
 
   /* --- actions --- */
   function addItem() {
@@ -118,6 +145,31 @@ export function RankingEditor({ project }: { project: Project }) {
       width: 300,
     } as Partial<MindNode>);
     setSelectedId(id);
+  }
+
+  /** Bulk-create one item per selected image, mirroring the tier list flow. */
+  async function addItemsFromImages() {
+    if (!root) return;
+    const refs = await pickMediaMultipleAndStore("image");
+    if (refs.length === 0) return;
+    let nextOrder = items.reduce((m, n) => Math.max(m, n.order ?? -1), -1) + 1;
+    let firstId: string | null = null;
+    for (const ref of refs) {
+      const id = addNode(project.id, { parentId: root.id });
+      if (!id) continue;
+      const baseName = ref.name.replace(/\.[^.]+$/, "");
+      updateNode(project.id, id, {
+        text: baseName || `Item ${nextOrder + 1}`,
+        role: "item",
+        order: nextOrder,
+        width: 300,
+        imageRef: ref,
+        imageName: ref.name,
+      } as Partial<MindNode>);
+      if (!firstId) firstId = id;
+      nextOrder += 1;
+    }
+    if (firstId) setSelectedId(firstId);
   }
 
   function reindexCallOrder(next: MindNode[]) {
@@ -134,6 +186,30 @@ export function RankingEditor({ project }: { project: Project }) {
     next.splice(Math.max(0, Math.min(N - 1, targetIdx)), 0, n);
     reindexCallOrder(next);
   }
+
+  /** Insertion-based rank ordering: move `id` to boundary `targetIdx`
+   *  (0..K where K = ranked count). Reassigns ranks 1..K contiguously so
+   *  dropping between two rows shifts the others instead of swapping. */
+  function insertRank(id: string, targetIdx: number) {
+    const ordered = items
+      .filter((n) => typeof n.rank === "number")
+      .sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0));
+    const wasRanked = ordered.findIndex((n) => n.id === id);
+    const item = itemsById.get(id);
+    if (!item) return;
+    if (wasRanked !== -1) ordered.splice(wasRanked, 1);
+    let insertAt = Math.max(0, Math.min(targetIdx, ordered.length));
+    if (wasRanked !== -1 && wasRanked < targetIdx) insertAt = targetIdx - 1;
+    ordered.splice(insertAt, 0, item);
+    ordered.forEach((n, i) => {
+      const nextRank = i + 1;
+      if ((n.rank ?? -1) !== nextRank) {
+        updateNode(project.id, n.id, { rank: nextRank } as Partial<MindNode>);
+      }
+    });
+  }
+
+
 
   function assignRank(itemId: string, targetRank: number) {
     const item = itemsById.get(itemId);
@@ -252,6 +328,24 @@ export function RankingEditor({ project }: { project: Project }) {
         <Button size="sm" variant="outline" onClick={addItem} className="gap-1.5">
           <Plus className="size-3.5" /> Item
         </Button>
+        <Button size="sm" variant="outline" onClick={addItemsFromImages} className="gap-1.5" title="Selecione várias imagens de uma pasta para criar um item por imagem">
+          <ImageIcon className="size-3.5" /> Importar imagens
+        </Button>
+        <div className="inline-flex rounded-md border border-border/60 overflow-hidden" title="Formato de exibição das imagens">
+          {ASPECT_OPTIONS.map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => setItemAspect(opt.id)}
+              className={`px-2 py-1 text-[11px] leading-none transition ${
+                itemAspect === opt.id ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
         <NarrationDock projectId={project.id} narrationRef={project.narrationRef} />
         <ThemeToggle />
         <Button variant="destructive" size="sm" onClick={() => setRecordOpen(true)} className="gap-1.5">
@@ -352,6 +446,7 @@ export function RankingEditor({ project }: { project: Project }) {
                       node={it}
                       callIdx={i}
                       placed={placed}
+                      aspect={itemAspect}
                       selected={selectedId === it.id}
                       dragging={drag?.id === it.id}
                       isDropTarget={!!drag && drag.from === "call" && drag.id !== it.id}
@@ -380,7 +475,7 @@ export function RankingEditor({ project }: { project: Project }) {
           <section className="flex flex-col rounded-xl border border-border/60 bg-card/40 overflow-hidden">
             <header className="px-3 py-2 border-b border-border/60 shrink-0">
               <div className="text-sm font-semibold">Ranking final</div>
-              <div className="text-[11px] text-muted-foreground">Arraste um item aqui</div>
+              <div className="text-[11px] text-muted-foreground">Arraste um item aqui — solte entre linhas para inserir no meio</div>
             </header>
 
             {N === 0 ? (
@@ -388,7 +483,39 @@ export function RankingEditor({ project }: { project: Project }) {
                 As posições aparecem quando você adicionar itens.
               </div>
             ) : (
-              <div ref={rankRows.ref} className="flex-1 min-h-0 p-2 grid gap-2" style={rowStyle(rankRows)}>
+              <div
+                ref={rankRows.ref}
+                className="flex-1 min-h-0 p-2 grid gap-2 relative"
+                style={rowStyle(rankRows)}
+                onDragOver={(e) => {
+                  if (!drag) return;
+                  e.preventDefault();
+                  const container = e.currentTarget as HTMLElement;
+                  const idx = visualInsertIndexVertical(container, e.clientY);
+                  const cards = Array.from(container.querySelectorAll<HTMLElement>("[data-item-id]"));
+                  const containerRect = container.getBoundingClientRect();
+                  let y = 4;
+                  if (idx === 0 && cards[0]) {
+                    y = cards[0].getBoundingClientRect().top - containerRect.top - 2;
+                  } else if (cards[idx - 1]) {
+                    const r = cards[idx - 1].getBoundingClientRect();
+                    y = r.bottom - containerRect.top + 1;
+                  } else if (cards.length) {
+                    const r = cards[cards.length - 1].getBoundingClientRect();
+                    y = r.bottom - containerRect.top + 1;
+                  }
+                  if (rankHover?.idx !== idx) setRankHover({ idx, y });
+                }}
+                onDragLeave={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setRankHover(null);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (drag && rankHover) insertRank(drag.id, rankHover.idx);
+                  setDrag(null);
+                  setRankHover(null);
+                }}
+              >
                 {Array.from({ length: N }, (_, i) => i + 1).map((rank) => {
                   const it = byRank.get(rank);
                   return (
@@ -396,23 +523,27 @@ export function RankingEditor({ project }: { project: Project }) {
                       key={rank}
                       rank={rank}
                       node={it}
+                      aspect={itemAspect}
                       selected={!!it && selectedId === it.id}
                       dragging={!!it && drag?.id === it.id}
                       dropActive={drag != null}
                       onClickNode={() => it && setSelectedId(it.id)}
                       onDragStart={() => it && setDrag({ id: it.id, from: "rank" })}
                       onDragEnd={() => setDrag(null)}
-                      onDrop={() => {
-                        if (drag) assignRank(drag.id, rank);
-                        setDrag(null);
-                      }}
                       onClear={() => it && clearRank(it.id)}
                     />
                   );
                 })}
+                {drag && rankHover && (
+                  <div
+                    className="absolute left-2 right-2 h-[3px] rounded-full bg-primary shadow-[0_0_10px_2px_hsl(var(--primary)/0.75)] animate-pulse pointer-events-none z-10"
+                    style={{ top: rankHover.y }}
+                  />
+                )}
               </div>
             )}
           </section>
+
         </div>
       </main>
 
@@ -470,16 +601,19 @@ export function RankingEditor({ project }: { project: Project }) {
 
 /* ---------- Call order card ---------- */
 function CallCard({
-  node, callIdx, placed, selected, dragging, isDropTarget,
+  node, callIdx, placed, selected, dragging, isDropTarget, aspect,
   onClick, onDragStart, onDragEnd, onDropOnCard,
 }: {
   node: MindNode; callIdx: number; placed: boolean;
   selected: boolean; dragging: boolean; isDropTarget: boolean;
+  aspect: ItemAspect;
   onClick: () => void;
   onDragStart: () => void; onDragEnd: () => void; onDropOnCard: () => void;
 }) {
+  const ratio = aspectDims(100, aspect);
   return (
     <div
+      data-item-id={node.id}
       draggable
       onDragStart={(e) => { onDragStart(); e.dataTransfer.effectAllowed = "move"; }}
       onDragEnd={onDragEnd}
@@ -510,8 +644,11 @@ function CallCard({
           #{node.rank}
         </span>
       )}
-      {/* thumbnail area */}
-      <div className="relative h-full aspect-square shrink-0 bg-muted grid place-items-center overflow-hidden border-r border-border/50">
+      {/* thumbnail area — width follows chosen aspect (square / vertical / horizontal) */}
+      <div
+        className="relative h-full shrink-0 bg-muted grid place-items-center overflow-hidden border-r border-border/50"
+        style={{ aspectRatio: `${ratio.w} / ${ratio.h}` }}
+      >
         <Thumb node={node} />
         {!node.imageRef && !node.image && (
           <span className="text-[10px] text-muted-foreground uppercase tracking-wider">sem imagem</span>
@@ -527,17 +664,20 @@ function CallCard({
   );
 }
 
+
 /* ---------- Ranking slot ---------- */
 function RankSlot({
-  rank, node, selected, dragging, dropActive,
-  onClickNode, onDragStart, onDragEnd, onDrop, onClear,
+  rank, node, selected, dragging, dropActive, aspect,
+  onClickNode, onDragStart, onDragEnd, onClear,
 }: {
   rank: number; node: MindNode | undefined;
   selected: boolean; dragging: boolean; dropActive: boolean;
+  aspect: ItemAspect;
   onClickNode: () => void;
   onDragStart: () => void; onDragEnd: () => void;
-  onDrop: () => void; onClear: () => void;
+  onClear: () => void;
 }) {
+  const ratio = aspectDims(100, aspect);
   const medal = rank === 1
     ? "bg-amber-400 text-amber-950"
     : rank === 2
@@ -548,8 +688,7 @@ function RankSlot({
 
   return (
     <div
-      onDragOver={(e) => { if (dropActive) e.preventDefault(); }}
-      onDrop={(e) => { e.preventDefault(); onDrop(); }}
+      data-item-id={node?.id ?? `empty-${rank}`}
       className={[
         "relative min-h-0 rounded-lg overflow-hidden flex items-stretch transition",
         node
@@ -582,7 +721,10 @@ function RankSlot({
             onClick={onClickNode}
             className="flex-1 min-w-0 flex cursor-grab active:cursor-grabbing"
           >
-            <div className="relative h-full aspect-square shrink-0 bg-muted grid place-items-center overflow-hidden border-r border-border/50">
+            <div
+              className="relative h-full shrink-0 bg-muted grid place-items-center overflow-hidden border-r border-border/50"
+              style={{ aspectRatio: `${ratio.w} / ${ratio.h}` }}
+            >
               <Thumb node={node} />
               {!node.imageRef && !node.image && (
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">sem imagem</span>
@@ -605,3 +747,4 @@ function RankSlot({
     </div>
   );
 }
+
