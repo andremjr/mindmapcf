@@ -645,3 +645,51 @@ export function TierListEditor({ project }: { project: Project }) {
     </div>
   );
 }
+
+/**
+ * Column wrapper that measures its available height and the natural content
+ * height, then applies a CSS scale so every tier stays visible without
+ * requiring the user to scroll — mirroring the fit-to-frame logic used in
+ * TierListPresentation for recording.
+ */
+function TiersFitColumn({ children }: { children: React.ReactNode }) {
+  const outerRef = useRef<HTMLDivElement | null>(null);
+  const innerRef = useRef<HTMLDivElement | null>(null);
+  const [scale, setScale] = useState(1);
+
+  useLayoutEffect(() => {
+    const outer = outerRef.current;
+    const inner = innerRef.current;
+    if (!outer || !inner) return;
+    const recompute = () => {
+      const availH = outer.clientHeight;
+      const availW = outer.clientWidth;
+      const naturalH = inner.scrollHeight;
+      const naturalW = inner.scrollWidth;
+      if (naturalH <= 0 || naturalW <= 0) return;
+      const s = Math.min(1, availH / naturalH, availW / naturalW);
+      setScale(s > 0 ? s : 1);
+    };
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(outer);
+    ro.observe(inner);
+    return () => ro.disconnect();
+  });
+
+  return (
+    <section ref={outerRef} className="min-h-0 overflow-hidden pr-1">
+      <div
+        ref={innerRef}
+        className="space-y-3 origin-top-left"
+        style={{
+          transform: `scale(${scale})`,
+          width: scale < 1 ? `${100 / scale}%` : "100%",
+        }}
+      >
+        {children}
+      </div>
+    </section>
+  );
+}
+
