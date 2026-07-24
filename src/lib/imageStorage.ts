@@ -277,6 +277,73 @@ export function pickImageAndStore(): Promise<ImageRef | null> {
 }
 
 /**
+ * Pick multiple local media files at once (image/video/audio). Each file is
+ * persisted into IndexedDB and returned as an ImageRef. Used when the user
+ * wants to bulk-import images (e.g. a folder of pictures for a tier list).
+ */
+export async function pickMediaMultipleAndStore(
+  kind: "image" | "video" | "audio",
+): Promise<ImageRef[]> {
+  if (typeof window === "undefined" || typeof document === "undefined") return [];
+  const description = kind === "image" ? "Imagens" : kind === "video" ? "Vídeos" : "Áudios";
+  const mime = kind === "image" ? "image/*" : kind === "video" ? "video/*" : "audio/*";
+  const exts = kind === "image" ? IMAGE_EXT : kind === "video" ? VIDEO_EXT : AUDIO_EXT;
+
+  const files: File[] = [];
+  if (hasFSAccess()) {
+    try {
+      const handles = await (window as any).showOpenFilePicker({
+        types: [{ description, accept: { [mime]: exts } }],
+        multiple: true,
+        excludeAcceptAllOption: false,
+      });
+      for (const handle of handles) {
+        try {
+          const f = await handle.getFile();
+          (f as any).__handle = handle;
+          files.push(f);
+        } catch { /* skip */ }
+      }
+    } catch (e: any) {
+      if (e?.name === "AbortError") return [];
+    }
+  }
+  if (files.length === 0) {
+    const picked = await pickFilesFallback(mime);
+    files.push(...picked);
+  }
+
+  const refs: ImageRef[] = [];
+  for (const file of files) {
+    const ref: ImageRef = {
+      id: crypto.randomUUID(),
+      localPath: (file as any).webkitRelativePath || file.name,
+      name: file.name,
+      size: file.size,
+      lastModified: file.lastModified,
+      contentType: file.type || undefined,
+      kind,
+    };
+    const handle = (file as any).__handle;
+    await safePut(handle ? { ...ref, handle, blob: file } : { ...ref, blob: file });
+    refs.push(ref);
+  }
+  return refs;
+}
+
+function pickFilesFallback(accept: string): Promise<File[]> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = accept;
+    input.multiple = true;
+    input.onchange = () => resolve(Array.from(input.files ?? []));
+    input.addEventListener("cancel", () => resolve([]));
+    input.click();
+  });
+}
+
+/**
  * Persist a Blob/File directly into the local media cache (IndexedDB) and
  * return an ImageRef. Used for clipboard paste — the blob never leaves the
  * browser, exactly like a file picked from disk.
