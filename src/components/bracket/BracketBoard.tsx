@@ -413,6 +413,7 @@ export function BracketBoard({
   currentStep,
   mode,
   onPickWinner,
+  onMatchClick,
   aspect = "square",
   accentColor = DEFAULT_ACCENT_COLOR,
 }: {
@@ -422,6 +423,8 @@ export function BracketBoard({
   currentStep: string | null;
   mode: "edit" | "present";
   onPickWinner?: (matchKey: string, id: string) => void;
+  /** Present-mode click handler on a whole match box (manual mode). */
+  onMatchClick?: (matchKey: string) => void;
   aspect?: ItemAspect;
   accentColor?: string;
 }) {
