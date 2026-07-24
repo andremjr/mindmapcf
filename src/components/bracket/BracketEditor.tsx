@@ -51,7 +51,7 @@ function CompetitorThumb({
   onSelect: () => void;
 }) {
   const url = useResolvedImage(node);
-  const { w, h } = aspectDims(140, aspect);
+  const { w, h } = aspectDims(88, aspect);
   return (
     <button
       type="button"
@@ -312,18 +312,18 @@ export function BracketEditor({ project }: { project: Project }) {
               {competitors.length === 0 ? (
                 <div className="text-center text-sm text-muted-foreground py-8">Nenhum competidor. Adicione o primeiro acima.</div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 xl:grid-cols-8 gap-2">
                   {competitors.map((c, i) => {
                     const isSel = selectedId === c.id;
                     return (
                       <div
                         key={c.id}
-                        className={`rounded-lg border-2 bg-background overflow-hidden transition ${
+                        className={`rounded-md border bg-background overflow-hidden transition ${
                           isSel ? "border-primary shadow-md" : ""
                         }`}
                         style={{ borderColor: isSel ? undefined : (c.color ?? "hsl(var(--border) / 0.6)") }}
                       >
-                        <div className="pt-3 px-3">
+                        <div className="pt-2 px-2">
                           <CompetitorThumb
                             node={c}
                             aspect={itemAspect}
@@ -334,10 +334,10 @@ export function BracketEditor({ project }: { project: Project }) {
                         <button
                           type="button"
                           onClick={() => setSelectedId(c.id)}
-                          className="w-full p-2 flex items-center gap-2 text-left hover:bg-muted/40 transition"
+                          className="w-full px-1.5 py-1 flex items-center gap-1 text-left hover:bg-muted/40 transition"
                         >
-                          <span className="text-xs text-muted-foreground tabular-nums shrink-0">#{i + 1}</span>
-                          <span className="text-sm truncate">{c.text || "Sem nome"}</span>
+                          <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">#{i + 1}</span>
+                          <span className="text-[11px] truncate">{c.text || "Sem nome"}</span>
                         </button>
                       </div>
                     );
