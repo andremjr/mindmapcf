@@ -555,10 +555,7 @@ function ManualBracketStage({
       const boardW = board.scrollWidth;
       const boardH = board.scrollHeight;
       if (!wrapW || !wrapH || !boardW || !boardH) return;
-      // Reserve room for the pool row while it's shown.
-      const reserved = phase === "pool" || phase === "drawing" ? Math.min(220, wrapH * 0.3) : 0;
-      const availH = Math.max(120, wrapH - reserved);
-      const fit = Math.min(wrapW / boardW, availH / boardH, 1);
+      const fit = Math.min(wrapW / boardW, wrapH / boardH, 1);
 
       if (zoomKey) {
         const el = board.querySelector<HTMLElement>(`[data-match-key="${zoomKey}"]`);
@@ -574,7 +571,7 @@ function ManualBracketStage({
       }
 
       const tx = (wrapW - boardW * fit) / 2;
-      const ty = (availH - boardH * fit) / 2;
+      const ty = (wrapH - boardH * fit) / 2;
       setTransform(`translate(${tx}px, ${ty}px) scale(${fit})`);
     }
     recalc();
