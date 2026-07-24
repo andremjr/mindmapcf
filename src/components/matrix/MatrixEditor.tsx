@@ -95,18 +95,23 @@ function useResolvedImage(node: MindNode | undefined) {
 }
 
 function MatrixCard({
-  node, onDelete, onEdit, compact,
-}: { node: MindNode; onDelete: () => void; onEdit: () => void; compact?: boolean }) {
+  node, onDelete, onEdit, compact, aspect, selected,
+}: {
+  node: MindNode; onDelete: () => void; onEdit: () => void;
+  compact?: boolean; aspect: ItemAspect; selected?: boolean;
+}) {
   const url = useResolvedImage(node);
-  const width = compact ? 96 : 132;
+  const base = compact ? 92 : 128;
+  const { w } = aspectDims(base, aspect);
+  const imgBox = aspectDims(base, aspect);
   const accent = node.color;
   return (
     <div
-      className="relative rounded-lg bg-card border-2 shadow-md overflow-hidden hover:brightness-105 transition group"
-      style={{ width, borderColor: accent ?? "hsl(var(--border))" }}
+      className={`relative rounded-lg bg-card border-2 shadow-md overflow-hidden hover:brightness-105 transition group ${selected ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : ""}`}
+      style={{ width: w, borderColor: accent ?? "hsl(var(--border))" }}
     >
       {url && (
-        <div className="aspect-square bg-muted">
+        <div className="bg-muted overflow-hidden" style={{ width: imgBox.w, height: imgBox.h }}>
           <img src={url} alt="" className="size-full object-cover" />
         </div>
       )}
