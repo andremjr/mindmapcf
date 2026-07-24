@@ -12,7 +12,9 @@ import {
   CompetitorCard,
   type WinnersMap,
 } from "./BracketBoard";
-import { parseBracketConfig, serializeBracketConfig } from "@/lib/bracketConfig";
+import { parseBracketConfig, serializeBracketConfig, seatCompetitors, drawSeedOrder } from "@/lib/bracketConfig";
+import { Button } from "@/components/ui/button";
+import { Shuffle } from "lucide-react";
 
 
 /**
