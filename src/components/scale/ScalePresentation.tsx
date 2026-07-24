@@ -195,7 +195,7 @@ export function ScalePresentation({ project, recording }: { project: Project; re
 
 /* ---------- frame with camera ---------- */
 function ScaleFrame({
-  size, items, config, focusIndex, isOverview, project, onAvatarMove,
+  size, items, config, focusIndex, isOverview, project,
 }: {
   size: { w: number; h: number };
   items: MindNode[];
@@ -203,7 +203,6 @@ function ScaleFrame({
   focusIndex: number | null;
   isOverview: boolean;
   project: Project;
-  onAvatarMove: (x: number, y: number) => void;
 }) {
   const values = items.map((n) => parseItemData(n.body).value);
   const gap = Math.max(24, Math.min(80, size.w * 0.03));
