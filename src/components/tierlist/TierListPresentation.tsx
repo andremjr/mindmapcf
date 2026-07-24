@@ -613,8 +613,10 @@ export function TierListPresentation({
                             {manualMode && hover?.key === `tier:${tier.id}` && hover.idx === i && <DropIndicator />}
                             <motion.div
                               data-item-id={it.id}
+                              data-placed-id={it.id}
                               layoutId={`item-${it.id}`}
                               transition={{ type: "spring", stiffness: 260, damping: 28 }}
+                              style={flying?.id === it.id ? { opacity: 0 } : undefined}
                             >
                               <TierItem
                                 node={it}
