@@ -492,7 +492,7 @@ export function TierListPresentation({
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [preplacedQueue.length, recording, manualMode]);
+  }, [preplacedQueue.length, recording, manualMode, autoPhase, autoSpotlightId, idx, countdown]);
 
   const [, setRecTick] = useState(0);
   useEffect(() => {
