@@ -359,18 +359,42 @@ export function BracketEditor({ project }: { project: Project }) {
 
           {competitors.length >= 2 && (
             <div className="rounded-lg border border-border/60 bg-neutral-950 text-white p-4">
-              <div className="mb-3">
-                <div className="text-sm font-semibold">Definir vencedores</div>
-                <div className="text-xs text-white/60">Arraste para navegar · scroll para zoom · clique no vencedor de cada confronto.</div>
+              <div className="mb-3 flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                  <div className="text-sm font-semibold">
+                    {hasDraw ? "Definir vencedores" : "Sortear o chaveamento"}
+                  </div>
+                  <div className="text-xs text-white/60">
+                    {hasDraw
+                      ? "Arraste para navegar · scroll para zoom · clique no vencedor de cada confronto. Deixe todos vazios para escolher ao vivo na apresentação."
+                      : "Sorteie os confrontos iniciais para começar a decidir os vencedores — ou pule esta etapa e sorteie ao vivo no modo manual da apresentação."}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant={hasDraw ? "outline" : "default"}
+                    onClick={drawBracket}
+                    className="gap-1.5"
+                    title="Sortear aleatoriamente as posições dos competidores"
+                  >
+                    <Shuffle className="size-3.5" /> {hasDraw ? "Sortear novamente" : "Sortear chaveamento"}
+                  </Button>
+                  {hasDraw && (
+                    <Button size="sm" variant="ghost" onClick={clearDraw} className="gap-1.5 text-white/70 hover:text-white" title="Voltar à ordem original do editor">
+                      <X className="size-3.5" /> Limpar sorteio
+                    </Button>
+                  )}
+                </div>
               </div>
               <PanZoom className="h-[75vh] min-h-[480px] rounded-md bg-gradient-to-br from-neutral-950 via-slate-900 to-neutral-950" initialScale={0.85}>
                 <div className="p-6" style={{ width: "max-content" }}>
                   <BracketBoard
-                    competitors={competitors}
+                    competitors={seatedCompetitors}
                     winners={winners}
                     currentStep={null}
                     mode="edit"
-                    onPickWinner={pickWinner}
+                    onPickWinner={hasDraw ? pickWinner : undefined}
                     aspect={itemAspect}
                     accentColor={accentColor}
                   />
@@ -379,6 +403,7 @@ export function BracketEditor({ project }: { project: Project }) {
 
             </div>
           )}
+
 
         </div>
 
