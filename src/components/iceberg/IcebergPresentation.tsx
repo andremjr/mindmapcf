@@ -394,11 +394,7 @@ export function IcebergPresentation({
 
 
           {/* Item card overlay */}
-          {activeItem && <ItemCard node={activeItem} onClose={() => {
-            // step back to the level entry
-            const j = nav.findIndex((x) => x.type === "level" && x.levelId === current!.levelId);
-            if (j >= 0) setIdx(j);
-          }} />}
+          {activeItem && <ItemCard node={activeItem} onClose={() => setItemOpen(false)} />}
 
           {countdown !== null && (
             <div className="absolute inset-0 grid place-items-center pointer-events-none z-30">
