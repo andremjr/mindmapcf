@@ -655,41 +655,55 @@ export function TierListEditor({ project }: { project: Project }) {
 function TiersFitColumn({ children }: { children: React.ReactNode }) {
   const outerRef = useRef<HTMLDivElement | null>(null);
   const innerRef = useRef<HTMLDivElement | null>(null);
+  const measureRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(1);
 
   useLayoutEffect(() => {
     const outer = outerRef.current;
-    const inner = innerRef.current;
-    if (!outer || !inner) return;
+    const measure = measureRef.current;
+    if (!outer || !measure) return;
+    let raf = 0;
     const recompute = () => {
-      const availH = outer.clientHeight;
-      const availW = outer.clientWidth;
-      const naturalH = inner.scrollHeight;
-      const naturalW = inner.scrollWidth;
-      if (naturalH <= 0 || naturalW <= 0) return;
-      const s = Math.min(1, availH / naturalH, availW / naturalW);
-      setScale(s > 0 ? s : 1);
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const availH = outer.clientHeight;
+        const naturalH = measure.scrollHeight;
+        if (!availH || !naturalH) return;
+        const s = Math.min(1, availH / naturalH);
+        setScale((prev) => (Math.abs(prev - s) < 0.005 ? prev : s));
+      });
     };
     recompute();
     const ro = new ResizeObserver(recompute);
     ro.observe(outer);
-    ro.observe(inner);
-    return () => ro.disconnect();
-  });
+    ro.observe(measure);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
+  }, []);
 
   return (
-    <section ref={outerRef} className="min-h-0 overflow-hidden pr-1">
+    <section ref={outerRef} className="relative min-h-0 overflow-hidden pr-1">
+      {/* Hidden mirror measures natural (unscaled) content height without
+          being affected by the scale we apply to the visible copy. */}
+      <div
+        ref={measureRef}
+        aria-hidden
+        className="space-y-3 invisible pointer-events-none absolute inset-0"
+        style={{ height: "auto" }}
+      >
+        {children}
+      </div>
       <div
         ref={innerRef}
-        className="space-y-3 origin-top-left"
-        style={{
-          transform: `scale(${scale})`,
-          width: scale < 1 ? `${100 / scale}%` : "100%",
-        }}
+        className="space-y-3 origin-top-left relative"
+        style={{ transform: `scale(${scale})`, width: "100%" }}
       >
         {children}
       </div>
     </section>
   );
 }
+
 
