@@ -16,9 +16,11 @@ import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
 import { DropIndicator, visualInsertIndex } from "@/components/shared/DropIndicator";
 
 const TIER_COLORS = [
-  "#f43f5e", "#f97316", "#eab308", "#22c55e",
-  "#3b82f6", "#8b5cf6", "#ec4899", "#64748b",
+  "rgb(255, 127, 127)", "rgb(255, 191, 127)", "rgb(255, 223, 127)",
+  "rgb(255, 255, 127)", "rgb(191, 255, 127)",
+  "#8b5cf6", "#ec4899", "#64748b",
 ];
+
 
 function useResolvedImage(node: MindNode | null | undefined) {
   const [url, setUrl] = useState<string | null>(null);
