@@ -370,26 +370,37 @@ export function IcebergPresentation({
                         </div>
                         <div className="relative z-10 flex-1 w-full">
                           {(() => {
-                            // Constrain items to the iceberg silhouette per level.
-                            // Width peaks near the middle levels (widest belly) and
-                            // narrows at the tip and the deep bottom.
+                            // Iceberg silhouette band for this level (widest belly, narrow tips).
                             const wPct = 46 + 44 * Math.sin(Math.PI * (i + 0.5) / N);
                             const bandLeft = 50 - wPct / 2 + 3;
                             const bandWidth = wPct - 6;
+                            const n = items.length;
+                            if (n === 0) return null;
+                            // Auto-fit tiles per level so they never overflow the band.
+                            // Pick a column count that keeps cells roughly square.
+                            const bandWpx = (bandWidth / 100) * size.w;
+                            const bandHpx = (78 / 100) * levelH;
+                            const aspect = bandWpx / Math.max(1, bandHpx);
+                            const cols = Math.max(1, Math.min(n, Math.round(Math.sqrt(n * aspect))));
+                            const rows = Math.ceil(n / cols);
+                            const slotWpct = bandWidth / cols;
+                            const slotHpct = 78 / rows;
+                            const cellWpx = bandWpx / cols;
+                            const cellHpx = bandHpx / rows;
+                            // Tile fills ~80% of its cell; clamp so extremes stay readable.
+                            const baseTile = Math.max(
+                              32,
+                              Math.min(140, Math.floor(Math.min(cellWpx, cellHpx) * 0.82)),
+                            );
                             return items.map((it, k) => {
-                              const n = items.length;
-                              const cols = Math.min(n, Math.max(1, Math.ceil(Math.sqrt(n * 1.6))));
-                              const rows = Math.ceil(n / cols);
                               const col = k % cols;
                               const row = Math.floor(k / cols);
-                              const slotW = bandWidth / cols;
-                              const slotH = 78 / rows;
-                              const jitterX = (seeded(it.id + "x") - 0.5) * slotW * 0.3;
-                              const jitterY = (seeded(it.id + "y") - 0.5) * slotH * 0.3;
-                              const leftPct = bandLeft + slotW * (col + 0.5) + jitterX;
-                              const topPct = 11 + slotH * (row + 0.5) + jitterY;
+                              const jitterX = (seeded(it.id + "x") - 0.5) * slotWpct * 0.25;
+                              const jitterY = (seeded(it.id + "y") - 0.5) * slotHpct * 0.25;
+                              const leftPct = bandLeft + slotWpct * (col + 0.5) + jitterX;
+                              const topPct = 11 + slotHpct * (row + 0.5) + jitterY;
                               const rotate = (seeded(it.id + "r") - 0.5) * 14;
-                              const tileSize = 96 + Math.round(seeded(it.id + "s") * 22);
+                              const tileSize = baseTile + Math.round((seeded(it.id + "s") - 0.5) * baseTile * 0.14);
                               return (
                                 <ItemTile
                                   key={it.id}
