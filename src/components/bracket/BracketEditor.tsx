@@ -279,6 +279,15 @@ export function BracketEditor({ project }: { project: Project }) {
                     </button>
                   ))}
                 </div>
+                <div className="flex items-center gap-2 rounded-md border border-border/60 px-2 py-1" title="Cor de destaque usada no confronto atual, no rótulo Final e no card do campeão">
+                  <span className="text-[11px] text-muted-foreground">Destaque</span>
+                  <NodeColorPicker
+                    value={accentColor}
+                    onChange={setAccentColor}
+                    label=""
+                    size={16}
+                  />
+                </div>
                 <Button size="sm" variant="outline" onClick={addCompetitor} className="gap-1.5">
                   <Plus className="size-3.5" /> Adicionar competidor
                 </Button>
@@ -286,6 +295,7 @@ export function BracketEditor({ project }: { project: Project }) {
                   <ImageIcon className="size-3.5" /> Importar imagens
                 </Button>
               </div>
+
             </div>
             {competitors.length === 0 ? (
               <div className="text-center text-sm text-muted-foreground py-8">Nenhum competidor. Adicione o primeiro acima.</div>
