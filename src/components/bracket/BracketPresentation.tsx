@@ -4,7 +4,7 @@ import type { MindNode, Project } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { PresentationShell } from "@/components/shared/PresentationShell";
 import { AvatarLayer } from "@/components/shared/AvatarLayer";
-import { PanZoom } from "@/components/ui/PanZoom";
+
 import {
   BracketBoard,
   buildBracket,
@@ -414,10 +414,12 @@ export function BracketPresentation({
 
 
 /**
- * Manual-mode stage. If the bracket hasn't been drawn yet, shows a big
- * "Sortear chaveamento" call-to-action with a rapid shuffle animation that
- * cycles through random seedings for ~1.6s before locking the result in and
- * revealing the bracket board (where the author picks winners live).
+ * Manual-mode stage. Mirrors automatic mode's first frame (empty bracket +
+ * competitors pool at bottom), then on "Sortear" runs a rapid shuffle
+ * animation, commits the seed, and drops into a click-to-decide flow: each
+ * unresolved match is clickable, opens the same vs modal used in auto mode,
+ * the author picks a winner (green reveal), the modal closes, and the
+ * bracket updates for the next confrontation.
  */
 function ManualBracketStage({
   project,
@@ -428,7 +430,6 @@ function ManualBracketStage({
   winners,
   itemAspect,
   accentColor,
-  hasDraw,
   onPickWinner,
   onCommitSeedOrder,
 }: {
@@ -444,147 +445,346 @@ function ManualBracketStage({
   onPickWinner: (matchKey: string, id: string) => void;
   onCommitSeedOrder: (seedOrder: string[]) => void;
 }) {
-  const [drawing, setDrawing] = useState(false);
-  // Ephemeral shuffle preview shown during the animation — never persisted.
+  // phase drives what the viewer sees. We always start on "pool" so the first
+  // frame matches automatic mode (empty bracket + competitors listed below).
+  type Phase = "pool" | "drawing" | "seated" | `focus:${string}` | `reveal:${string}` | "champion";
+  const [phase, setPhase] = useState<Phase>("pool");
   const [previewOrder, setPreviewOrder] = useState<string[] | null>(null);
-  const showBoard = hasDraw && !drawing;
 
+  const isFocus = phase.startsWith("focus:");
+  const isReveal = phase.startsWith("reveal:");
+  const focusKey = isFocus ? phase.slice(6) : isReveal ? phase.slice(7) : null;
+
+  // Competitors currently shown on the board: during draw we swap in the
+  // ephemeral shuffle preview so the bracket "rolls" through orderings.
+  const boardCompetitors = useMemo(() => {
+    if (previewOrder) {
+      const byId = new Map(rawCompetitors.map((c) => [c.id, c] as const));
+      const arr = previewOrder.map((id) => byId.get(id)).filter((x): x is MindNode => !!x);
+      return arr.length ? arr : rawCompetitors;
+    }
+    return seatedCompetitors;
+  }, [previewOrder, rawCompetitors, seatedCompetitors]);
+
+  const fullData = useMemo(() => buildBracket(boardCompetitors, winners), [boardCompetitors, winners]);
+
+  // Hide the just-picked winner from the board while the focus modal is open
+  // (author sees the modal reveal first, then the board updates).
+  const effectiveWinners = useMemo<WinnersMap>(() => {
+    if (isFocus && focusKey && winners[focusKey]) {
+      const { [focusKey]: _drop, ...rest } = winners;
+      return rest;
+    }
+    return winners;
+  }, [winners, isFocus, focusKey]);
+
+  const focusedMatch = useMemo(() => {
+    if (!focusKey) return null;
+    const all = [...fullData.L.rounds.flat(), ...fullData.R.rounds.flat(), fullData.finalMatch];
+    return all.find((m) => m.key === focusKey) ?? null;
+  }, [focusKey, fullData]);
+  const focusWinnerId = focusKey && isReveal ? winners[focusKey] ?? null : null;
+
+  const anyOverlay = (isFocus || isReveal) && !!focusedMatch?.a && !!focusedMatch?.b;
+  const showChampionOverlay = phase === "champion" && !!fullData.champion;
+
+  function stateFor(nodeId: string | undefined | null): "idle" | "current" | "winner" | "loser" {
+    if (!nodeId) return "idle";
+    if (focusWinnerId && nodeId === focusWinnerId) return "winner";
+    if (focusWinnerId && nodeId !== focusWinnerId) return "loser";
+    return "current";
+  }
+
+  // Auto-advance to champion once the final is decided.
+  useEffect(() => {
+    if (phase === "seated" && fullData.champion) setPhase("champion");
+  }, [phase, fullData.champion]);
+
+  // ---- Draw animation ----
   function startDraw() {
-    if (drawing || rawCompetitors.length < 2) return;
-    setDrawing(true);
+    if (phase !== "pool" || rawCompetitors.length < 2) return;
+    setPhase("drawing");
     const start = performance.now();
     const DURATION = 1600;
-    let raf = 0;
     const tick = () => {
       const t = performance.now() - start;
       if (t >= DURATION) {
         const finalOrder = drawSeedOrder(rawCompetitors);
         setPreviewOrder(finalOrder);
         onCommitSeedOrder(finalOrder);
-        // Small pause on the final seeding before revealing the bracket.
         window.setTimeout(() => {
-          setDrawing(false);
           setPreviewOrder(null);
+          setPhase("seated");
         }, 650);
         return;
       }
       setPreviewOrder(drawSeedOrder(rawCompetitors));
-      raf = window.setTimeout(tick, 80) as unknown as number;
+      window.setTimeout(tick, 90);
     };
     tick();
-    return () => window.clearTimeout(raf);
   }
 
-  const previewCompetitors = useMemo(() => {
-    if (!previewOrder) return rawCompetitors;
-    const byId = new Map(rawCompetitors.map((c) => [c.id, c] as const));
-    return previewOrder.map((id) => byId.get(id)).filter((x): x is MindNode => !!x);
-  }, [previewOrder, rawCompetitors]);
+  // ---- Click handlers ----
+  function handleMatchClick(key: string) {
+    if (phase !== "seated") return;
+    if (winners[key]) return;
+    setPhase(`focus:${key}` as Phase);
+  }
+  function handlePickWinner(id: string) {
+    if (!isFocus || !focusKey) return;
+    onPickWinner(focusKey, id);
+    setPhase(`reveal:${focusKey}` as Phase);
+    window.setTimeout(() => {
+      setPhase("seated");
+    }, 1500);
+  }
+
+  // ---- Camera (identical fit-view logic to auto mode) ----
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
+  const [transform, setTransform] = useState("translate(0px, 0px) scale(1)");
+  const zoomKey = focusKey;
+
+  useLayoutEffect(() => {
+    function recalc() {
+      const wrap = wrapperRef.current;
+      const board = boardRef.current;
+      if (!wrap || !board) return;
+      const wrapW = wrap.clientWidth;
+      const wrapH = wrap.clientHeight;
+      const boardW = board.scrollWidth;
+      const boardH = board.scrollHeight;
+      if (!wrapW || !wrapH || !boardW || !boardH) return;
+      // Reserve room for the pool row while it's shown.
+      const reserved = phase === "pool" || phase === "drawing" ? Math.min(220, wrapH * 0.3) : 0;
+      const availH = Math.max(120, wrapH - reserved);
+      const fit = Math.min(wrapW / boardW, availH / boardH, 1);
+
+      if (zoomKey) {
+        const el = board.querySelector<HTMLElement>(`[data-match-key="${zoomKey}"]`);
+        if (el) {
+          const scale = Math.min(fit * 2.2, 1.6);
+          const cx = el.offsetLeft + el.offsetWidth / 2;
+          const cy = el.offsetTop + el.offsetHeight / 2;
+          const tx = wrapW / 2 - cx * scale;
+          const ty = wrapH / 2 - cy * scale;
+          setTransform(`translate(${tx}px, ${ty}px) scale(${scale})`);
+          return;
+        }
+      }
+
+      const tx = (wrapW - boardW * fit) / 2;
+      const ty = (availH - boardH * fit) / 2;
+      setTransform(`translate(${tx}px, ${ty}px) scale(${fit})`);
+    }
+    recalc();
+    const ro = new ResizeObserver(recalc);
+    if (wrapperRef.current) ro.observe(wrapperRef.current);
+    if (boardRef.current) ro.observe(boardRef.current);
+    window.addEventListener("resize", recalc);
+    return () => { ro.disconnect(); window.removeEventListener("resize", recalc); };
+  }, [effectiveWinners, phase, zoomKey, boardCompetitors]);
+
+  // Board "currentStep" prop: drives progressive reveal + current highlight.
+  const currentStepForBoard: string =
+    phase === "pool" || phase === "drawing"
+      ? "pool"
+      : focusKey ?? "";
+
+  const stepLabel =
+    phase === "pool"
+      ? "Competidores"
+      : phase === "drawing"
+        ? "Sorteando confrontos…"
+        : phase === "champion"
+          ? "Campeão"
+          : isFocus || isReveal
+            ? "Modo manual — escolha o vencedor"
+            : "Modo manual — clique em um confronto";
 
   return (
     <PresentationShell
       project={project}
       recording={recording}
-      navLabel={showBoard ? "Manual" : "Sorteio"}
+      navLabel="Manual"
       onNext={() => {}}
       onPrev={() => {}}
       canNext={false}
       canPrev={false}
-      frameBg="bg-neutral-950"
+      frameBg="bg-background"
     >
       {({ size }) => (
-        <div className="absolute inset-0 flex flex-col p-5 text-white">
+        <div className="absolute inset-0 flex flex-col p-5">
           <AvatarLayer project={project} frameSize={size} />
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center justify-between mb-2">
             <div className="text-xl font-bold opacity-90">{project.title}</div>
-            <div className="text-[11px] uppercase tracking-widest text-white/50">
-              {showBoard
-                ? "Modo manual — clique no vencedor de cada confronto"
-                : drawing
-                  ? "Sorteando confrontos…"
-                  : "Sorteio inicial dos confrontos"}
-            </div>
+            <div className="text-[11px] uppercase tracking-widest text-white/50">{stepLabel}</div>
           </div>
 
-          <div className="flex-1 min-h-0 relative">
-            {!showBoard && !drawing && (
-              <div className="absolute inset-0 grid place-items-center">
-                <div className="flex flex-col items-center gap-6 text-center max-w-xl px-6">
-                  <div
-                    className="grid place-items-center size-24 rounded-full border"
-                    style={{ borderColor: `${accentColor}80`, boxShadow: `0 0 40px ${accentColor}55` }}
-                  >
-                    <Shuffle className="size-10" style={{ color: accentColor }} />
-                  </div>
-                  <div className="space-y-2">
-                    <div className="text-2xl font-bold">Sortear chaveamento</div>
-                    <div className="text-sm text-white/60">
-                      {rawCompetitors.length} competidores serão distribuídos aleatoriamente pelos confrontos iniciais.
-                    </div>
-                  </div>
-                  <Button
-                    size="lg"
-                    onClick={startDraw}
-                    className="gap-2"
-                    style={{ background: accentColor, color: "#0a0a0a" }}
-                  >
-                    <Shuffle className="size-4" /> Sortear agora
-                  </Button>
-                </div>
-              </div>
-            )}
+          <div ref={wrapperRef} className="flex-1 min-h-0 relative overflow-hidden">
+            {/* Bracket, fit-to-view */}
+            <div
+              ref={boardRef}
+              className="absolute top-0 left-0 origin-top-left"
+              style={{
+                transform,
+                transition: "transform 900ms cubic-bezier(0.22, 1, 0.36, 1), opacity 400ms ease, filter 400ms ease",
+                width: "max-content",
+                opacity: anyOverlay || showChampionOverlay ? 0.18 : 1,
+                filter: anyOverlay || showChampionOverlay ? "blur(2px)" : "none",
+              }}
+            >
+              <BracketBoard
+                competitors={boardCompetitors}
+                winners={effectiveWinners}
+                currentStep={currentStepForBoard}
+                mode="present"
+                aspect={itemAspect}
+                accentColor={accentColor}
+                onMatchClick={phase === "seated" ? handleMatchClick : undefined}
+              />
+            </div>
 
-            {drawing && (
-              <div className="absolute inset-0 grid place-items-center">
-                <div className="flex flex-col items-center gap-6">
+            {/* Sortear CTA — sits over the empty bracket during pool phase */}
+            <AnimatePresence>
+              {phase === "pool" && (
+                <motion.div
+                  key="sortear-cta"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-center pointer-events-none"
+                >
+                  <div className="flex flex-col items-center gap-4 pointer-events-auto rounded-2xl bg-neutral-950/70 backdrop-blur px-8 py-6 border border-white/10 shadow-[0_20px_80px_rgba(0,0,0,0.6)]">
+                    <div className="text-sm text-white/70 text-center max-w-sm">
+                      {rawCompetitors.length} competidores prontos para o sorteio das chaves iniciais.
+                    </div>
+                    <Button
+                      size="lg"
+                      onClick={startDraw}
+                      className="gap-2"
+                      style={{ background: accentColor, color: "#0a0a0a" }}
+                    >
+                      <Shuffle className="size-4" /> Sortear agora
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+              {phase === "drawing" && (
+                <motion.div
+                  key="drawing-badge"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-center pointer-events-none"
+                >
                   <motion.div
                     animate={{ rotate: 360 }}
                     transition={{ duration: 0.9, repeat: Infinity, ease: "linear" }}
-                    className="grid place-items-center size-24 rounded-full border"
+                    className="grid place-items-center size-16 rounded-full border bg-neutral-950/70 backdrop-blur"
                     style={{ borderColor: `${accentColor}aa`, boxShadow: `0 0 60px ${accentColor}88` }}
                   >
-                    <Shuffle className="size-10" style={{ color: accentColor }} />
+                    <Shuffle className="size-7" style={{ color: accentColor }} />
                   </motion.div>
-                  <div className="text-sm uppercase tracking-[0.35em]" style={{ color: `${accentColor}e0` }}>
-                    Sorteando…
-                  </div>
-                  <div className="flex flex-wrap items-center justify-center gap-2 max-w-3xl">
-                    <AnimatePresence mode="popLayout">
-                      {previewCompetitors.slice(0, 16).map((c, i) => (
-                        <motion.div
-                          key={`${c.id}-${i}-${previewOrder?.join("") ?? ""}`}
-                          initial={{ opacity: 0, y: -6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 6 }}
-                          transition={{ duration: 0.15 }}
-                          className="px-3 py-1.5 rounded-md text-xs font-medium border bg-white/5"
-                          style={{ borderColor: `${accentColor}55` }}
-                        >
-                          <span className="opacity-50 mr-1 tabular-nums">#{i + 1}</span>
-                          {c.text || "—"}
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
-                  </div>
-                </div>
-              </div>
-            )}
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            {showBoard && (
-              <PanZoom className="size-full rounded-md bg-gradient-to-br from-neutral-950 via-slate-900 to-neutral-950" initialScale={0.85}>
-                <div className="p-6" style={{ width: "max-content" }}>
-                  <BracketBoard
-                    competitors={seatedCompetitors}
-                    winners={winners}
-                    currentStep={null}
-                    mode="edit"
-                    onPickWinner={onPickWinner}
-                    aspect={itemAspect}
-                    accentColor={accentColor}
-                  />
-                </div>
-              </PanZoom>
-            )}
+            {/* Overlay backdrop for focus / champion */}
+            <AnimatePresence>
+              {(anyOverlay || showChampionOverlay) && (
+                <motion.div
+                  key="overlay-backdrop"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className="absolute inset-0 bg-neutral-950/80 backdrop-blur-sm pointer-events-none"
+                />
+              )}
+            </AnimatePresence>
+
+            {/* Focus overlay — clickable cards to pick winner */}
+            <AnimatePresence>
+              {anyOverlay && focusedMatch?.a && focusedMatch?.b && (
+                <motion.div
+                  key={focusKey}
+                  initial={{ opacity: 0, scale: 0.94 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  className="absolute inset-0 flex items-center justify-center"
+                >
+                  <div className="flex flex-col items-center gap-4 max-w-[80%] rounded-2xl bg-neutral-950/85 border border-white/15 shadow-[0_20px_80px_rgba(0,0,0,0.6)] px-8 py-6 pointer-events-auto">
+                    <div className="text-[11px] uppercase tracking-[0.35em]" style={{ color: `${accentColor}e6` }}>
+                      {focusKey === "FINAL" ? "Final" : "Confronto"}
+                    </div>
+                    <div className="flex items-stretch gap-6">
+                      {[focusedMatch.a, focusedMatch.b].map((n, i) => (
+                        <motion.button
+                          key={n!.id}
+                          type="button"
+                          disabled={isReveal}
+                          onClick={() => handlePickWinner(n!.id)}
+                          className="w-[280px] text-left disabled:cursor-default"
+                          animate={
+                            stateFor(n!.id) === "winner"
+                              ? { scale: [1, 1.08, 1.04], filter: ["drop-shadow(0 0 0 rgba(52,211,153,0))", "drop-shadow(0 0 24px rgba(52,211,153,0.9))", "drop-shadow(0 0 14px rgba(52,211,153,0.55))"] }
+                              : stateFor(n!.id) === "loser"
+                                ? { scale: 0.94, opacity: 0.55 }
+                                : { scale: 1, opacity: 1 }
+                          }
+                          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                          whileHover={!isReveal ? { scale: 1.03 } : undefined}
+                        >
+                          <CompetitorCard
+                            node={n!}
+                            state={stateFor(n!.id)}
+                            expanded
+                            aspect={itemAspect}
+                            accentColor={accentColor}
+                          />
+                          {!isReveal && (
+                            <div className="mt-2 text-center text-[11px] uppercase tracking-[0.3em] text-white/50">
+                              Clique para eleger
+                            </div>
+                          )}
+                          {i === 0 && null}
+                        </motion.button>
+                      ))}
+                    </div>
+                    {!isReveal && (
+                      <div className="text-xs text-white/40">Clique em um competidor para decidir o confronto</div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
+              {showChampionOverlay && fullData.champion && (
+                <motion.div
+                  key="champion-overlay"
+                  initial={{ opacity: 0, scale: 0.7 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  transition={{ type: "spring", stiffness: 180, damping: 20 }}
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                >
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="text-[11px] uppercase tracking-[0.35em]" style={{ color: `${accentColor}e6` }}>Campeão</div>
+                    <div
+                      className="w-[340px] rounded-2xl p-4"
+                      style={{
+                        background: `linear-gradient(to bottom right, ${accentColor}40, ${accentColor}26)`,
+                        border: `1px solid ${accentColor}99`,
+                        boxShadow: `0 0 80px ${accentColor}8c`,
+                      }}
+                    >
+                      <CompetitorCard node={fullData.champion} state="winner" expanded aspect={itemAspect} accentColor={accentColor} />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       )}

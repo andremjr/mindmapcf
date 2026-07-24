@@ -258,13 +258,15 @@ function EmptySlot({ label = "?", expanded = false }: { label?: string; expanded
 }
 
 function MatchBox({
-  match, mode, isCurrent, isRevealed, onPickWinner, side, aspect, accentColor,
+  match, mode, isCurrent, isRevealed, onPickWinner, onMatchClick, side, aspect, accentColor,
 }: {
   match: Match;
   mode: "edit" | "present";
   isCurrent: boolean;
   isRevealed: boolean;   // true when both slots are visible
   onPickWinner?: (matchKey: string, id: string) => void;
+  /** Present-mode manual click: fires when the whole match box is clicked. */
+  onMatchClick?: (matchKey: string) => void;
   side: "L" | "R" | "F";
   aspect: ItemAspect;
   accentColor: string;
@@ -282,6 +284,7 @@ function MatchBox({
     return "idle";
   }
   const canPick = mode === "edit" && match.a && match.b && onPickWinner;
+  const canClickBox = mode === "present" && !!onMatchClick && !!match.a && !!match.b && !match.isBye && !winnerId;
   const currentBoxStyle: React.CSSProperties | undefined = isCurrent
     ? { background: `${accentColor}0f`, boxShadow: `inset 0 0 0 1px ${accentColor}66` }
     : undefined;
@@ -289,7 +292,7 @@ function MatchBox({
   return (
     <div
       data-match-key={match.key}
-      className="rounded-lg p-1.5 space-y-1 transition-all"
+      className="relative rounded-lg p-1.5 space-y-1 transition-all"
       style={currentBoxStyle}
     >
 
@@ -320,12 +323,30 @@ function MatchBox({
       ) : (
         <EmptySlot label={match.b ? "?" : match.isBye ? "BYE" : "?"} />
       )}
+
+      {canClickBox && (
+        <button
+          type="button"
+          aria-label="Abrir confronto"
+          onClick={() => onMatchClick!(match.key)}
+          className="absolute inset-0 rounded-lg cursor-pointer"
+          style={{ background: "transparent", boxShadow: `inset 0 0 0 2px ${accentColor}00`, transition: "box-shadow 200ms ease, background 200ms ease" }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.boxShadow = `inset 0 0 0 2px ${accentColor}cc, 0 0 24px ${accentColor}55`;
+            e.currentTarget.style.background = `${accentColor}14`;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.boxShadow = `inset 0 0 0 2px ${accentColor}00`;
+            e.currentTarget.style.background = "transparent";
+          }}
+        />
+      )}
     </div>
   );
 }
 
 function RoundColumn({
-  round, mode, currentStep, stepIdx, steps, side, onPickWinner, label, aspect, accentColor,
+  round, mode, currentStep, stepIdx, steps, side, onPickWinner, onMatchClick, label, aspect, accentColor,
 }: {
   round: Match[];
   mode: "edit" | "present";
@@ -334,6 +355,7 @@ function RoundColumn({
   steps: string[];
   side: "L" | "R";
   onPickWinner?: (matchKey: string, id: string) => void;
+  onMatchClick?: (matchKey: string) => void;
   label: string;
   aspect: ItemAspect;
   accentColor: string;
@@ -371,6 +393,7 @@ function RoundColumn({
                 isCurrent={isCurrent}
                 isRevealed={revealed}
                 onPickWinner={onPickWinner}
+                onMatchClick={onMatchClick}
                 side={side}
                 aspect={aspect}
                 accentColor={accentColor}
@@ -390,6 +413,7 @@ export function BracketBoard({
   currentStep,
   mode,
   onPickWinner,
+  onMatchClick,
   aspect = "square",
   accentColor = DEFAULT_ACCENT_COLOR,
 }: {
@@ -399,6 +423,8 @@ export function BracketBoard({
   currentStep: string | null;
   mode: "edit" | "present";
   onPickWinner?: (matchKey: string, id: string) => void;
+  /** Present-mode click handler on a whole match box (manual mode). */
+  onMatchClick?: (matchKey: string) => void;
   aspect?: ItemAspect;
   accentColor?: string;
 }) {
@@ -448,6 +474,7 @@ export function BracketBoard({
               steps={steps}
               side="L"
               onPickWinner={onPickWinner}
+              onMatchClick={onMatchClick}
               label={r === data.L.rounds.length - 1 ? "Semifinal" : `Rodada ${r + 1}`}
               aspect={aspect}
               accentColor={accentColor}
@@ -465,6 +492,7 @@ export function BracketBoard({
                 isCurrent={finalIsCurrent}
                 isRevealed={finalRevealed}
                 onPickWinner={onPickWinner}
+                onMatchClick={onMatchClick}
                 side="F"
                 aspect={aspect}
                 accentColor={accentColor}
@@ -509,6 +537,7 @@ export function BracketBoard({
                 steps={steps}
                 side="R"
                 onPickWinner={onPickWinner}
+                onMatchClick={onMatchClick}
                 label={r === data.R.rounds.length - 1 ? "Semifinal" : `Rodada ${r + 1}`}
                 aspect={aspect}
                 accentColor={accentColor}
