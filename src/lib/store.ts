@@ -23,6 +23,7 @@ interface Actions {
   replaceProjectNodes: (projectId: string, nodes: MindNode[], title?: string) => void;
   deleteProject: (id: string) => void;
   renameProject: (id: string, title: string) => void;
+  setIcebergAtmosphere: (id: string, atmosphere: "ludico" | "realista") => void;
   moveProjectToFolder: (projectId: string, folderId: string | null) => void;
 
   // Folders
@@ -530,6 +531,13 @@ export const useStore = create<State & Actions>()((set) => ({
     set((s) => ({
       projects: s.projects.map((p) =>
         p.id === id ? { ...p, title, updatedAt: new Date().toISOString() } : p,
+      ),
+    })),
+
+  setIcebergAtmosphere: (id, atmosphere) =>
+    set((s) => ({
+      projects: s.projects.map((p) =>
+        p.id === id ? { ...p, icebergAtmosphere: atmosphere, updatedAt: new Date().toISOString() } : p,
       ),
     })),
 

@@ -14,6 +14,7 @@ interface Row {
     sonicAvatar?: Project["sonicAvatar"];
     narrationRef?: Project["narrationRef"];
     template?: Project["template"];
+    icebergAtmosphere?: Project["icebergAtmosphere"];
   };
   created_at: string;
   updated_at: string;
@@ -40,6 +41,7 @@ function toProject(r: Row): Project {
     sonicAvatar: r.data?.sonicAvatar,
     narrationRef: r.data?.narrationRef,
     template: r.data?.template ?? "mindmap",
+    icebergAtmosphere: r.data?.icebergAtmosphere,
   };
 }
 
@@ -182,6 +184,7 @@ export function useMindmapSync(userId: string | undefined) {
                     sonicAvatar: p.sonicAvatar,
                     narrationRef: p.narrationRef,
                     template: p.template ?? "mindmap",
+                    icebergAtmosphere: p.icebergAtmosphere,
                   } as any,
                 },
                 { onConflict: "id" },

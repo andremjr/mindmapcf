@@ -109,6 +109,8 @@ export interface Project {
   folderId?: string | null;
   /** Which renderer to use. Missing = "mindmap". */
   template?: ProjectTemplate;
+  /** Iceberg-only: visual atmosphere of the background/creatures. */
+  icebergAtmosphere?: "ludico" | "realista";
 }
 
 export interface Folder {

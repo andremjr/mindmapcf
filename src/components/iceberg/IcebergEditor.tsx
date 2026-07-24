@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ChevronLeft, Plus, Trash2, Image as ImageIcon, X, Play, Circle } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Image as ImageIcon, X, Play, Circle, Sparkles, Skull } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { useStore } from "@/lib/store";
 import type { MindNode, Project } from "@/lib/types";
 import { pickMediaAndStore, resolveImage } from "@/lib/imageStorage";
 import { IcebergBackground } from "./IcebergBackground";
+import { IcebergBackgroundRealista } from "./IcebergBackgroundRealista";
 import { RecordFormatMenu } from "@/components/RecordFormatMenu";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NarrationDock } from "@/components/shared/NarrationDock";
@@ -142,9 +143,11 @@ export function IcebergEditor({ project }: { project: Project }) {
   const updateNode = useStore((s) => s.updateNode);
   const deleteNode = useStore((s) => s.deleteNode);
   const renameProject = useStore((s) => s.renameProject);
+  const setIcebergAtmosphere = useStore((s) => s.setIcebergAtmosphere);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { isPro } = useSubscription(user?.id);
+  const atmosphere = project.icebergAtmosphere ?? "ludico";
 
   const root = project.nodes.find((n) => n.role === "iceberg" || !n.parentId);
   const levels = useMemo(
@@ -252,6 +255,24 @@ export function IcebergEditor({ project }: { project: Project }) {
           />
           <span className="text-xs text-muted-foreground shrink-0">Iceberg</span>
         </div>
+        <div className="flex items-center rounded-md border border-border overflow-hidden" title="Atmosfera visual do iceberg">
+          <button
+            onClick={() => setIcebergAtmosphere(project.id, "ludico")}
+            className={`px-2.5 py-1.5 text-xs flex items-center gap-1.5 transition ${
+              atmosphere === "ludico" ? "bg-primary text-primary-foreground" : "bg-transparent hover:bg-muted"
+            }`}
+          >
+            <Sparkles className="size-3.5" /> Lúdico
+          </button>
+          <button
+            onClick={() => setIcebergAtmosphere(project.id, "realista")}
+            className={`px-2.5 py-1.5 text-xs flex items-center gap-1.5 transition ${
+              atmosphere === "realista" ? "bg-primary text-primary-foreground" : "bg-transparent hover:bg-muted"
+            }`}
+          >
+            <Skull className="size-3.5" /> Realista
+          </button>
+        </div>
         <NarrationDock projectId={project.id} narrationRef={project.narrationRef} />
         <ThemeToggle />
         <Button variant="destructive" size="sm" onClick={() => setRecordOpen(true)} className="gap-1.5">
@@ -265,7 +286,11 @@ export function IcebergEditor({ project }: { project: Project }) {
       <main className="flex-1 overflow-auto">
         <div className="mx-auto max-w-4xl flex flex-col relative">
           <div className="absolute inset-0 pointer-events-none">
-            <IcebergBackground levels={Math.max(1, levels.length)} />
+            {atmosphere === "realista" ? (
+              <IcebergBackgroundRealista levels={Math.max(1, levels.length)} />
+            ) : (
+              <IcebergBackground levels={Math.max(1, levels.length)} />
+            )}
           </div>
           {levels.map((lvl, i) => {
             const grad = LEVEL_GRADIENTS[Math.min(i, LEVEL_GRADIENTS.length - 1)];
