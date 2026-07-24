@@ -117,8 +117,21 @@ export function RankingEditor({ project }: { project: Project }) {
   const [recordOpen, setRecordOpen] = useState(false);
   const [drag, setDrag] = useState<DragPayload | null>(null);
   const [callHover, setCallHover] = useState<{ idx: number; y: number } | null>(null);
+  const [rankHover, setRankHover] = useState<{ idx: number; y: number } | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = selectedId ? itemsById.get(selectedId) ?? null : null;
+
+  /* Aspect ratio config lives on the root node's body (shared with tier list
+     shape). Controls how item thumbs display in editor + presentation. */
+  const config = useMemo(() => parseTierListConfig(root?.body), [root?.body]);
+  const itemAspect: ItemAspect = config.itemAspect;
+  function setItemAspect(a: ItemAspect) {
+    if (!root) return;
+    updateNode(project.id, root.id, {
+      body: serializeTierListConfig({ ...config, itemAspect: a }),
+    } as Partial<MindNode>);
+  }
+
 
   /* --- actions --- */
   function addItem() {
