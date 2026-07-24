@@ -336,9 +336,15 @@ export function IcebergPresentation({
             const N = Math.max(1, levels.length);
             const levelH = size.h;
             const totalH = levelH * N;
-            const scale = effectivePhase === "overview" ? 1 / N : 1;
-            const tY = effectivePhase === "overview" ? 0 : -levelIndex * levelH;
-            const tX = effectivePhase === "overview" ? (size.w * (1 - 1 / N)) / 2 : 0;
+            // On level 0 (the tip) show a bit more of the waterline base so
+            // the shot doesn't feel like a floating peak — zoom out ~18%.
+            const focusExtra = levelIndex === 0 ? 0.18 : 0;
+            const focusScale = 1 / (1 + focusExtra);
+            const scale = effectivePhase === "overview" ? 1 / N : focusScale;
+            const tY = effectivePhase === "overview" ? 0 : -levelIndex * levelH * focusScale;
+            const tX = effectivePhase === "overview"
+              ? (size.w * (1 - 1 / N)) / 2
+              : (size.w * (1 - focusScale)) / 2;
             return (
               <div ref={scrollRef} className="absolute inset-0 overflow-hidden">
                 <div
@@ -352,6 +358,7 @@ export function IcebergPresentation({
                     willChange: "transform",
                   }}
                 >
+
                   {(() => {
                     const atm = project.icebergAtmosphere ?? "ludico";
                     if (atm === "ultra") return <IcebergBackgroundUltra levels={N} />;
@@ -388,20 +395,21 @@ export function IcebergPresentation({
                         </div>
                         <div className="relative z-10 flex-1 w-full">
                           {(() => {
-                            // Real iceberg silhouette per level: narrow tip
-                            // above water on level 0, widest just below the
-                            // waterline on level 1, tapering to a point at
-                            // the bottom. Matches the ultra/realista art.
+                            // Distribute items across a generous band per
+                            // level — not tightly hugging the silhouette,
+                            // but not spilling to the edges either. Deeper
+                            // levels get wider bands so items breathe even
+                            // when the iceberg narrows to a point.
                             let wPct: number;
                             if (i === 0) {
-                              wPct = 24; // exposed tip — narrow, centered
+                              wPct = 58; // tip level — moderate spread
                             } else if (N <= 2) {
-                              wPct = 46;
+                              wPct = 78;
                             } else {
                               const u = (i - 1) / (N - 2); // 0..1 underwater
-                              // ease-out taper: wide near the surface, sharp
-                              // point at the abyss
-                              wPct = Math.max(10, 50 - 40 * Math.pow(u, 1.15));
+                              // widest just under the surface, still ample
+                              // near the abyss
+                              wPct = 82 - 12 * Math.pow(u, 1.2);
                             }
                             const bandLeft = 50 - wPct / 2;
                             const bandWidth = wPct;
@@ -418,11 +426,13 @@ export function IcebergPresentation({
                             const slotHpct = 78 / rows;
                             const cellWpx = bandWpx / cols;
                             const cellHpx = bandHpx / rows;
-                            // Tile fills ~80% of its cell; clamp so extremes stay readable.
+                            // Tiles are compact by design — smaller collapsed
+                            // cards read better in the frame.
                             const baseTile = Math.max(
-                              32,
-                              Math.min(140, Math.floor(Math.min(cellWpx, cellHpx) * 0.82)),
+                              28,
+                              Math.min(96, Math.floor(Math.min(cellWpx, cellHpx) * 0.7)),
                             );
+
                             return items.map((it, k) => {
                               const col = k % cols;
                               const row = Math.floor(k / cols);
