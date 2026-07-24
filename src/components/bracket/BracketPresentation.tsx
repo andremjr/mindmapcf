@@ -400,9 +400,17 @@ export function BracketPresentation({
                   className="absolute inset-0 flex items-center justify-center pointer-events-none"
                 >
                   <div className="flex flex-col items-center gap-4">
-                    <div className="text-[11px] uppercase tracking-[0.35em] text-amber-200/90">Campeão</div>
-                    <div className="w-[340px] rounded-2xl p-4 bg-gradient-to-br from-amber-400/25 to-amber-600/15 border border-amber-300/60 shadow-[0_0_80px_rgba(252,211,77,0.55)]">
-                      <CompetitorCard node={fullData.champion} state="winner" expanded />
+                    <div className="text-[11px] uppercase tracking-[0.35em]" style={{ color: `${accentColor}e6` }}>Campeão</div>
+                    <div
+                      className="w-[340px] rounded-2xl p-4"
+                      style={{
+                        background: `linear-gradient(to bottom right, ${accentColor}40, ${accentColor}26)`,
+                        border: `1px solid ${accentColor}99`,
+                        boxShadow: `0 0 80px ${accentColor}8c`,
+                      }}
+                    >
+                      <CompetitorCard node={fullData.champion} state="winner" expanded aspect={itemAspect} accentColor={accentColor} />
+
                     </div>
                   </div>
                 </motion.div>
