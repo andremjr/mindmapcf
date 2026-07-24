@@ -175,18 +175,22 @@ function PoolCard({
 
 
 /* ---------- spotlight ---------- */
-function SpotlightCard({ node }: { node: MindNode }) {
+function SpotlightCard({ node, aspect }: { node: MindNode; aspect: ItemAspect }) {
   const url = useResolvedImage(node);
   const body = (node.body || "").trim();
   const hasImage = !!url;
   const accent = node.color ?? "#f59e0b";
+  const ratio = aspectDims(100, aspect);
   return (
     <div
       className="w-[min(560px,78vw)] max-h-[80vh] rounded-2xl overflow-hidden border-2 bg-card flex flex-col"
       style={{ borderColor: `${accent}99`, boxShadow: `0 20px 80px ${accent}55` }}
     >
       {hasImage && (
-        <div className="w-full aspect-[16/10] bg-muted grid place-items-center overflow-hidden shrink-0">
+        <div
+          className="w-full bg-muted grid place-items-center overflow-hidden shrink-0"
+          style={{ aspectRatio: `${ratio.w} / ${ratio.h}` }}
+        >
           <img src={url!} alt="" className="size-full object-contain" />
         </div>
       )}
@@ -203,6 +207,7 @@ function SpotlightCard({ node }: { node: MindNode }) {
     </div>
   );
 }
+
 
 /* ---------- main ---------- */
 export function RankingPresentation({
