@@ -510,6 +510,7 @@ export function TierListEditor({ project }: { project: Project }) {
                           </div>
                           <ItemThumb
                             node={it}
+                            aspect={itemAspect}
                             selected={selectedId === it.id}
                             onClick={() => { setSelectedId(it.id); setSelectedTierId(null); }}
                             onRemove={() => deleteNode(project.id, it.id)}
