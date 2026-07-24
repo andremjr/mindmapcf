@@ -335,66 +335,74 @@ export function TierListPresentation({
   };
 
   /**
-   * Fit-to-frame sizing. The tier area itself stays proportional — every tier
-   * shares the available height from the title to the pool. Items only shrink
-   * when a tier/pool needs extra wrap rows inside that fixed frame.
+   * Fit-to-frame layout. Cards keep their natural presentation size, so a tier
+   * with many cards is allowed to wrap into 2+ lines and become taller. When the
+   * natural board becomes taller than the frame, the whole board is scaled down
+   * like browser zoom instead of shrinking cards until they fit on one line.
    */
-  const { itemBase, poolBase } = useMemo(() => {
-    if (!tiers.length || size.w < 100 || size.h < 100) {
-      return { itemBase: 86, poolBase: 64 };
-    }
-
-    const OUTER_PAD_Y = 48;
+  const layout = useMemo(() => {
     const OUTER_PAD_X = 48;
+    const OUTER_PAD_Y = 48;
     const TITLE_H = 40;
     const MANUAL_HINT_H = manualMode ? 22 : 0;
     const TIER_GAP = 8;
-    const TIER_LABEL_W = 144;
     const TIER_PAD_X = 16;
     const TIER_PAD_Y = 16;
     const POOL_MT = 12;
     const POOL_HEADER_H = 18;
+    const POOL_HEADER_MB = 4;
     const POOL_PAD_Y = 16;
     const POOL_PAD_X = 24;
     const ITEM_GAP = 8;
-    const DESIRED_BASE = 86;
-    const MIN_BASE = 28;
+    const ITEM_BASE = 86;
+    const POOL_BASE = 64;
 
-    const tierItemW = Math.max(120, size.w - OUTER_PAD_X - TIER_LABEL_W - TIER_PAD_X);
-    const poolItemW = Math.max(120, size.w - OUTER_PAD_X - POOL_PAD_X);
-    const countsInTiers = tiers.map((t) => placedByTier.get(t.id)?.length ?? 0);
-    const poolCount = remaining.length;
+    const contentW = Math.max(280, size.w - OUTER_PAD_X);
+    const availableH = Math.max(180, size.h - OUTER_PAD_Y);
+    const tierLabelW = contentW < 760 ? 128 : 144;
+    const { w: itemW, h: itemH } = aspectDims(ITEM_BASE, itemAspect);
+    const { w: poolItemW, h: poolItemH } = aspectDims(POOL_BASE, itemAspect);
+    const tierItemsW = Math.max(itemW, contentW - tierLabelW - TIER_PAD_X);
+    const poolItemsW = Math.max(poolItemW, contentW - POOL_PAD_X);
+    const tierPerRow = Math.max(1, Math.floor((tierItemsW + ITEM_GAP) / (itemW + ITEM_GAP)));
+    const poolPerRow = Math.max(1, Math.floor((poolItemsW + ITEM_GAP) / (poolItemW + ITEM_GAP)));
 
-    for (let base = DESIRED_BASE; base >= MIN_BASE; base -= 2) {
-      const poolCandidate = Math.max(24, Math.round(base * 0.74));
-      const { w: pw, h: ph } = aspectDims(poolCandidate, itemAspect);
-      const poolPerRow = Math.max(1, Math.floor((poolItemW + ITEM_GAP) / (pw + ITEM_GAP)));
-      const poolRows = poolCount > 0 ? Math.ceil(poolCount / poolPerRow) : 1;
-      const poolH = POOL_HEADER_H + POOL_PAD_Y + poolRows * ph + Math.max(0, poolRows - 1) * ITEM_GAP;
+    const tierMinimums = tiers.map((tier) => {
+      const count = placedByTier.get(tier.id)?.length ?? 0;
+      const rows = count > 0 ? Math.ceil(count / tierPerRow) : 1;
+      const contentH = rows * itemH + Math.max(0, rows - 1) * ITEM_GAP + TIER_PAD_Y;
+      return { id: tier.id, height: Math.max(52, contentH) };
+    });
+    const naturalTiersH = tierMinimums.reduce((sum, row) => sum + row.height, 0)
+      + Math.max(0, tiers.length - 1) * TIER_GAP;
 
-      const tierAreaH = Math.max(
-        80,
-        size.h - OUTER_PAD_Y - TITLE_H - MANUAL_HINT_H - POOL_MT - poolH,
-      );
-      const tierRowH = Math.max(
-        36,
-        (tierAreaH - Math.max(0, tiers.length - 1) * TIER_GAP) / tiers.length,
-      );
+    const poolRows = remaining.length > 0 ? Math.ceil(remaining.length / poolPerRow) : 1;
+    const poolItemsH = remaining.length > 0
+      ? poolRows * poolItemH + Math.max(0, poolRows - 1) * ITEM_GAP
+      : 18;
+    const poolHeight = POOL_HEADER_H + POOL_HEADER_MB + POOL_PAD_Y + poolItemsH;
+    const naturalBoardH = TITLE_H + MANUAL_HINT_H + naturalTiersH + POOL_MT + poolHeight;
+    const extraToFill = Math.max(0, availableH - naturalBoardH);
+    const extraPerTier = tiers.length > 0 ? extraToFill / tiers.length : 0;
+    const tierHeights = tierMinimums.reduce<Record<string, number>>((acc, row) => {
+      acc[row.id] = row.height + extraPerTier;
+      return acc;
+    }, {});
+    const tiersHeight = naturalTiersH + extraToFill;
+    const boardNaturalH = naturalBoardH + extraToFill;
+    const boardScale = Math.min(1, availableH / Math.max(1, boardNaturalH));
 
-      const { w: iw, h: ih } = aspectDims(base, itemAspect);
-      const tierPerRow = Math.max(1, Math.floor((tierItemW + ITEM_GAP) / (iw + ITEM_GAP)));
-      const tallestTierContent = countsInTiers.reduce((max, count) => {
-        const rows = count > 0 ? Math.ceil(count / tierPerRow) : 1;
-        const contentH = rows * ih + Math.max(0, rows - 1) * ITEM_GAP + TIER_PAD_Y;
-        return Math.max(max, contentH);
-      }, 0);
-
-      if (tallestTierContent <= tierRowH) {
-        return { itemBase: base, poolBase: poolCandidate };
-      }
-    }
-
-    return { itemBase: MIN_BASE, poolBase: Math.max(24, Math.round(MIN_BASE * 0.74)) };
+    return {
+      itemBase: ITEM_BASE,
+      poolBase: POOL_BASE,
+      boardScale,
+      contentW,
+      boardNaturalH,
+      tiersHeight,
+      tierHeights,
+      tierLabelW,
+      poolHeight,
+    };
   }, [size, tiers, itemAspect, placedByTier, remaining.length, manualMode]);
 
 
@@ -469,7 +477,16 @@ export function TierListPresentation({
         <div ref={frameRef} style={frameStyle} className="bg-background">
           <AvatarLayer project={project} frameSize={size} />
           <LayoutGroup>
-            <div className="absolute inset-0 flex flex-col p-6">
+            <div className="absolute inset-0 overflow-hidden px-6 py-6">
+              <div
+                className="mx-auto flex flex-col"
+                style={{
+                  width: layout.contentW,
+                  height: layout.boardNaturalH,
+                  transform: `scale(${layout.boardScale})`,
+                  transformOrigin: "top center",
+                }}
+              >
               <div className="text-2xl font-bold text-center mb-2 opacity-90">{project.title}</div>
               {manualMode && (
                 <div className="text-center text-[11px] uppercase tracking-widest text-muted-foreground mb-2">
@@ -477,8 +494,12 @@ export function TierListPresentation({
                 </div>
               )}
 
-              {/* Tiers — fixed proportional rows, with items resizing before anything scrolls */}
-              <div ref={scrollRef} className="flex-1 min-h-0 overflow-hidden pr-1 flex flex-col gap-2">
+              {/* Tiers — rows may grow with wrapped items; the whole board auto-zooms to fit */}
+              <div
+                ref={scrollRef}
+                className="min-h-0 overflow-hidden pr-1 flex flex-col gap-2 shrink-0"
+                style={{ height: layout.tiersHeight }}
+              >
                 {tiers.map((tier) => {
                   const items = placedByTier.get(tier.id) ?? [];
                   const isActive = !manualMode && currentTierId === tier.id;
@@ -489,15 +510,16 @@ export function TierListPresentation({
                       onDragOver={manualMode ? onHoverOver(`tier:${tier.id}`) : allowDrop}
                       onDragLeave={manualMode ? onHoverLeave : undefined}
                       onDrop={onTierDrop(tier.id)}
-                      className={`flex flex-1 basis-0 min-h-0 items-stretch rounded-lg overflow-hidden border border-border transition-all duration-300 ${
+                      className={`flex shrink-0 items-stretch rounded-lg overflow-hidden border border-border transition-all duration-300 ${
                         manualMode
                           ? (dragId ? "ring-2 ring-primary/40" : "")
                           : (isActive ? "opacity-100 scale-100" : "opacity-45 scale-[0.98]")
                       }`}
+                      style={{ height: layout.tierHeights[tier.id] ?? 52 }}
                     >
                       <div
-                        className="w-32 md:w-36 shrink-0 grid place-items-center px-3 py-3 font-black text-lg text-neutral-900 text-center uppercase tracking-wider break-words whitespace-normal leading-tight"
-                        style={{ background: tier.color || "#334155" }}
+                        className="shrink-0 grid place-items-center px-3 py-3 font-black text-lg text-neutral-900 text-center uppercase tracking-wider break-words whitespace-normal leading-tight"
+                        style={{ width: layout.tierLabelW, background: tier.color || "#334155" }}
                       >
                         {tier.text}
                       </div>
@@ -513,7 +535,7 @@ export function TierListPresentation({
                             >
                               <TierItem
                                 node={it}
-                                size={itemBase}
+                                size={layout.itemBase}
                                 aspect={itemAspect}
                                 highlighted={!manualMode && currentItemId === it.id}
                                 draggable={manualMode && spotlightId !== it.id}
@@ -542,6 +564,7 @@ export function TierListPresentation({
                 onDragLeave={manualMode ? onHoverLeave : undefined}
                 onDrop={onPoolDrop}
                 className="mt-3 rounded-lg border border-border bg-muted/40 px-3 py-2 shrink-0"
+                style={{ height: layout.poolHeight }}
               >
                 <div className="flex items-center justify-between mb-1">
                   <div className="text-[11px] uppercase tracking-widest opacity-60">
@@ -567,7 +590,7 @@ export function TierListPresentation({
                       >
                         <TierItem
                           node={it}
-                          size={poolBase}
+                          size={layout.poolBase}
                           aspect={itemAspect}
                           highlighted={!manualMode && i === 0}
                           draggable={manualMode && spotlightId !== it.id}
@@ -580,6 +603,7 @@ export function TierListPresentation({
                   ))}
                   {manualMode && dragId && hover?.key === "pool" && hover.idx === remaining.length && <DropIndicator />}
                 </div>
+              </div>
               </div>
 
             </div>
