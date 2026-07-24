@@ -489,7 +489,7 @@ export function TierListEditor({ project }: { project: Project }) {
                     <textarea
                       value={tier.text}
                       onChange={(e) => updateNode(project.id, tier.id, { text: e.target.value })}
-                      className="bg-transparent text-center outline-none w-full font-bold uppercase tracking-wider text-base leading-tight resize-none text-white break-words whitespace-normal"
+                      className="bg-transparent text-center outline-none w-full font-bold uppercase tracking-wider text-base leading-tight resize-none text-neutral-900 dark:text-white break-words whitespace-normal"
                       placeholder="Nome do tier"
                       rows={2}
                       onClick={(e) => e.stopPropagation()}
