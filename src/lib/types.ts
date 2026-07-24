@@ -42,7 +42,7 @@ export interface MindNode {
   /** Semantic role used by template renderers. */
   role?:
     | "tier" | "item" | "level" | "board" | "iceberg"
-    | "bracket" | "matrix" | "ranking";
+    | "bracket" | "matrix" | "ranking" | "scale";
   /** Long-form body shown in iceberg's expanded card (or JSON blob for template root config). */
   body?: string;
   /** Sort index within siblings (used by tiers/levels/ranking as the reveal / call order). */
