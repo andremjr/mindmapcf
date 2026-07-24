@@ -377,7 +377,7 @@ export function IcebergPresentation({
                                 active={activeItem?.id === it.id}
                                 onClick={() => {
                                   const j = nav.findIndex((x) => x.itemId === it.id);
-                                  if (j >= 0) setIdx(j);
+                                  if (j >= 0) { setIdx(j); setItemOpen(true); }
                                 }}
                                 scatter={{ left: `${leftPct}%`, top: `${topPct}%`, rotate, size: tileSize }}
                               />
