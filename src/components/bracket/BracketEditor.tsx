@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { RecordFormatMenu } from "@/components/RecordFormatMenu";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { NarrationDock } from "@/components/shared/NarrationDock";
 import { launchRecording } from "@/lib/launchRecording";
 import type { RecordFormat } from "@/lib/recordFormats";
 import { BracketBoard, clearDownstreamWinners, type WinnersMap } from "./BracketBoard";
