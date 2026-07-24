@@ -446,6 +446,7 @@ export function MatrixEditor({ project }: { project: Project }) {
                   <MatrixCard
                     node={c}
                     compact
+                    aspect={axis.itemAspect}
                     onDelete={() => deleteNode(project.id, c.id)}
                     onEdit={() => setEditingId(c.id)}
                   />
@@ -568,7 +569,7 @@ function ChartPlane({
               className="absolute cursor-grab active:cursor-grabbing"
               style={{ left: `${c.pctX ?? 50}%`, top: "50%", transform: "translate(-50%, -50%)" }}
             >
-              <MatrixCard node={c} compact onDelete={() => onDelete(c.id)} onEdit={() => onEdit(c.id)} />
+              <MatrixCard node={c} compact aspect={axis.itemAspect} onDelete={() => onDelete(c.id)} onEdit={() => onEdit(c.id)} />
             </div>
           ))}
           {empty && <EmptyMsg text={emptyMsg} />}
@@ -608,7 +609,7 @@ function ChartPlane({
                   transform: "translate(-50%, -50%)",
                 }}
               >
-                <MatrixCard node={c} compact onDelete={() => onDelete(c.id)} onEdit={() => onEdit(c.id)} />
+                <MatrixCard node={c} compact aspect={axis.itemAspect} onDelete={() => onDelete(c.id)} onEdit={() => onEdit(c.id)} />
               </div>
             ))}
             {empty && <EmptyMsg text={emptyMsg} />}
@@ -670,7 +671,7 @@ function ChartPlane({
                 transform: "translate(-50%, -50%)",
               }}
             >
-              <MatrixCard node={c} onDelete={() => onDelete(c.id)} onEdit={() => onEdit(c.id)} />
+              <MatrixCard node={c} aspect={axis.itemAspect} onDelete={() => onDelete(c.id)} onEdit={() => onEdit(c.id)} />
             </div>
           ))}
           {empty && <EmptyMsg text={emptyMsg} />}
