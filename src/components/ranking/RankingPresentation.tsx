@@ -225,7 +225,7 @@ function SpotlightCard({ node, aspect }: { node: MindNode; aspect: ItemAspect })
           className="w-full bg-muted grid place-items-center overflow-hidden shrink-0"
           style={{ aspectRatio: `${ratio.w} / ${ratio.h}` }}
         >
-          <img src={url!} alt="" className="size-full object-contain" />
+          <img src={url} alt="" className="size-full object-contain" />
         </div>
       )}
       <div className="px-6 py-5 flex flex-col items-center gap-3 text-center overflow-hidden">
@@ -366,6 +366,7 @@ export function RankingPresentation({
   const manualRanked = useMemo(
     () => manualMode
       ? [...callOrder].filter((n) => typeof n.rank === "number").sort((a, b) => a.rank! - b.rank!)
+      ? [...callOrder].filter((n) => typeof n.rank === "number").sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))
       : [],
     [manualMode, callOrder],
   );
