@@ -147,7 +147,68 @@ export function RankingEditor({ project }: { project: Project }) {
     setSelectedId(id);
   }
 
+  /** Bulk-create one item per selected image, mirroring the tier list flow. */
+  async function addItemsFromImages() {
+    if (!root) return;
+    const refs = await pickMediaMultipleAndStore("image");
+    if (refs.length === 0) return;
+    let nextOrder = items.reduce((m, n) => Math.max(m, n.order ?? -1), -1) + 1;
+    let firstId: string | null = null;
+    for (const ref of refs) {
+      const id = addNode(project.id, { parentId: root.id });
+      if (!id) continue;
+      const baseName = ref.name.replace(/\.[^.]+$/, "");
+      updateNode(project.id, id, {
+        text: baseName || `Item ${nextOrder + 1}`,
+        role: "item",
+        order: nextOrder,
+        width: 300,
+        imageRef: ref,
+        imageName: ref.name,
+      } as Partial<MindNode>);
+      if (!firstId) firstId = id;
+      nextOrder += 1;
+    }
+    if (firstId) setSelectedId(firstId);
+  }
+
   function reindexCallOrder(next: MindNode[]) {
+    next.forEach((n, i) => {
+      if ((n.order ?? -1) !== i) updateNode(project.id, n.id, { order: i } as Partial<MindNode>);
+    });
+  }
+
+  function moveCall(id: string, targetIdx: number) {
+    const src = items.findIndex((n) => n.id === id);
+    if (src === -1 || src === targetIdx) return;
+    const next = [...items];
+    const [n] = next.splice(src, 1);
+    next.splice(Math.max(0, Math.min(N - 1, targetIdx)), 0, n);
+    reindexCallOrder(next);
+  }
+
+  /** Insertion-based rank ordering: move `id` to boundary `targetIdx`
+   *  (0..K where K = ranked count). Reassigns ranks 1..K contiguously so
+   *  dropping between two rows shifts the others instead of swapping. */
+  function insertRank(id: string, targetIdx: number) {
+    const ordered = items
+      .filter((n) => typeof n.rank === "number")
+      .sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0));
+    const wasRanked = ordered.findIndex((n) => n.id === id);
+    const item = itemsById.get(id);
+    if (!item) return;
+    if (wasRanked !== -1) ordered.splice(wasRanked, 1);
+    let insertAt = Math.max(0, Math.min(targetIdx, ordered.length));
+    if (wasRanked !== -1 && wasRanked < targetIdx) insertAt = targetIdx - 1;
+    ordered.splice(insertAt, 0, item);
+    ordered.forEach((n, i) => {
+      const nextRank = i + 1;
+      if ((n.rank ?? -1) !== nextRank) {
+        updateNode(project.id, n.id, { rank: nextRank } as Partial<MindNode>);
+      }
+    });
+  }
+
     next.forEach((n, i) => {
       if ((n.order ?? -1) !== i) updateNode(project.id, n.id, { order: i } as Partial<MindNode>);
     });
