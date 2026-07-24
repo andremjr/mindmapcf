@@ -474,6 +474,7 @@ export function BracketBoard({
               steps={steps}
               side="L"
               onPickWinner={onPickWinner}
+              onMatchClick={onMatchClick}
               label={r === data.L.rounds.length - 1 ? "Semifinal" : `Rodada ${r + 1}`}
               aspect={aspect}
               accentColor={accentColor}
