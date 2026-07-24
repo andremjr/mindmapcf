@@ -143,9 +143,11 @@ export function IcebergEditor({ project }: { project: Project }) {
   const updateNode = useStore((s) => s.updateNode);
   const deleteNode = useStore((s) => s.deleteNode);
   const renameProject = useStore((s) => s.renameProject);
+  const setIcebergAtmosphere = useStore((s) => s.setIcebergAtmosphere);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { isPro } = useSubscription(user?.id);
+  const atmosphere = project.icebergAtmosphere ?? "ludico";
 
   const root = project.nodes.find((n) => n.role === "iceberg" || !n.parentId);
   const levels = useMemo(
