@@ -432,7 +432,7 @@ export function TierListPresentation({
                       }`}
                     >
                       <div
-                        className="min-w-[8rem] max-w-[14rem] shrink-0 grid place-items-center px-3 py-3 font-black text-lg text-neutral-900 dark:text-white text-center uppercase tracking-wider break-words whitespace-normal leading-tight"
+                        className="min-w-[8rem] max-w-[14rem] shrink-0 grid place-items-center px-3 py-3 font-black text-lg text-neutral-900 text-center uppercase tracking-wider break-words whitespace-normal leading-tight"
                         style={{ background: tier.color || "#334155" }}
                       >
                         {tier.text}
