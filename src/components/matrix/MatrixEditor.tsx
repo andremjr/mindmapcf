@@ -177,6 +177,25 @@ export function MatrixEditor({ project }: { project: Project }) {
     } as Partial<MindNode>);
   }
 
+  /** Bulk import: one card per picked image, all landing in the pool. Author
+   *  can then drag them onto the chart or use manual mode live. */
+  async function addBulkImages() {
+    if (!root) return;
+    const refs = await pickMediaMultipleAndStore("image");
+    for (const ref of refs) {
+      const id = addNode(project.id, { parentId: root.id });
+      if (!id) continue;
+      const cleanName = ref.name.replace(/\.[a-z0-9]+$/i, "");
+      updateNode(project.id, id, {
+        text: cleanName,
+        role: "item",
+        width: 132,
+        imageRef: ref,
+        imageName: ref.name,
+      } as Partial<MindNode>);
+    }
+  }
+
   // Drag existing (placed) card around the chart
   const dragRef = useRef<{ id: string } | null>(null);
   function onCardMouseDown(e: React.MouseEvent, node: MindNode) {
