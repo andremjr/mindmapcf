@@ -184,6 +184,7 @@ export function useMindmapSync(userId: string | undefined) {
                     sonicAvatar: p.sonicAvatar,
                     narrationRef: p.narrationRef,
                     template: p.template ?? "mindmap",
+                    icebergAtmosphere: p.icebergAtmosphere,
                   } as any,
                 },
                 { onConflict: "id" },
