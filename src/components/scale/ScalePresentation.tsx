@@ -74,36 +74,38 @@ function initialDiveDuration(distance: number) {
 function computeInitialDiveTarget(
   sceneItems: SceneItem[],
   startPos: THREE.Vector3,
+  startLook: THREE.Vector3,
   fallbackEndPos: THREE.Vector3,
-): CameraTarget | null {
+): { approachPos: THREE.Vector3; approachLook: THREE.Vector3 } | null {
   const first = sceneItems[0];
   if (!first) return null;
-  const topCenter = new THREE.Vector3(
-    first.position.x,
-    first.height + TOP_IMAGE_LIFT + TOP_IMAGE_SIZE / 2,
-    first.position.z,
-  );
-  const direction = topCenter.clone().sub(startPos);
+  const topCenter = getTopImageCenter(first);
+  const direction = startLook.clone().sub(startPos);
   if (direction.lengthSq() < 0.0001) {
-    return { position: fallbackEndPos.clone(), lookAt: topCenter };
+    return null;
   }
 
   direction.normalize();
-  const startDistance = startPos.distanceTo(topCenter);
   const desiredDistance = Math.max(
-    TOP_IMAGE_SIZE * 3.2,
+    TOP_IMAGE_SIZE * 2.8,
     fallbackEndPos.distanceTo(topCenter),
   );
-  const endDistance = Math.min(
-    desiredDistance,
-    Math.max(TOP_IMAGE_SIZE * 3.2, startDistance - TOP_IMAGE_SIZE * 3.2),
-  );
+  const approachPos = topCenter.clone().addScaledVector(direction, -desiredDistance);
 
   return {
-    // One straight dolly path: overview camera -> top of the smallest bar.
-    position: topCenter.clone().addScaledVector(direction, -endDistance),
-    lookAt: topCenter,
+    // Keep the exact overview angle: translate the whole framing until the
+    // smallest top sits on the same locked ray, then the tail settles front-on.
+    approachPos,
+    approachLook: approachPos.clone().addScaledVector(direction, 100),
   };
+}
+
+function getTopImageCenter(item: SceneItem): THREE.Vector3 {
+  return new THREE.Vector3(
+    item.position.x,
+    item.height + TOP_IMAGE_LIFT + TOP_IMAGE_SIZE / 2,
+    item.position.z + BAR_DEPTH / 2 - 0.4,
+  );
 }
 
 
@@ -406,18 +408,17 @@ function ScaleThreeScene({
 
     let endPos = next.position.clone();
     let endLook = next.lookAt.clone();
-    // Opening dive: center the smallest bar's top immediately, then travel in
-    // a single straight line along that direction. No base target, no waypoint.
+    // Opening dive: preserve the overview angle (tallest top stays directed to
+    // the upper-right), translate that framing until the smallest top is on the
+    // same ray, then restore the normal front-facing focus at the end.
     if (initialDive && sceneItems[0]) {
-      const diveTarget = computeInitialDiveTarget(sceneItems, startPos, endPos);
+      const diveTarget = computeInitialDiveTarget(sceneItems, startPos, startLook, endPos);
       if (diveTarget) {
-        endPos = diveTarget.position;
-        endLook = diveTarget.lookAt;
-        startLook = diveTarget.lookAt.clone();
-        approachPos = null;
-        approachLook = null;
-        holdAngleUntil = 1;
-        lookHoldUntil = 0;
+        approachPos = diveTarget.approachPos;
+        approachLook = diveTarget.approachLook;
+        leadAngleUntil = 0;
+        holdAngleUntil = 0.84;
+        lookHoldUntil = 0.84;
       }
     }
     const dist = approachPos
@@ -518,8 +519,8 @@ function ScaleThreeScene({
       if (tween) {
         const raw = (performance.now() - tween.startAt) / tween.duration;
         const t = raw >= 1 ? 1 : raw <= 0 ? 0 : raw;
-        // Opening descent is now intentionally simple: center the smallest
-        // bar's top immediately and dolly straight along that ray.
+        // Opening descent locks the overview angle until the smallest top is
+        // reached, then settles back into the normal front-facing focus.
         if (tween.approachPos) {
           if (tween.leadAngleUntil > 0 && t < tween.leadAngleUntil) {
             // Lead phase: stay put while the camera pivots up.
