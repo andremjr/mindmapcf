@@ -815,24 +815,32 @@ function addAtmosphereLayers(
   const width = Math.max(1800, sceneItems.length * STEP_X * 6 + 1200);
 
   // Painters in order from lowest to highest altitude.
+  // Clouds/birds sit BELOW airplanes (airplanes cruise above cloud layer).
   const painters: Array<(w: number, h: number) => THREE.CanvasTexture> = [
     paintCityLayer,
     paintSkyscraperLayer,
     paintBalloonLayer,
-    paintAirplaneLayer,
     paintCloudBirdLayer,
+    paintAirplaneLayer,
     paintSpacecraftLayer,
     paintCometStarLayer,
   ];
 
-  // Distribute layer CENTER altitudes across [floor .. maxHeight], with a
-  // small floor above 0 so the ground city has room to sit on the horizon.
-  const floor = Math.max(minHeight * 0.05, maxHeight * 0.02, 4);
-  const top = Math.max(maxHeight, floor + 10);
-  const layerHeight = Math.max(60, (top - floor) / painters.length * 1.05);
+  // Distribute layers from the actual ground (y=0) up to the tallest bar,
+  // so every altitude — including the lowest bar's frame — has a background
+  // slab behind it. Slabs overlap neighbors generously so that whichever
+  // bar-top the camera frames, the matching altitude layer stays visible
+  // as backdrop even after the settle rotation.
+  const floor = 0;
+  const top = Math.max(maxHeight * 1.05, floor + 10);
+  const slice = (top - floor) / painters.length;
+  // Overlap factor > 1 makes each slab taller than its slice so adjacent
+  // layers bleed into each other — no visible seams while the camera moves,
+  // and the framed bar-top always has SOME layer painted behind it.
+  const layerHeight = Math.max(80, slice * 1.6);
 
   painters.forEach((paint, i) => {
-    const centerY = floor + ((i + 0.5) / painters.length) * (top - floor);
+    const centerY = floor + (i + 0.5) * slice;
     const tex = paint(width, layerHeight);
     const mesh = new THREE.Mesh(
       new THREE.PlaneGeometry(width, layerHeight),
@@ -850,6 +858,7 @@ function addAtmosphereLayers(
     scene.add(mesh);
   });
 }
+
 
 // ---------- Layer painters --------------------------------------------------
 
