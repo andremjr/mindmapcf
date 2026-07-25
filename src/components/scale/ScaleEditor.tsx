@@ -277,7 +277,7 @@ export function ScaleEditor({ project }: { project: Project }) {
                 <div className="flex items-end justify-center gap-6 min-h-[280px]">
                   {ordered.map((n) => {
                     const data = parseItemData(n.body);
-                    const ratio = heightRatio(data.value, values, config.scaleMode);
+                    const ratio = heightRatio(data.value, values);
                     const h = Math.max(20, Math.round(ratio * 240));
                     return (
                       <button
