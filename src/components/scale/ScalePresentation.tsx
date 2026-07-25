@@ -918,37 +918,48 @@ function computeCameraTarget(
   const verticalFov = THREE.MathUtils.degToRad(CAMERA_FOV);
   const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * Math.max(0.1, aspect));
 
-  // Opening frame: focus on the TOP of the tallest bar (photo + head panel)
-  // so viewers instantly read the item, then the next step descends toward
-  // the first bar for the reveal.
+  // Opening frame: high-angle "bird's eye" over the tallest bar looking down.
+  // The bar's top image is the foreground; the rest of the scene falls away
+  // beneath — the other bars don't need to fit, that perspective is the point.
   if (step.kind === "overview") {
     const tallest = sceneItems.reduce((a, b) => (b.height > a.height ? b : a), sceneItems[0]);
     const topY = tallest.height + TOP_IMAGE_LIFT + TOP_IMAGE_SIZE / 2;
-    // Frame ~2.6× the top image so both the photo and the head chip are visible.
-    const frame = TOP_IMAGE_SIZE * 2.6;
-    const distV = (frame / 2) / Math.tan(verticalFov / 2);
-    const distH = (frame / 2) / Math.tan(horizontalFov / 2);
-    const distance = Math.max(distV, distH) * 1.15;
+    // Camera sits above and slightly in front of the tallest top image,
+    // tilted downward so we look down the bar and toward the ground.
+    const up = TOP_IMAGE_SIZE * 2.2;
+    const forwardOffset = TOP_IMAGE_SIZE * 2.4;
     return {
       position: new THREE.Vector3(
-        tallest.position.x - STEP_X * 0.25,
-        topY + TOP_IMAGE_SIZE * 0.25,
-        tallest.position.z + distance,
+        tallest.position.x - STEP_X * 0.35,
+        topY + up,
+        tallest.position.z + forwardOffset,
       ),
-      lookAt: new THREE.Vector3(tallest.position.x, topY, tallest.position.z),
+      // Aim slightly below the top image so it stays as the foreground subject
+      // while the downward tilt reveals the drop toward the smaller bars.
+      lookAt: new THREE.Vector3(
+        tallest.position.x + STEP_X * 0.15,
+        topY - TOP_IMAGE_SIZE * 0.9,
+        tallest.position.z - Math.abs(STEP_Z) * 0.8,
+      ),
     };
   }
 
 
-  // Focus on a specific bar — travelling camera positioned in front of the
-  // bar's panel, slightly toward the next bar so previous bars stay visible
-  // over the shoulder.
+  // Focus on a specific bar — pulled back enough to fit BOTH the front panel
+  // and the big top image in frame together.
   const idx = Math.max(0, Math.min(sceneItems.length - 1, step.index));
   const current = sceneItems[idx];
   const next = sceneItems[idx + 1];
 
-  const distV = (PANEL_SIZE / 2) / Math.tan(verticalFov / 2) * 1.75;
-  const distH = (PANEL_SIZE / 2) / Math.tan(horizontalFov / 2) * 1.75;
+  // Frame spans from the bottom of the panel up to the top of the head image.
+  const panelBottomY = current.panelCenter.y - PANEL_SIZE / 2;
+  const topImageTopY = current.height + TOP_IMAGE_LIFT + TOP_IMAGE_SIZE;
+  const frameHeight = (topImageTopY - panelBottomY) * 1.15; // small breathing room
+  const frameWidth = Math.max(PANEL_SIZE, TOP_IMAGE_SIZE) * 1.25;
+  const centerY = (panelBottomY + topImageTopY) / 2;
+
+  const distV = (frameHeight / 2) / Math.tan(verticalFov / 2);
+  const distH = (frameWidth / 2) / Math.tan(horizontalFov / 2);
   const distance = Math.max(distV, distH);
 
   // Push the camera slightly along the travel direction (toward next bar)
@@ -958,19 +969,17 @@ function computeCameraTarget(
     ? new THREE.Vector3(next.position.x - current.position.x, 0, next.position.z - current.position.z).normalize()
     : new THREE.Vector3(STEP_X, 0, STEP_Z).normalize();
 
-  const lateral = 2.2;
-  const heightBias = 0.4;
+  const lateral = 2.6;
 
-  const pos = new THREE.Vector3()
-    .copy(current.panelCenter)
+  const pos = new THREE.Vector3(current.panelCenter.x, centerY, current.panelCenter.z)
     .addScaledVector(forward, distance)
-    .addScaledVector(travel, lateral)
-    .add(new THREE.Vector3(0, heightBias, 0));
+    .addScaledVector(travel, lateral);
 
-  const look = current.panelCenter.clone();
+  const look = new THREE.Vector3(current.panelCenter.x, centerY, current.panelCenter.z);
 
   return { position: pos, lookAt: look };
 }
+
 
 // ============================================================================
 // Helpers
