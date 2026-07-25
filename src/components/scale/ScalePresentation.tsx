@@ -74,29 +74,39 @@ function initialDiveDuration(distance: number) {
 function computeInitialDiveTarget(
   sceneItems: SceneItem[],
   startPos: THREE.Vector3,
-  startLook: THREE.Vector3,
+  _startLook: THREE.Vector3,
   fallbackEndPos: THREE.Vector3,
-): { approachPos: THREE.Vector3; approachLook: THREE.Vector3 } | null {
+): {
+  approachPos: THREE.Vector3;
+  approachLook: THREE.Vector3;
+  diveDirection: THREE.Vector3;
+  leadLook: THREE.Vector3;
+} | null {
   const first = sceneItems[0];
   if (!first) return null;
   const topCenter = getTopImageCenter(first);
-  const direction = startLook.clone().sub(startPos);
+  // New view ray: from the current camera position straight to the smallest
+  // top. Pivoting to this direction (in place) puts the smallest top at the
+  // screen center while the tallest top stays in the upper region — exactly
+  // the framing we want to hold during the descent.
+  const direction = topCenter.clone().sub(startPos);
   if (direction.lengthSq() < 0.0001) {
     return null;
   }
-
   direction.normalize();
+
   const desiredDistance = Math.max(
     TOP_IMAGE_SIZE * 2.8,
     fallbackEndPos.distanceTo(topCenter),
   );
   const approachPos = topCenter.clone().addScaledVector(direction, -desiredDistance);
+  const leadLook = startPos.clone().addScaledVector(direction, 100);
 
   return {
-    // Keep the exact overview angle: translate the whole framing until the
-    // smallest top sits on the same locked ray, then the tail settles front-on.
     approachPos,
     approachLook: approachPos.clone().addScaledVector(direction, 100),
+    diveDirection: direction,
+    leadLook,
   };
 }
 
