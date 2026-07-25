@@ -468,16 +468,48 @@ function buildScene(
     scene.add(panel);
 
     // Thin accent frame around the panel — reinforces the "applied" look.
-    const frameGeo = new THREE.PlaneGeometry(PANEL_SIZE + 0.14, PANEL_SIZE + 0.14);
+    const frameGeo = new THREE.PlaneGeometry(PANEL_SIZE + 0.18, PANEL_SIZE + 0.18);
     const frameMat = new THREE.MeshBasicMaterial({
-        color: safeColor(config.accentColor),
+      color: safeColor(item.color),
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.95,
     });
     const frame = new THREE.Mesh(frameGeo, frameMat);
     frame.position.copy(item.panelCenter);
     frame.position.z -= 0.005;
     scene.add(frame);
+
+    // --- Big square photo sitting ON TOP of the pedestal -------------------
+    // This is the signature look of viral 3D comparison videos.
+    const topTexture = makeTopImageTexture(item, urls[item.node.id] ?? null);
+    const topMat = new THREE.MeshBasicMaterial({
+      map: topTexture,
+      transparent: true,
+      toneMapped: false,
+    });
+    const topGeo = new THREE.PlaneGeometry(TOP_IMAGE_SIZE, TOP_IMAGE_SIZE);
+    const top = new THREE.Mesh(topGeo, topMat);
+    // Face the camera direction (looking down the row) so it reads from front.
+    top.position.set(
+      item.position.x,
+      item.height + TOP_IMAGE_LIFT + TOP_IMAGE_SIZE / 2,
+      item.position.z + BAR_DEPTH / 2 - 0.4,
+    );
+    top.rotation.y = 0;
+    scene.add(top);
+
+    // Small colored base plate under the top image (echoes the bar color).
+    const plate = new THREE.Mesh(
+      new THREE.BoxGeometry(TOP_IMAGE_SIZE * 0.95, 0.35, TOP_IMAGE_SIZE * 0.55),
+      new THREE.MeshStandardMaterial({
+        color: safeColor(item.color),
+        roughness: 0.35,
+        metalness: 0.4,
+      }),
+    );
+    plate.position.set(item.position.x, item.height + 0.18, item.position.z);
+    plate.castShadow = true;
+    scene.add(plate);
   });
 }
 
