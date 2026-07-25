@@ -88,30 +88,34 @@ function computeInitialDiveApproach(
   return anchor.addScaledVector(startDir, -approachDistance);
 }
 
-// Bar-to-bar "climb" approach: rise above the target bar looking down so the
-// viewer perceives the height comparison between the previous and next bar,
-// then the tween settles into the front-facing framing on the target.
+// Bar-to-bar "climb": camera tilts down, rises up so the previous bar drops
+// out of view, then settles into the front-facing framing on the target bar.
 function computeClimbApproach(
   fromItem: SceneItem,
   toItem: SceneItem,
-) {
-  const goingUp = toItem.height >= fromItem.height;
+): { pos: THREE.Vector3; look: THREE.Vector3 } {
   const peakHeight = Math.max(fromItem.height, toItem.height);
-  // Rise a bit above the taller of the two so both tops are readable.
-  const y = peakHeight + Math.max(TOP_IMAGE_SIZE * 2.2, peakHeight * 0.18);
-  // Sit slightly behind the target on the diagonal so the camera can look
-  // down onto the target bar (and see the previous one falling away).
-  const backX = toItem.position.x - STEP_X * 0.55;
-  const backZ = toItem.position.z - Math.abs(STEP_Z) * 0.65;
-  const anchor = new THREE.Vector3(backX, y, backZ);
-  // Pull the anchor away from the target laterally when descending so the
-  // previous (taller) bar still appears in the shot for the comparison beat.
-  if (!goingUp) {
-    anchor.x -= STEP_X * 0.15;
-    anchor.z -= Math.abs(STEP_Z) * 0.15;
-  }
-  return anchor;
+  // Peak apex is above the taller of the two so the ascent is legible.
+  const apexY = peakHeight + Math.max(TOP_IMAGE_SIZE * 3, peakHeight * 0.25);
+  // Pos: biased toward the target on the diagonal, but still on the "camera
+  // side" (front of the bars). Keeps the same front-side depth so the camera
+  // just rises vertically instead of arcing behind the row.
+  const t = 0.7; // 0 = from, 1 = to; bias forward so the target is roughly under the camera
+  const apexX = fromItem.position.x + (toItem.position.x - fromItem.position.x) * t;
+  const apexZ =
+    fromItem.position.z + (toItem.position.z - fromItem.position.z) * t
+    + Math.abs(STEP_Z) * 0.9; // pull toward the viewer (front side)
+  const pos = new THREE.Vector3(apexX, apexY, apexZ);
+  // Look straight down at the target base so the framing "points down" during
+  // the climb; the tail of the tween rotates it to face the front panel.
+  const look = new THREE.Vector3(
+    toItem.position.x,
+    Math.min(toItem.height * 0.15, TOP_IMAGE_SIZE * 0.5),
+    toItem.position.z,
+  );
+  return { pos, look };
 }
+
 
 
 export function ScalePresentation({ project, recording }: { project: Project; recording: boolean }) {
