@@ -272,8 +272,8 @@ function ScaleThreeScene({
     key.castShadow = true;
     key.shadow.mapSize.set(2048, 2048);
     key.shadow.camera.near = 5;
-    key.shadow.camera.far = Math.max(1200, maxHeight * 4);
-    const shadowSpan = Math.max(180, sceneItems.length * STEP_X + 200);
+    key.shadow.camera.far = Math.min(20_000, Math.max(1200, maxHeight * 0.8));
+    const shadowSpan = Math.min(2_000, Math.max(180, sceneItems.length * STEP_X + 200));
     key.shadow.camera.left = -shadowSpan;
     key.shadow.camera.right = shadowSpan;
     key.shadow.camera.top = shadowSpan;
@@ -286,7 +286,7 @@ function ScaleThreeScene({
     scene.add(fill);
 
     // Optional accent rim to catch the front face color.
-    const rim = new THREE.DirectionalLight(hexColor(config.accentColor), 0.35);
+    const rim = new THREE.DirectionalLight(safeColor(config.accentColor), 0.35);
     rim.position.set(0, 40, 220);
     scene.add(rim);
 
@@ -394,7 +394,7 @@ function buildScene(
 
   // --- Bars -----------------------------------------------------------------
   sceneItems.forEach((item) => {
-    const color = new THREE.Color(item.color);
+    const color = safeColor(item.color);
     // Horizontal ruler bands tile vertically on the bar sides — every 2 world
     // units — so vertical camera travel reads clearly on tall bars.
     const bandMap = makeBandTexture();
@@ -435,7 +435,7 @@ function buildScene(
       const ring = new THREE.Mesh(
         new THREE.BoxGeometry(BAR_WIDTH + 0.06, 0.12, BAR_DEPTH + 0.06),
         new THREE.MeshBasicMaterial({
-          color: hexColor(config.accentColor),
+          color: safeColor(config.accentColor),
           transparent: true,
           opacity: 0.55,
         }),
@@ -458,7 +458,7 @@ function buildScene(
     // Thin accent frame around the panel — reinforces the "applied" look.
     const frameGeo = new THREE.PlaneGeometry(PANEL_SIZE + 0.14, PANEL_SIZE + 0.14);
     const frameMat = new THREE.MeshBasicMaterial({
-      color: hexColor(config.accentColor),
+        color: safeColor(config.accentColor),
       transparent: true,
       opacity: 0.9,
     });
