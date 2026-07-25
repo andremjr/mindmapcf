@@ -926,19 +926,23 @@ function computeCameraTarget(
     const tallest = sceneItems.reduce((a, b) => (b.height > a.height ? b : a), sceneItems[0]);
     const topY = tallest.height + TOP_IMAGE_LIFT + TOP_IMAGE_SIZE / 2;
     const up = TOP_IMAGE_SIZE * 2.6;
-    const forwardOffset = TOP_IMAGE_SIZE * 1.4;
+    // Place the camera BEHIND the subject in Z (further +Z than the bar) so
+    // that, with the near top-down tilt, the subject projects into the UPPER
+    // portion of the frame and the ground opens up toward the lower-left.
+    const backOffset = TOP_IMAGE_SIZE * 2.2;
     return {
       position: new THREE.Vector3(
-        tallest.position.x - STEP_X * 0.35,
+        tallest.position.x + STEP_X * 0.25,
         topY + up,
-        tallest.position.z + forwardOffset,
+        tallest.position.z + backOffset,
       ),
-      // Aim well below and to the LEFT of the subject so the top image lands
-      // in the upper-right corner and the ground fills the lower-left area.
+      // Aim forward (-Z) and to the LEFT of the subject, well below it, so the
+      // top image lands in the upper-right corner and the ground fills the
+      // lower-left area of the frame.
       lookAt: new THREE.Vector3(
-        tallest.position.x - STEP_X * 1.8,
-        Math.max(0, topY - TOP_IMAGE_SIZE * 6),
-        tallest.position.z - Math.abs(STEP_Z) * 2.2,
+        tallest.position.x - STEP_X * 2.2,
+        Math.max(0, topY - TOP_IMAGE_SIZE * 5),
+        tallest.position.z - Math.abs(STEP_Z) * 2.6,
       ),
     };
   }
