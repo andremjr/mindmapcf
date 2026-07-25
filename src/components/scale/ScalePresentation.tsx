@@ -330,16 +330,25 @@ function ScaleThreeScene({
     sceneRef.current = scene;
 
     let raf = 0;
-    const clock = new THREE.Clock();
+
+    const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+    const smoothstep = (t: number) => t * t * (3 - 2 * t);
 
     const render = () => {
-      const dt = Math.min(0.05, clock.getDelta());
-      const tgt = targetRef.current;
-      if (tgt) {
-        // Slow-in / slow-out via exponential smoothing.
-        const smooth = 1 - Math.exp(-dt * 1.35);
-        posRef.current.lerp(tgt.position, smooth);
-        lookRef.current.lerp(tgt.lookAt, smooth);
+      const tween = tweenRef.current;
+      if (tween) {
+        const raw = (performance.now() - tween.startAt) / tween.duration;
+        const t = raw >= 1 ? 1 : raw <= 0 ? 0 : raw;
+        // Position uses smooth ease-in-out across the whole trip.
+        const posT = easeInOut(t);
+        posRef.current.lerpVectors(tween.startPos, tween.endPos, posT);
+        // LookAt orientation is held near the starting angle for the first
+        // 55% of the transition, then aligns with the final framing near
+        // arrival — the camera "descends in the same angle" it started,
+        // letting every bar pass in perspective before locking front-on.
+        const lookRaw = Math.max(0, (t - 0.55) / 0.45);
+        const lookT = smoothstep(lookRaw);
+        lookRef.current.lerpVectors(tween.startLook, tween.endLook, lookT);
         camera.position.copy(posRef.current);
         camera.lookAt(lookRef.current);
       }
