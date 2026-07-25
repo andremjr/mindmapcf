@@ -253,13 +253,21 @@ function ScaleThreeScene({
     const aspect = Math.max(0.1, sizeRef.current.w / Math.max(1, sizeRef.current.h));
     const next = computeCameraTarget(sceneItems, step, aspect);
     targetRef.current = next;
+    // Duration scales with travel distance on a log curve: short hops stay
+    // snappy (~1s min) and huge dives (first descent from the tallest bar)
+    // get up to ~5s of breathing room so they don't feel glitchy-fast.
+    const dist = posRef.current.distanceTo(next.position);
+    const duration = Math.min(
+      5000,
+      Math.max(1000, 800 + 900 * Math.log2(1 + dist / 20)),
+    );
     tweenRef.current = {
       startPos: posRef.current.clone(),
       startLook: lookRef.current.clone(),
       endPos: next.position.clone(),
       endLook: next.lookAt.clone(),
       startAt: performance.now(),
-      duration: 1800, // ~1.8s per transition, feels tight for YouTube pacing
+      duration,
     };
   }, [step, sceneItems]);
 
