@@ -105,13 +105,16 @@ function computeClimbApproach(
     fromItem.position.z + (toItem.position.z - fromItem.position.z) * t
     + Math.abs(STEP_Z) * 0.6;
   const pos = new THREE.Vector3(apexX, apexY, apexZ);
-  // Look straight at the target's top image so it centers in the frame during
-  // the climb; the tail of the tween rotates to face the front panel.
+  // Always look DOWN during the climb (same feel as the descent): aim the
+  // gaze at the ground area near the target's base so the camera tilts
+  // downward while rising, then the tail of the tween rotates up to face
+  // the front panel.
   const look = new THREE.Vector3(
     toItem.position.x,
-    topImageY,
+    Math.min(fromItem.height, toItem.height) * 0.15,
     toItem.position.z,
   );
+
   return { pos, look };
 }
 
