@@ -378,13 +378,23 @@ function buildScene(
   horizon.position.set(midX, 0, midZ - spanZ);
   scene.add(horizon);
 
+  // --- Altitude reference bands & distant pillars (motion parallax) --------
+  const maxHeight = Math.max(...sceneItems.map((it) => it.height), 1);
+  addAltitudeReferences(scene, sceneItems, maxHeight, midX, midZ, spanX);
+  addBackgroundPillars(scene, sceneItems, maxHeight, midX, midZ);
+
   // --- Bars -----------------------------------------------------------------
   sceneItems.forEach((item) => {
     const color = new THREE.Color(item.color);
+    // Horizontal ruler bands tile vertically on the bar sides — every 2 world
+    // units — so vertical camera travel reads clearly on tall bars.
+    const bandMap = makeBandTexture();
+    bandMap.repeat.set(1, Math.max(1, item.height / 2));
     const barMat = new THREE.MeshStandardMaterial({
       color,
-      roughness: 0.5,
-      metalness: 0.18,
+      map: bandMap,
+      roughness: 0.55,
+      metalness: 0.15,
     });
     const geo = new THREE.BoxGeometry(BAR_WIDTH, item.height, BAR_DEPTH);
     const bar = new THREE.Mesh(geo, barMat);
@@ -407,6 +417,24 @@ function buildScene(
     cap.castShadow = true;
     scene.add(cap);
 
+    // Every 10 world units, a stronger accent ring wraps around the bar so
+    // the camera clearly "passes" reference marks on the way up.
+    const majorEvery = 10;
+    const majorCount = Math.floor(item.height / majorEvery);
+    for (let i = 1; i <= majorCount; i++) {
+      const ringY = i * majorEvery;
+      const ring = new THREE.Mesh(
+        new THREE.BoxGeometry(BAR_WIDTH + 0.06, 0.12, BAR_DEPTH + 0.06),
+        new THREE.MeshBasicMaterial({
+          color: hexColor(config.accentColor),
+          transparent: true,
+          opacity: 0.55,
+        }),
+      );
+      ring.position.set(item.position.x, ringY, item.position.z);
+      scene.add(ring);
+    }
+
     // --- Front-face panel (canvas texture) ---------------------------------
     const panelTexture = makePanelTexture(item, urls[item.node.id] ?? null, config);
     const panelMat = new THREE.MeshBasicMaterial({
@@ -419,7 +447,6 @@ function buildScene(
     scene.add(panel);
 
     // Thin accent frame around the panel — reinforces the "applied" look.
-    const frameThickness = 0.06;
     const frameGeo = new THREE.PlaneGeometry(PANEL_SIZE + 0.14, PANEL_SIZE + 0.14);
     const frameMat = new THREE.MeshBasicMaterial({
       color: hexColor(config.accentColor),
@@ -429,11 +456,96 @@ function buildScene(
     const frame = new THREE.Mesh(frameGeo, frameMat);
     frame.position.copy(item.panelCenter);
     frame.position.z -= 0.005;
-    frame.scale.multiplyScalar(1);
-    void frameThickness; // kept for reference; real depth handled by z-offset
     scene.add(frame);
   });
 }
+
+// Repeating horizontal-band texture used on every bar. White base with a
+// dark line + light highlight per tile, multiplied by the bar's color.
+function makeBandTexture(): THREE.CanvasTexture {
+  const c = document.createElement("canvas");
+  c.width = 32;
+  c.height = 128;
+  const ctx = c.getContext("2d")!;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, c.width, c.height);
+  // Dark band near the bottom of each tile.
+  ctx.fillStyle = "rgba(0,0,0,0.22)";
+  ctx.fillRect(0, 118, c.width, 4);
+  // Highlight just above it.
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  ctx.fillRect(0, 114, c.width, 3);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// Wide, faint horizontal stripes floating far behind the row of bars, placed
+// at meaningful altitudes so the camera clearly passes them on the way up.
+function addAltitudeReferences(
+  scene: THREE.Scene,
+  sceneItems: SceneItem[],
+  maxHeight: number,
+  midX: number,
+  midZ: number,
+  spanX: number,
+) {
+  const bandZ = midZ - Math.max(240, Math.abs(sceneItems.length * STEP_Z) + 200);
+  const bandWidth = spanX * 1.6;
+  const altitudes: number[] = [];
+  // Log-ish progression so short and tall bars both get several bands.
+  for (let a = 5; a <= maxHeight * 1.1; a *= 1.6) altitudes.push(Math.round(a));
+  altitudes.forEach((h) => {
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(bandWidth, 0.6),
+      new THREE.MeshBasicMaterial({
+        color: 0x94a3b8,
+        transparent: true,
+        opacity: 0.35,
+      }),
+    );
+    mesh.position.set(midX, h, bandZ);
+    scene.add(mesh);
+  });
+}
+
+// Slim distant pillars scattered behind the scene — pure lateral parallax
+// so the camera's horizontal travel between bars reads instantly.
+function addBackgroundPillars(
+  scene: THREE.Scene,
+  sceneItems: SceneItem[],
+  maxHeight: number,
+  midX: number,
+  midZ: number,
+) {
+  const count = 28;
+  const backZ = midZ - Math.max(180, Math.abs(sceneItems.length * STEP_Z) + 140);
+  const spread = Math.max(400, sceneItems.length * STEP_X * 1.4 + 300);
+  // Deterministic pseudo-random so builds are stable across renders.
+  let seed = 1;
+  const rand = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  for (let i = 0; i < count; i++) {
+    const w = 1.2 + rand() * 2.2;
+    const d = 1.2 + rand() * 2.2;
+    const h = maxHeight * (0.15 + rand() * 0.9);
+    const x = midX + (rand() - 0.5) * spread;
+    const z = backZ - rand() * 260;
+    const shade = 0.55 + rand() * 0.25;
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(w, h, d),
+      new THREE.MeshStandardMaterial({
+        color: new THREE.Color(shade, shade, shade * 1.02),
+        roughness: 0.9,
+        metalness: 0.05,
+      }),
+    );
+    mesh.position.set(x, h / 2, z);
+    scene.add(mesh);
+  }
+}
+
 
 function disposeMaterial(mat: THREE.Material) {
   const anyMat = mat as unknown as { map?: THREE.Texture | null };
