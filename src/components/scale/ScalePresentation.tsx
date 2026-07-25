@@ -630,10 +630,12 @@ function buildScene(
   horizon.position.set(midX, 0, midZ - spanZ);
   scene.add(horizon);
 
-  // --- Altitude reference bands & flat city skyline (motion parallax) ------
+  // --- Altitude reference bands & atmospheric background layers -----------
   const maxHeight = Math.max(...sceneItems.map((it) => it.height), 1);
+  const minHeight = Math.min(...sceneItems.map((it) => it.height), maxHeight);
   addAltitudeReferences(scene, sceneItems, maxHeight, midX, midZ, spanX);
-  addCitySkyline(scene, sceneItems, maxHeight, midX, midZ);
+  addAtmosphereLayers(scene, sceneItems, minHeight, maxHeight, midX, midZ);
+
 
 
   // --- Bars -----------------------------------------------------------------
