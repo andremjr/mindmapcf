@@ -791,3 +791,15 @@ function hexColor(value: string) {
   try { return new THREE.Color(value); }
   catch { return new THREE.Color("#38bdf8"); }
 }
+
+function compressWorldHeight(rawHeight: number): number {
+  if (!Number.isFinite(rawHeight) || rawHeight <= 0) return MIN_BAR_HEIGHT;
+  if (rawHeight <= MAX_WORLD_BAR_HEIGHT) return rawHeight;
+  const overflow = rawHeight / MAX_WORLD_BAR_HEIGHT;
+  return MAX_WORLD_BAR_HEIGHT * (1 + Math.log10(overflow + 1) * 0.18);
+}
+
+function chooseMajorStep(height: number): number {
+  if (!Number.isFinite(height) || height <= 0) return 10;
+  return Math.max(10, Math.ceil(height / MAX_MAJOR_RINGS_PER_BAR));
+}
