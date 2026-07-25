@@ -10,8 +10,9 @@ import { orderItems } from "./ScaleEditor";
 const BAR_WIDTH = 2.15;
 const BAR_DEPTH = 1.55;
 const BAR_SPACING = 5.6;
-const WORLD_MAX_HEIGHT = 820;
+const BASE_BAR_HEIGHT = 52;
 const CAMERA_FOV = 42;
+const MIN_BAR_HEIGHT = 0.12;
 
 type ScaleStep = { kind: "empty" } | { kind: "focus"; index: number };
 
@@ -107,10 +108,16 @@ function ScaleFrame({
 }) {
   const sceneItems = useMemo<SceneItem[]>(() => {
     const parsed = items.map((node) => ({ node, data: parseItemData(node.body) }));
-    const positives = parsed
-      .map((item) => Number.isFinite(item.data.value) ? Math.max(0, item.data.value) : 0)
-      .filter((value) => value > 0);
-    const maxValue = positives.length ? Math.max(...positives) : 1;
+    const firstPositive = parsed.find((item) => Number.isFinite(item.data.value) && item.data.value > 0)?.data.value;
+    const smallestPositive = parsed
+      .map((item) => Number.isFinite(item.data.value) ? item.data.value : 0)
+      .filter((value) => value > 0)
+      .reduce((min, value) => Math.min(min, value), Number.POSITIVE_INFINITY);
+    const referenceValue = firstPositive && firstPositive > 0
+      ? firstPositive
+      : Number.isFinite(smallestPositive)
+        ? smallestPositive
+        : 1;
     const mid = (parsed.length - 1) / 2;
 
     return parsed.map((item, index) => {
@@ -119,7 +126,7 @@ function ScaleFrame({
         node: item.node,
         data: item.data,
         x: (index - mid) * BAR_SPACING,
-        height: value > 0 ? Math.max(0.0001, (value / maxValue) * WORLD_MAX_HEIGHT) : 0.12,
+        height: value > 0 ? Math.max(MIN_BAR_HEIGHT, (value / referenceValue) * BASE_BAR_HEIGHT) : MIN_BAR_HEIGHT,
         value,
         color: item.node.color ?? config.barColor,
       };
@@ -246,17 +253,19 @@ function ScaleThreeScene({
 
     const width = Math.max(1, Math.floor(sizeRef.current.w));
     const height = Math.max(1, Math.floor(sizeRef.current.h));
+    const maxSceneHeight = Math.max(...sceneItems.map((item) => item.height), 1);
+    const farPlane = Math.max(50000, maxSceneHeight * 8, sceneItems.length * BAR_SPACING * 40);
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x050816, 80, 2400);
+    scene.fog = new THREE.Fog(0x050816, Math.max(80, maxSceneHeight * 0.08), Math.max(2400, maxSceneHeight * 3.2));
 
-    const camera = new THREE.PerspectiveCamera(CAMERA_FOV, width / height, 0.001, 50000);
+    const camera = new THREE.PerspectiveCamera(CAMERA_FOV, width / height, 0.01, farPlane);
     const initialTarget = computeCameraTarget(sceneItems, focusIndex, width / height);
     camera.position.copy(initialTarget.position);
     camera.lookAt(initialTarget.lookAt);
     lookRef.current.copy(initialTarget.lookAt);
     targetRef.current = initialTarget;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, logarithmicDepthBuffer: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(width, height, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -311,7 +320,7 @@ function ScaleThreeScene({
 
       const frame = sizeRef.current;
       const nextOverlay = itemsRef.current.map((item) => {
-        top.set(item.x, item.height + Math.max(0.45, item.height * 0.018), 0);
+        top.set(item.x, item.height + Math.min(2.4, Math.max(0.7, item.height * 0.012)), 0);
         projected.copy(top).project(camera);
         return {
           id: item.node.id,
@@ -424,7 +433,8 @@ function buildWorld(scene: THREE.Scene, sceneItems: SceneItem[], config: ReturnT
     mesh.receiveShadow = true;
     scene.add(mesh);
 
-    const topGeometry = new THREE.BoxGeometry(BAR_WIDTH * 1.08, Math.max(0.055, item.height * 0.002), BAR_DEPTH * 1.08);
+    const topThickness = Math.min(0.32, Math.max(0.055, item.height * 0.002));
+    const topGeometry = new THREE.BoxGeometry(BAR_WIDTH * 1.08, topThickness, BAR_DEPTH * 1.08);
     const topMaterial = new THREE.MeshStandardMaterial({
       color: highlight,
       metalness: 0.18,
@@ -433,7 +443,7 @@ function buildWorld(scene: THREE.Scene, sceneItems: SceneItem[], config: ReturnT
       emissiveIntensity: 0.08,
     });
     const top = new THREE.Mesh(topGeometry, topMaterial);
-    top.position.set(item.x, item.height + Math.max(0.028, item.height * 0.001), 0);
+    top.position.set(item.x, item.height + topThickness / 2, 0);
     top.castShadow = true;
     scene.add(top);
 
