@@ -322,6 +322,7 @@ function ScaleThreeScene({
     approachLook: THREE.Vector3 | null;
     leadAngleUntil: number;
     holdAngleUntil: number;
+    lookHoldUntil: number;
     initialDive: boolean;
     startAt: number;
     duration: number;
@@ -357,22 +358,18 @@ function ScaleThreeScene({
     let approachPos: THREE.Vector3 | null = null;
     let approachLook: THREE.Vector3 | null = null;
     let holdAngleUntil = 0.55;
+    let lookHoldUntil = 0.55;
     let leadAngleUntil = 0;
     if (initialDive) {
       approachPos = computeInitialDiveApproach(sceneItems, startPos, startLook);
-      holdAngleUntil = 0.88;
-      // Snap the gaze onto the first bar's top from frame one, so the target
-      // stays centered as the camera descends (previous bars pass through the
-      // frame). Only the final beat rotates to the front-facing framing.
-      const first = sceneItems[0];
-      if (first) {
-        startLook.set(
-          first.position.x,
-          first.height + TOP_IMAGE_SIZE * 0.6,
-          first.position.z,
-        );
-        lookRef.current.copy(startLook);
-      }
+      // Keep the opening bird's-eye direction locked for the first descent.
+      // Re-aiming the lookAt toward the tiny first bar from a very high start
+      // makes the view vector nearly vertical; near that singularity Three's
+      // lookAt basis can appear to yaw/roll, making the tallest bar swing from
+      // the upper-right diagonal to the right side. The camera now only moves
+      // down, then does the front-facing settle after the descent is complete.
+      holdAngleUntil = 0.94;
+      lookHoldUntil = 0.985;
 
     } else if (
       previousStep.kind === "focus" &&
@@ -391,11 +388,13 @@ function ScaleThreeScene({
           // (no lead pivot). Then settle rotates to the next bar's front.
           leadAngleUntil = 0;
           holdAngleUntil = 0.78;
+          lookHoldUntil = 0.78;
         } else {
           // Descent: pivot up first, hold the downward angle while descending,
           // then rotate to the front focus at the tail.
           leadAngleUntil = 0.18;
           holdAngleUntil = 0.78;
+          lookHoldUntil = 0.78;
         }
       }
     }
@@ -414,6 +413,7 @@ function ScaleThreeScene({
       approachLook,
       leadAngleUntil,
       holdAngleUntil,
+      lookHoldUntil,
       initialDive,
       startAt: performance.now(),
       duration,
@@ -544,7 +544,7 @@ function ScaleThreeScene({
           // bird's-eye angle until the final beat, preventing visual flipping.
           const startDir = tween.startLook.clone().sub(tween.startPos).normalize();
           const endDir = tween.endLook.clone().sub(tween.endPos).normalize();
-          const lookRaw = Math.max(0, (t - tween.holdAngleUntil) / Math.max(0.01, 1 - tween.holdAngleUntil));
+          const lookRaw = Math.max(0, (t - tween.lookHoldUntil) / Math.max(0.01, 1 - tween.lookHoldUntil));
           const lookT = smoothstep(lookRaw);
           const dir = startDir.lerp(endDir, lookT).normalize();
           lookRef.current.copy(posRef.current).addScaledVector(dir, 100);
