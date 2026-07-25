@@ -439,7 +439,7 @@ function ScaleThreeScene({
         // the first bar, then only in the final beat settle into the front view.
         // This creates the feeling of a distant point growing smoothly, instead
         // of bars popping in while the camera is forced to finish too quickly.
-        if (tween.initialDive && tween.approachPos) {
+        if (tween.approachPos) {
           if (t < tween.holdAngleUntil) {
             const diveT = easeInOut(t / tween.holdAngleUntil);
             posRef.current.lerpVectors(tween.startPos, tween.approachPos, diveT);
@@ -451,6 +451,7 @@ function ScaleThreeScene({
           const posT = easeInOut(t);
           posRef.current.lerpVectors(tween.startPos, tween.endPos, posT);
         }
+
         // Interpolate the VIEW DIRECTION, not the absolute lookAt point. During
         // the opening dive this keeps the exact bird's-eye angle while the
         // camera descends, preventing the tallest bar from visually flipping
