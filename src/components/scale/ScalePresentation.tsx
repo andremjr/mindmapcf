@@ -94,23 +94,22 @@ function computeClimbApproach(
   fromItem: SceneItem,
   toItem: SceneItem,
 ): { pos: THREE.Vector3; look: THREE.Vector3 } {
-  // Apex sits just above the target's top so the camera rises only as much as
-  // needed to face the target panel — no overshoot above the taller bar.
-  const apexY = toItem.height + TOP_IMAGE_SIZE * 1.1;
-  // Pos: biased toward the target on the diagonal, but still on the "camera
-  // side" (front of the bars). Keeps the same front-side depth so the camera
-  // just rises vertically instead of arcing behind the row.
-  const t = 0.8; // 0 = from, 1 = to; bias forward so the target is roughly under the camera
+  // Apex sits above the target's top image so the camera rises until the top
+  // panel is centered in the frame, then the tail of the tween just rotates
+  // to face the front panel — no descent afterwards.
+  const topImageY = toItem.height + TOP_IMAGE_SIZE * 0.6;
+  const apexY = topImageY + TOP_IMAGE_SIZE * 2.4;
+  const t = 0.85; // bias forward so the target sits roughly under the camera
   const apexX = fromItem.position.x + (toItem.position.x - fromItem.position.x) * t;
   const apexZ =
     fromItem.position.z + (toItem.position.z - fromItem.position.z) * t
-    + Math.abs(STEP_Z) * 0.9; // pull toward the viewer (front side)
+    + Math.abs(STEP_Z) * 0.6;
   const pos = new THREE.Vector3(apexX, apexY, apexZ);
-  // Look straight down at the target base so the framing "points down" during
-  // the climb; the tail of the tween rotates it to face the front panel.
+  // Look straight at the target's top image so it centers in the frame during
+  // the climb; the tail of the tween rotates to face the front panel.
   const look = new THREE.Vector3(
     toItem.position.x,
-    Math.min(toItem.height * 0.15, TOP_IMAGE_SIZE * 0.5),
+    topImageY,
     toItem.position.z,
   );
   return { pos, look };
