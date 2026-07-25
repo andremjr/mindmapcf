@@ -20,8 +20,20 @@ const MAX_MAJOR_RINGS_PER_BAR = 180;
 const MAX_ALTITUDE_BANDS = 90;
 const MAX_BACKGROUND_PILLAR_HEIGHT = 1_800;
 const CAMERA_FOV = 36;
-const PANEL_SIZE = 5.4;
+const PANEL_SIZE = 5.8;
 const PANEL_MARGIN_TOP = 0.35;
+// Big square photo that sits on top of the pedestal (viral-comparison style).
+const TOP_IMAGE_SIZE = 7.4;
+const TOP_IMAGE_LIFT = 0.6;
+
+// Vibrant palette used when a bar has no custom color — cycles per index so
+// consecutive bars are always visually distinct.
+const AUTO_PALETTE = [
+  "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16",
+  "#22c55e", "#10b981", "#14b8a6", "#06b6d4", "#0ea5e9",
+  "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef",
+  "#ec4899", "#f43f5e",
+];
 
 type ScaleStep =
   | { kind: "empty" }
@@ -159,7 +171,7 @@ function ScaleFrame({
         height,
         rawHeight,
         value,
-        color: item.node.color ?? config.barColor,
+        color: item.node.color ?? AUTO_PALETTE[index % AUTO_PALETTE.length],
         panelCenter,
         index,
       };
@@ -456,16 +468,48 @@ function buildScene(
     scene.add(panel);
 
     // Thin accent frame around the panel — reinforces the "applied" look.
-    const frameGeo = new THREE.PlaneGeometry(PANEL_SIZE + 0.14, PANEL_SIZE + 0.14);
+    const frameGeo = new THREE.PlaneGeometry(PANEL_SIZE + 0.18, PANEL_SIZE + 0.18);
     const frameMat = new THREE.MeshBasicMaterial({
-        color: safeColor(config.accentColor),
+      color: safeColor(item.color),
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.95,
     });
     const frame = new THREE.Mesh(frameGeo, frameMat);
     frame.position.copy(item.panelCenter);
     frame.position.z -= 0.005;
     scene.add(frame);
+
+    // --- Big square photo sitting ON TOP of the pedestal -------------------
+    // This is the signature look of viral 3D comparison videos.
+    const topTexture = makeTopImageTexture(item, urls[item.node.id] ?? null);
+    const topMat = new THREE.MeshBasicMaterial({
+      map: topTexture,
+      transparent: true,
+      toneMapped: false,
+    });
+    const topGeo = new THREE.PlaneGeometry(TOP_IMAGE_SIZE, TOP_IMAGE_SIZE);
+    const top = new THREE.Mesh(topGeo, topMat);
+    // Face the camera direction (looking down the row) so it reads from front.
+    top.position.set(
+      item.position.x,
+      item.height + TOP_IMAGE_LIFT + TOP_IMAGE_SIZE / 2,
+      item.position.z + BAR_DEPTH / 2 - 0.4,
+    );
+    top.rotation.y = 0;
+    scene.add(top);
+
+    // Small colored base plate under the top image (echoes the bar color).
+    const plate = new THREE.Mesh(
+      new THREE.BoxGeometry(TOP_IMAGE_SIZE * 0.95, 0.35, TOP_IMAGE_SIZE * 0.55),
+      new THREE.MeshStandardMaterial({
+        color: safeColor(item.color),
+        roughness: 0.35,
+        metalness: 0.4,
+      }),
+    );
+    plate.position.set(item.position.x, item.height + 0.18, item.position.z);
+    plate.castShadow = true;
+    scene.add(plate);
   });
 }
 
@@ -599,94 +643,64 @@ function makePanelTexture(
 function drawPanel(
   ctx: CanvasRenderingContext2D,
   item: SceneItem,
-  img: HTMLImageElement | null,
+  _img: HTMLImageElement | null,
   config: ReturnType<typeof parseScaleConfig>,
 ) {
   const W = ctx.canvas.width;
   const H = ctx.canvas.height;
   ctx.clearRect(0, 0, W, H);
 
-  // Panel background — dark card so it reads on any bar color.
+  const barColor = item.color;
+
+  // Panel background — dark card with a strong colored top strip.
   const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, "#0f172a");
+  bg.addColorStop(0, "#0b1220");
   bg.addColorStop(1, "#111c33");
   ctx.fillStyle = bg;
   roundRect(ctx, 0, 0, W, H, 44);
   ctx.fill();
 
-  // Accent inner border.
-  ctx.strokeStyle = config.accentColor;
-  ctx.lineWidth = 6;
-  roundRect(ctx, 14, 14, W - 28, H - 28, 36);
-  ctx.stroke();
-
-  // Rank chip (top-left).
-  const chip = `#${item.index + 1}`;
-  ctx.fillStyle = config.accentColor;
-  roundRect(ctx, 34, 34, 130, 60, 30);
+  // Colored header strip (bar color) — instantly ties the panel to the pedestal.
+  ctx.fillStyle = barColor;
+  roundRect(ctx, 0, 0, W, 260, 44);
   ctx.fill();
-  ctx.fillStyle = "#0f172a";
-  ctx.font = "bold 40px system-ui, -apple-system, Segoe UI, sans-serif";
+  ctx.fillStyle = "#0b1220";
+  ctx.fillRect(0, 220, W, 40);
+
+  // Rank chip (top-left, on the colored header).
+  ctx.fillStyle = "#0b1220";
+  roundRect(ctx, 40, 40, 170, 90, 45);
+  ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "900 68px system-ui, -apple-system, Segoe UI, sans-serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(chip, 34 + 65, 34 + 30);
+  ctx.fillText(`#${item.index + 1}`, 40 + 85, 40 + 45);
 
-  // Image area (large, top ~55%).
-  const pad = 44;
-  const imgY = 120;
-  const imgW = W - pad * 2;
-  const imgH = Math.round(H * 0.5);
-  ctx.save();
-  roundRect(ctx, pad, imgY, imgW, imgH, 26);
-  ctx.clip();
-  if (img && img.width > 0 && img.height > 0) {
-    const ir = img.width / img.height;
-    const br = imgW / imgH;
-    let dw: number, dh: number, dx: number, dy: number;
-    if (ir > br) {
-      dh = imgH;
-      dw = dh * ir;
-      dx = pad - (dw - imgW) / 2;
-      dy = imgY;
-    } else {
-      dw = imgW;
-      dh = dw / ir;
-      dx = pad;
-      dy = imgY - (dh - imgH) / 2;
-    }
-    ctx.drawImage(img, dx, dy, dw, dh);
-  } else {
-    ctx.fillStyle = "#1e293b";
-    ctx.fillRect(pad, imgY, imgW, imgH);
-    ctx.fillStyle = "#64748b";
-    ctx.font = "bold 260px system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText((item.node.text || "?").slice(0, 1).toUpperCase(), W / 2, imgY + imgH / 2);
-  }
-  ctx.restore();
+  // Name on the header (right of rank chip).
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  fitTextLeft(ctx, item.node.text || "", 240, 85, W - 280, 88, 900);
 
-  // Name.
-  ctx.fillStyle = "#f8fafc";
-  ctx.font = "bold 62px system-ui, -apple-system, Segoe UI, sans-serif";
+  // Value — the HERO number. Massive, centered, colored.
+  ctx.fillStyle = barColor;
   ctx.textAlign = "center";
-  ctx.textBaseline = "top";
-  const nameY = imgY + imgH + 26;
-  fitText(ctx, item.node.text || "", W / 2, nameY, W - pad * 2);
+  ctx.textBaseline = "middle";
+  const valSize = fitTextCenter(ctx, formatValue(item.value), W / 2, H * 0.58, W - 100, 260, 900);
 
-  // Value — the hero number.
-  ctx.fillStyle = config.accentColor;
-  ctx.font = "900 128px system-ui, -apple-system, Segoe UI, sans-serif";
-  const valY = nameY + 90;
-  ctx.fillText(formatValue(item.value), W / 2, valY);
-
-  // Unit.
+  // Unit below the value.
   const unit = item.data.unit || config.unit;
   if (unit) {
-    ctx.fillStyle = "#cbd5f5";
-    ctx.font = "500 44px system-ui, sans-serif";
-    ctx.fillText(unit, W / 2, valY + 140);
+    ctx.fillStyle = "#e2e8f0";
+    ctx.font = "600 72px system-ui, sans-serif";
+    ctx.fillText(unit, W / 2, H * 0.58 + valSize * 0.7);
   }
+
+  // Bottom accent bar in the item's color.
+  ctx.fillStyle = barColor;
+  roundRect(ctx, 40, H - 60, W - 80, 20, 10);
+  ctx.fill();
 }
 
 function roundRect(
@@ -703,20 +717,118 @@ function roundRect(
   ctx.closePath();
 }
 
-function fitText(
+function fitTextCenter(
   ctx: CanvasRenderingContext2D,
-  text: string,
-  x: number,
-  y: number,
-  maxWidth: number,
-) {
-  let size = 62;
-  ctx.font = `bold ${size}px system-ui, -apple-system, Segoe UI, sans-serif`;
-  while (size > 28 && ctx.measureText(text).width > maxWidth) {
-    size -= 4;
-    ctx.font = `bold ${size}px system-ui, -apple-system, Segoe UI, sans-serif`;
+  text: string, x: number, y: number, maxWidth: number, startSize: number, weight = 700,
+): number {
+  let size = startSize;
+  ctx.font = `${weight} ${size}px system-ui, -apple-system, Segoe UI, sans-serif`;
+  while (size > 40 && ctx.measureText(text).width > maxWidth) {
+    size -= 6;
+    ctx.font = `${weight} ${size}px system-ui, -apple-system, Segoe UI, sans-serif`;
   }
   ctx.fillText(text, x, y);
+  return size;
+}
+
+function fitTextLeft(
+  ctx: CanvasRenderingContext2D,
+  text: string, x: number, y: number, maxWidth: number, startSize: number, weight = 700,
+) {
+  let size = startSize;
+  ctx.font = `${weight} ${size}px system-ui, -apple-system, Segoe UI, sans-serif`;
+  while (size > 28 && ctx.measureText(text).width > maxWidth) {
+    size -= 4;
+    ctx.font = `${weight} ${size}px system-ui, -apple-system, Segoe UI, sans-serif`;
+  }
+  ctx.fillText(text, x, y);
+}
+
+// Big square photo texture that floats on top of the bar. Transparent
+// background so a rounded card + accent halo read against the sky.
+function makeTopImageTexture(item: SceneItem, url: string | null): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const ctx = canvas.getContext("2d")!;
+  drawTopImage(ctx, item, null);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  if (url) {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try { drawTopImage(ctx, item, img); tex.needsUpdate = true; } catch { /* tainted */ }
+    };
+    img.onerror = () => { /* keep placeholder */ };
+    img.src = url;
+  }
+  return tex;
+}
+
+function drawTopImage(
+  ctx: CanvasRenderingContext2D,
+  item: SceneItem,
+  img: HTMLImageElement | null,
+) {
+  const W = ctx.canvas.width;
+  const H = ctx.canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const color = item.color;
+  const pad = 30;
+
+  // Soft colored glow behind the card.
+  const grad = ctx.createRadialGradient(W / 2, H / 2, W * 0.2, W / 2, H / 2, W * 0.55);
+  grad.addColorStop(0, hexWithAlpha(color, 0.55));
+  grad.addColorStop(1, hexWithAlpha(color, 0));
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Colored border card.
+  ctx.fillStyle = color;
+  roundRect(ctx, pad, pad, W - pad * 2, H - pad * 2, 48);
+  ctx.fill();
+
+  // Inner white card that holds the photo.
+  const inner = 22;
+  ctx.fillStyle = "#ffffff";
+  roundRect(ctx, pad + inner, pad + inner, W - (pad + inner) * 2, H - (pad + inner) * 2, 34);
+  ctx.fill();
+
+  ctx.save();
+  const ix = pad + inner + 6;
+  const iy = pad + inner + 6;
+  const iw = W - (ix) * 2;
+  const ih = H - (iy) * 2;
+  roundRect(ctx, ix, iy, iw, ih, 28);
+  ctx.clip();
+  if (img && img.width > 0 && img.height > 0) {
+    const ir = img.width / img.height;
+    const br = iw / ih;
+    let dw: number, dh: number, dx: number, dy: number;
+    if (ir > br) { dh = ih; dw = dh * ir; dx = ix - (dw - iw) / 2; dy = iy; }
+    else { dw = iw; dh = dw / ir; dx = ix; dy = iy - (dh - ih) / 2; }
+    ctx.drawImage(img, dx, dy, dw, dh);
+  } else {
+    ctx.fillStyle = hexWithAlpha(color, 0.18);
+    ctx.fillRect(ix, iy, iw, ih);
+    ctx.fillStyle = color;
+    ctx.font = "900 420px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText((item.node.text || "?").slice(0, 1).toUpperCase(), W / 2, H / 2);
+  }
+  ctx.restore();
+}
+
+function hexWithAlpha(hex: string, alpha: number): string {
+  const c = new THREE.Color(hex);
+  const r = Math.round(c.r * 255);
+  const g = Math.round(c.g * 255);
+  const b = Math.round(c.b * 255);
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 // ============================================================================
