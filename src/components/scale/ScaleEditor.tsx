@@ -47,43 +47,91 @@ export function orderItems(items: MindNode[], sortMode: SortMode): MindNode[] {
   return withValues.map((w) => w.node);
 }
 
+/* ---------- viral-style palette (mirrors ScalePresentation.AUTO_PALETTE) ---------- */
+const AUTO_PALETTE = [
+  "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16",
+  "#22c55e", "#10b981", "#14b8a6", "#06b6d4", "#0ea5e9",
+  "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef",
+  "#ec4899", "#f43f5e",
+];
+export function paletteColorFor(index: number): string {
+  return AUTO_PALETTE[index % AUTO_PALETTE.length];
+}
+
 /* ---------- 3D bar preview (editor thumb) ----------
- * A compact isometric bar so the author can eyeball the composition
- * without going into presentation. */
+ * Isometric pedestal matching the presentation style: big square photo on
+ * top of the bar and integrated front-face panel (rank chip + name + value). */
 function BarPreview({
-  h, w = 60, color, accent, active,
-}: { h: number; w?: number; color: string; accent: string; active?: boolean }) {
-  const depth = Math.max(8, Math.min(24, w * 0.32));
+  h, w = 96, color, accent, active, rank, name, value, unit, imageUrl,
+}: {
+  h: number; w?: number; color: string; accent: string; active?: boolean;
+  rank: number; name: string; value: number; unit: string; imageUrl: string | null;
+}) {
+  const depth = Math.max(10, Math.min(28, w * 0.28));
+  const photoSize = Math.round(w * 1.05);
+  const photoLift = 6;
   return (
-    <div className="relative shrink-0" style={{ width: w + depth, height: h + depth }}>
-      {/* Top face */}
+    <div
+      className="relative shrink-0"
+      style={{ width: Math.max(w + depth, photoSize) + 4, height: h + depth + photoSize + photoLift }}
+    >
+      {/* Photo on top of the pedestal */}
       <div
-        className="absolute"
-        style={{
-          left: depth, top: 0, width: w, height: depth,
-          transform: "skewX(-45deg)", transformOrigin: "left top",
-          background: `linear-gradient(to bottom, ${mix(color, "#ffffff", 0.55)}, ${mix(color, "#ffffff", 0.25)})`,
-          borderRadius: "2px 2px 0 0",
-        }}
-      />
-      {/* Right side face */}
-      <div
-        className="absolute"
-        style={{
-          left: depth + w, top: depth, width: depth, height: h,
-          transform: "skewY(-45deg)", transformOrigin: "left top",
-          background: `linear-gradient(to right, ${mix(color, "#000000", 0.25)}, ${mix(color, "#000000", 0.45)})`,
-        }}
-      />
-      {/* Front face */}
-      <div
-        className="absolute rounded-sm"
-        style={{
-          left: depth, top: depth, width: w, height: h,
-          background: `linear-gradient(to bottom, ${mix(color, "#ffffff", 0.15)}, ${color} 60%, ${mix(color, "#000000", 0.2)})`,
-          boxShadow: active ? `0 0 18px ${accent}bb, inset 0 0 0 2px ${accent}` : "inset 0 0 0 1px rgba(255,255,255,0.15)",
-        }}
-      />
+        className="absolute left-1/2 -translate-x-1/2 rounded-lg overflow-hidden bg-white border border-black/10 shadow-lg grid place-items-center"
+        style={{ top: 0, width: photoSize, height: photoSize }}
+      >
+        {imageUrl ? (
+          <img src={imageUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <ImageIcon className="size-6 text-muted-foreground/60" />
+        )}
+      </div>
+
+      {/* Bar block below the photo */}
+      <div className="absolute" style={{ left: (Math.max(w + depth, photoSize) + 4 - (w + depth)) / 2, top: photoSize + photoLift, width: w + depth, height: h + depth }}>
+        {/* Top face */}
+        <div
+          className="absolute"
+          style={{
+            left: depth, top: 0, width: w, height: depth,
+            transform: "skewX(-45deg)", transformOrigin: "left top",
+            background: `linear-gradient(to bottom, ${mix(color, "#ffffff", 0.55)}, ${mix(color, "#ffffff", 0.25)})`,
+          }}
+        />
+        {/* Right side face */}
+        <div
+          className="absolute"
+          style={{
+            left: depth + w, top: depth, width: depth, height: h,
+            transform: "skewY(-45deg)", transformOrigin: "left top",
+            background: `linear-gradient(to right, ${mix(color, "#000000", 0.25)}, ${mix(color, "#000000", 0.45)})`,
+          }}
+        />
+        {/* Front face + integrated panel */}
+        <div
+          className="absolute rounded-sm overflow-hidden"
+          style={{
+            left: depth, top: depth, width: w, height: h,
+            background: `linear-gradient(to bottom, ${mix(color, "#ffffff", 0.15)}, ${color} 60%, ${mix(color, "#000000", 0.2)})`,
+            boxShadow: active ? `0 0 20px ${accent}bb, inset 0 0 0 2px ${accent}` : "inset 0 0 0 1px rgba(255,255,255,0.15)",
+          }}
+        >
+          <div
+            className="absolute inset-x-1 top-1 rounded-md bg-black/70 backdrop-blur px-1.5 py-1 flex flex-col gap-0.5 text-white"
+            style={{ boxShadow: `inset 0 0 0 1px ${accent}55` }}
+          >
+            <div className="flex items-center gap-1">
+              <span className="text-[9px] font-bold px-1 rounded" style={{ background: accent, color: "#0a0a0a" }}>
+                #{rank}
+              </span>
+              <span className="text-[9px] truncate opacity-90">{name}</span>
+            </div>
+            <div className="text-[11px] font-bold leading-tight truncate" style={{ color: accent }}>
+              {formatValue(value)}{unit ? ` ${unit}` : ""}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -99,7 +147,7 @@ function mix(a: string, b: string, t: number): string {
 }
 function hexToRgb(hex: string) {
   const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  if (!m) return null;
+  if (!m) return { r: 128, g: 128, b: 128 };
   return { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) };
 }
 export { mix };
