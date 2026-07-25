@@ -294,6 +294,7 @@ function ScaleThreeScene({
     endLook: THREE.Vector3;
     approachPos: THREE.Vector3 | null;
     approachLook: THREE.Vector3 | null;
+    leadAngleUntil: number;
     holdAngleUntil: number;
     initialDive: boolean;
     startAt: number;
@@ -330,6 +331,7 @@ function ScaleThreeScene({
     let approachPos: THREE.Vector3 | null = null;
     let approachLook: THREE.Vector3 | null = null;
     let holdAngleUntil = 0.55;
+    let leadAngleUntil = 0;
     if (initialDive) {
       approachPos = computeInitialDiveApproach(sceneItems, startPos, startLook);
       holdAngleUntil = 0.88;
@@ -344,9 +346,10 @@ function ScaleThreeScene({
         const climb = computeClimbApproach(fromItem, toItem);
         approachPos = climb.pos;
         approachLook = climb.look;
-        // Hold the "up looking down" framing for most of the tween, then
-        // settle into the front-face focus near the end.
-        holdAngleUntil = 0.62;
+        // Lead: pivot up to the downward-looking angle before moving.
+        // Hold: rise while keeping that angle. Tail: rotate to front focus.
+        leadAngleUntil = 0.18;
+        holdAngleUntil = 0.78;
       }
     }
     const dist = approachPos
@@ -360,6 +363,7 @@ function ScaleThreeScene({
       endLook: next.lookAt.clone(),
       approachPos,
       approachLook,
+      leadAngleUntil,
       holdAngleUntil,
       initialDive,
       startAt: performance.now(),
@@ -450,8 +454,12 @@ function ScaleThreeScene({
         // This creates the feeling of a distant point growing smoothly, instead
         // of bars popping in while the camera is forced to finish too quickly.
         if (tween.approachPos) {
-          if (t < tween.holdAngleUntil) {
-            const diveT = easeInOut(t / tween.holdAngleUntil);
+          if (tween.leadAngleUntil > 0 && t < tween.leadAngleUntil) {
+            // Lead phase: stay put while the camera pivots up.
+            posRef.current.copy(tween.startPos);
+          } else if (t < tween.holdAngleUntil) {
+            const range = tween.holdAngleUntil - tween.leadAngleUntil;
+            const diveT = easeInOut((t - tween.leadAngleUntil) / Math.max(0.01, range));
             posRef.current.lerpVectors(tween.startPos, tween.approachPos, diveT);
           } else {
             const settleT = easeInOut((t - tween.holdAngleUntil) / Math.max(0.01, 1 - tween.holdAngleUntil));
@@ -463,12 +471,13 @@ function ScaleThreeScene({
         }
 
         if (tween.approachLook) {
-          // Climb: lookAt travels through a downward-facing point above the
-          // target, so the camera visibly tilts down while rising, then
-          // rotates to the front-facing framing on the settle.
-          if (t < tween.holdAngleUntil) {
-            const lookT = easeInOut(t / tween.holdAngleUntil);
-            lookRef.current.lerpVectors(tween.startLook, tween.approachLook, lookT);
+          // Climb: rotate up first (lead), hold the downward angle while
+          // rising, then rotate to the front-facing framing on the settle.
+          if (tween.leadAngleUntil > 0 && t < tween.leadAngleUntil) {
+            const leadT = easeInOut(t / Math.max(0.01, tween.leadAngleUntil));
+            lookRef.current.lerpVectors(tween.startLook, tween.approachLook, leadT);
+          } else if (t < tween.holdAngleUntil) {
+            lookRef.current.copy(tween.approachLook);
           } else {
             const lookT = easeInOut((t - tween.holdAngleUntil) / Math.max(0.01, 1 - tween.holdAngleUntil));
             lookRef.current.lerpVectors(tween.approachLook, tween.endLook, lookT);
