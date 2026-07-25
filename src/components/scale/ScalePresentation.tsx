@@ -565,40 +565,107 @@ function addAltitudeReferences(
   });
 }
 
-// Slim distant pillars scattered behind the scene — pure lateral parallax
-// so the camera's horizontal travel between bars reads instantly.
-function addBackgroundPillars(
+// Flat 2D city silhouette behind the scene — one merged skyline block with
+// window cutouts. Purely 2D backdrop for a clean, professional look.
+function addCitySkyline(
   scene: THREE.Scene,
   sceneItems: SceneItem[],
   maxHeight: number,
   midX: number,
   midZ: number,
 ) {
-  const count = 28;
-  const backZ = midZ - Math.max(180, Math.abs(sceneItems.length * STEP_Z) + 140);
-  const spread = Math.max(400, sceneItems.length * STEP_X * 1.4 + 300);
-  // Deterministic pseudo-random so builds are stable across renders.
-  let seed = 1;
-  const rand = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
-  for (let i = 0; i < count; i++) {
-    const w = 1.2 + rand() * 2.2;
-    const d = 1.2 + rand() * 2.2;
-    const h = Math.min(MAX_BACKGROUND_PILLAR_HEIGHT, maxHeight * (0.15 + rand() * 0.9));
-    const x = midX + (rand() - 0.5) * spread;
-    const z = backZ - rand() * 260;
-    const shade = 0.55 + rand() * 0.25;
-    const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(w, h, d),
-      new THREE.MeshStandardMaterial({
-        color: new THREE.Color(shade, shade, shade * 1.02),
-        roughness: 0.9,
-        metalness: 0.05,
-      }),
-    );
-    mesh.position.set(x, h / 2, z);
-    scene.add(mesh);
-  }
+  const spanZ = Math.abs(sceneItems.length * STEP_Z);
+  const backZ = midZ - Math.max(320, spanZ + 260);
+  const width = Math.max(1800, sceneItems.length * STEP_X * 6 + 1200);
+  const height = Math.max(90, Math.min(maxHeight * 0.42, 340));
+  const tex = makeCityTexture(width, height);
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(width, height),
+    new THREE.MeshBasicMaterial({
+      map: tex,
+      transparent: true,
+      depthWrite: false,
+      fog: true,
+    }),
+  );
+  mesh.position.set(midX, height / 2, backZ);
+  mesh.renderOrder = -1;
+  scene.add(mesh);
 }
+
+function makeCityTexture(worldW: number, worldH: number): THREE.CanvasTexture {
+  const pxW = 2048;
+  const ratio = Math.max(0.04, Math.min(0.6, worldH / worldW));
+  const pxH = Math.max(128, Math.round(pxW * ratio));
+  const canvas = document.createElement("canvas");
+  canvas.width = pxW;
+  canvas.height = pxH;
+  const ctx = canvas.getContext("2d")!;
+  ctx.clearRect(0, 0, pxW, pxH);
+
+  // Deterministic building block layout.
+  let seed = 91;
+  const rand = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+
+  type B = { x: number; w: number; h: number; roof: "flat" | "step" | "peak" };
+  const buildings: B[] = [];
+  let x = -20;
+  while (x < pxW + 20) {
+    const w = 46 + Math.round(rand() * 120);
+    const h = Math.round(pxH * (0.32 + rand() * 0.68));
+    const r = rand();
+    const roof: B["roof"] = r < 0.55 ? "flat" : r < 0.85 ? "step" : "peak";
+    buildings.push({ x, w, h, roof });
+    x += w - 1; // slight overlap so silhouette merges into one block
+  }
+
+  ctx.fillStyle = "#b8c2d3";
+  for (const b of buildings) {
+    const top = pxH - b.h;
+    ctx.fillRect(b.x, top, b.w, b.h);
+    if (b.roof === "step") {
+      const sw = Math.round(b.w * 0.55);
+      const sh = Math.round(b.h * 0.12);
+      ctx.fillRect(b.x + Math.round((b.w - sw) / 2), top - sh, sw, sh);
+    } else if (b.roof === "peak") {
+      const pw = Math.round(b.w * 0.22);
+      const ph = Math.round(b.h * 0.18);
+      ctx.fillRect(b.x + Math.round((b.w - pw) / 2), top - ph, pw, ph);
+    }
+  }
+
+  // Punch out windows so they render as transparent holes over the sky.
+  ctx.globalCompositeOperation = "destination-out";
+  for (const b of buildings) {
+    const winW = 5;
+    const winH = 8;
+    const gapX = 9;
+    const gapY = 13;
+    const padX = 6;
+    const padTop = 16;
+    const padBottom = 8;
+    const cols = Math.floor((b.w - padX * 2) / (winW + gapX));
+    const rows = Math.floor((b.h - padTop - padBottom) / (winH + gapY));
+    if (cols <= 0 || rows <= 0) continue;
+    const top = pxH - b.h;
+    for (let c = 0; c < cols; c++) {
+      for (let r = 0; r < rows; r++) {
+        // Skip a few windows randomly for texture.
+        if (((c * 31 + r * 17 + b.x) % 11) === 0) continue;
+        const wx = b.x + padX + c * (winW + gapX);
+        const wy = top + padTop + r * (winH + gapY);
+        ctx.fillRect(wx, wy, winW, winH);
+      }
+    }
+  }
+  ctx.globalCompositeOperation = "source-over";
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
+
 
 
 function disposeMaterial(mat: THREE.Material) {
