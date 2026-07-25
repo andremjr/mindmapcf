@@ -246,12 +246,9 @@ export function ScaleEditor({ project }: { project: Project }) {
                   <SortBtn active={config.sortMode === "manual"} onClick={() => setConfig({ sortMode: "manual" })} icon={<MoveVertical className="size-3.5" />} label="Manual" />
                 </div>
                 <div className="h-6 w-px bg-border/60" />
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Escala</span>
-                  <SortBtn active={config.scaleMode === "real"} onClick={() => setConfig({ scaleMode: "real" })} icon={<ArrowUpDown className="size-3.5" />} label="Real" />
-                  <SortBtn active={config.scaleMode === "compressed"} onClick={() => setConfig({ scaleMode: "compressed" })} icon={<ArrowUpDown className="size-3.5" />} label="Comprimida" />
-                  <SortBtn active={config.scaleMode === "visual"} onClick={() => setConfig({ scaleMode: "visual" })} icon={<ArrowUpDown className="size-3.5" />} label="Visual" />
-                </div>
+                <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  Escala real proporcional — bares maiores mostram diferenças de ordem de grandeza como no mundo real.
+                </span>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <label className="block">
