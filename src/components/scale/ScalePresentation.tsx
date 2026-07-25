@@ -20,8 +20,20 @@ const MAX_MAJOR_RINGS_PER_BAR = 180;
 const MAX_ALTITUDE_BANDS = 90;
 const MAX_BACKGROUND_PILLAR_HEIGHT = 1_800;
 const CAMERA_FOV = 36;
-const PANEL_SIZE = 5.4;
+const PANEL_SIZE = 5.8;
 const PANEL_MARGIN_TOP = 0.35;
+// Big square photo that sits on top of the pedestal (viral-comparison style).
+const TOP_IMAGE_SIZE = 7.4;
+const TOP_IMAGE_LIFT = 0.6;
+
+// Vibrant palette used when a bar has no custom color — cycles per index so
+// consecutive bars are always visually distinct.
+const AUTO_PALETTE = [
+  "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16",
+  "#22c55e", "#10b981", "#14b8a6", "#06b6d4", "#0ea5e9",
+  "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef",
+  "#ec4899", "#f43f5e",
+];
 
 type ScaleStep =
   | { kind: "empty" }
