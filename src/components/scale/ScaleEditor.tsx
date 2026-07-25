@@ -19,7 +19,7 @@ import { launchRecording } from "@/lib/launchRecording";
 import type { RecordFormat } from "@/lib/recordFormats";
 import {
   DEFAULT_SCALE, formatValue, heightRatio, parseItemData, parseScaleConfig,
-  serializeItemData, type ScaleConfig, type ScaleMode, type SortMode,
+  serializeItemData, type ScaleConfig, type SortMode,
 } from "@/lib/scaleConfig";
 
 /* ---------- image resolution ---------- */
