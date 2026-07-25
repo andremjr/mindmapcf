@@ -421,9 +421,8 @@ function ScaleThreeScene({
     let endLook = next.lookAt.clone();
     let diveDirection: THREE.Vector3 | null = null;
     let leadLook: THREE.Vector3 | null = null;
-    // Opening dive: pivot in place until the smallest top is centered on
-    // screen (tallest top stays in the upper region), then translate straight
-    // along that new ray, then settle into the normal front-facing focus.
+    // Opening dive: keep the overview angle and translate straight toward the
+    // first bar's top. No sideways pivot — just a dolly/zoom in the same frame.
     if (initialDive && sceneItems[0]) {
       const diveTarget = computeInitialDiveTarget(sceneItems, startPos, startLook, endPos);
       if (diveTarget) {
@@ -431,9 +430,9 @@ function ScaleThreeScene({
         approachLook = diveTarget.approachLook;
         diveDirection = diveTarget.diveDirection;
         leadLook = diveTarget.leadLook;
-        // Short in-place pivot first, then a longer straight descent, then
-        // the final front-facing settle at the smallest bar.
-        leadAngleUntil = 0.18;
+        // No lead pivot: start moving immediately in the locked overview angle,
+        // then only settle to the front-facing first-bar framing at the end.
+        leadAngleUntil = 0;
         holdAngleUntil = 0.86;
         lookHoldUntil = 0.86;
       }
@@ -559,9 +558,8 @@ function ScaleThreeScene({
 
         if (tween.approachLook) {
           if (tween.diveDirection && tween.leadLook) {
-            // Opening dive: 1) pivot in place until smallest top is centered,
-            // 2) translate straight along that ray keeping smallest top
-            // centered (look = pos + dir*100), 3) settle to front-facing.
+            // Opening dive: translate in the locked overview direction, then
+            // settle to the front-facing first-bar framing at the end.
             if (t < tween.leadAngleUntil) {
               const leadT = easeInOut(t / Math.max(0.01, tween.leadAngleUntil));
               lookRef.current.lerpVectors(tween.startLook, tween.leadLook, leadT);
@@ -570,9 +568,9 @@ function ScaleThreeScene({
                 .copy(posRef.current)
                 .addScaledVector(tween.diveDirection, 100);
             } else {
-              const settleAnchor = tween.approachPos!
-                .clone()
-                .addScaledVector(tween.diveDirection, 100);
+              const settleAnchor = tween.approachPos
+                ? tween.approachPos.clone().addScaledVector(tween.diveDirection, 100)
+                : tween.startLook;
               const lookT = easeInOut(
                 (t - tween.holdAngleUntil) / Math.max(0.01, 1 - tween.holdAngleUntil),
               );
