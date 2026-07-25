@@ -420,17 +420,23 @@ function ScaleThreeScene({
 
     let endPos = next.position.clone();
     let endLook = next.lookAt.clone();
-    // Opening dive: preserve the overview angle (tallest top stays directed to
-    // the upper-right), translate that framing until the smallest top is on the
-    // same ray, then restore the normal front-facing focus at the end.
+    let diveDirection: THREE.Vector3 | null = null;
+    let leadLook: THREE.Vector3 | null = null;
+    // Opening dive: pivot in place until the smallest top is centered on
+    // screen (tallest top stays in the upper region), then translate straight
+    // along that new ray, then settle into the normal front-facing focus.
     if (initialDive && sceneItems[0]) {
       const diveTarget = computeInitialDiveTarget(sceneItems, startPos, startLook, endPos);
       if (diveTarget) {
         approachPos = diveTarget.approachPos;
         approachLook = diveTarget.approachLook;
-        leadAngleUntil = 0;
-        holdAngleUntil = 0.84;
-        lookHoldUntil = 0.84;
+        diveDirection = diveTarget.diveDirection;
+        leadLook = diveTarget.leadLook;
+        // Short in-place pivot first, then a longer straight descent, then
+        // the final front-facing settle at the smallest bar.
+        leadAngleUntil = 0.18;
+        holdAngleUntil = 0.86;
+        lookHoldUntil = 0.86;
       }
     }
     const dist = approachPos
@@ -444,6 +450,8 @@ function ScaleThreeScene({
       endLook,
       approachPos,
       approachLook,
+      diveDirection,
+      leadLook,
       leadAngleUntil,
       holdAngleUntil,
       lookHoldUntil,
