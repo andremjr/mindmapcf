@@ -71,24 +71,39 @@ function initialDiveDuration(distance: number) {
   return Math.max(3200, 2200 + 650 * Math.log2(1 + distance / 35));
 }
 
-function computeInitialDiveApproach(
+function computeInitialDiveTarget(
   sceneItems: SceneItem[],
   startPos: THREE.Vector3,
-  _startLook: THREE.Vector3,
-) {
+  fallbackEndPos: THREE.Vector3,
+): CameraTarget | null {
   const first = sceneItems[0];
   if (!first) return null;
-  // Purely vertical drop: keep the same X/Z as the overview so the camera
-  // descends straight down without any horizontal translation. This removes
-  // the parallax "swivel" of the tallest bar drifting across the frame; the
-  // camera simply falls with a constant downward angle until the settle beat
-  // rotates it into the front-facing framing of the first bar.
-  const approachY = Math.max(
-    first.panelCenter.y,
-    first.height * 0.7,
-    TOP_IMAGE_SIZE * 1.2,
+  const topCenter = new THREE.Vector3(
+    first.position.x,
+    first.height + TOP_IMAGE_LIFT + TOP_IMAGE_SIZE / 2,
+    first.position.z,
   );
-  return new THREE.Vector3(startPos.x, approachY, startPos.z);
+  const direction = topCenter.clone().sub(startPos);
+  if (direction.lengthSq() < 0.0001) {
+    return { position: fallbackEndPos.clone(), lookAt: topCenter };
+  }
+
+  direction.normalize();
+  const startDistance = startPos.distanceTo(topCenter);
+  const desiredDistance = Math.max(
+    TOP_IMAGE_SIZE * 3.2,
+    fallbackEndPos.distanceTo(topCenter),
+  );
+  const endDistance = Math.min(
+    desiredDistance,
+    Math.max(TOP_IMAGE_SIZE * 3.2, startDistance - TOP_IMAGE_SIZE * 3.2),
+  );
+
+  return {
+    // One straight dolly path: overview camera -> top of the smallest bar.
+    position: topCenter.clone().addScaledVector(direction, -endDistance),
+    lookAt: topCenter,
+  };
 }
 
 
@@ -353,25 +368,14 @@ function ScaleThreeScene({
     stepRef.current = step;
     if (!cameraRef.current || !sceneRef.current) return;
     const startPos = posRef.current.clone();
-    const startLook = lookRef.current.clone();
+    let startLook = lookRef.current.clone();
     const initialDive = isInitialDescent(previousStep, step);
     let approachPos: THREE.Vector3 | null = null;
     let approachLook: THREE.Vector3 | null = null;
     let holdAngleUntil = 0.55;
     let lookHoldUntil = 0.55;
     let leadAngleUntil = 0;
-    if (initialDive) {
-      approachPos = computeInitialDiveApproach(sceneItems, startPos, startLook);
-      // Keep the opening bird's-eye direction locked for the first descent.
-      // Re-aiming the lookAt toward the tiny first bar from a very high start
-      // makes the view vector nearly vertical; near that singularity Three's
-      // lookAt basis can appear to yaw/roll, making the tallest bar swing from
-      // the upper-right diagonal to the right side. The camera now only moves
-      // down, then does the front-facing settle after the descent is complete.
-      holdAngleUntil = 0.94;
-      lookHoldUntil = 0.985;
-
-    } else if (
+    if (!initialDive &&
       previousStep.kind === "focus" &&
       step.kind === "focus" &&
       previousStep.index !== step.index
@@ -402,16 +406,19 @@ function ScaleThreeScene({
 
     let endPos = next.position.clone();
     let endLook = next.lookAt.clone();
-    // On the opening dive, land the camera framing the TOP of the first bar
-    // (its top image) instead of the panel center — otherwise the descent
-    // resolves aimed at the base of a small bar. We shift the focus pose
-    // vertically so the viewing angle stays level with the top image.
+    // Opening dive: center the smallest bar's top immediately, then travel in
+    // a single straight line along that direction. No base target, no waypoint.
     if (initialDive && sceneItems[0]) {
-      const first = sceneItems[0];
-      const topCenterY = first.height + TOP_IMAGE_LIFT + TOP_IMAGE_SIZE / 2;
-      const dy = topCenterY - endLook.y;
-      endLook = new THREE.Vector3(first.position.x, topCenterY, first.position.z);
-      endPos = new THREE.Vector3(endPos.x, endPos.y + dy, endPos.z);
+      const diveTarget = computeInitialDiveTarget(sceneItems, startPos, endPos);
+      if (diveTarget) {
+        endPos = diveTarget.position;
+        endLook = diveTarget.lookAt;
+        startLook = diveTarget.lookAt.clone();
+        approachPos = null;
+        approachLook = null;
+        holdAngleUntil = 1;
+        lookHoldUntil = 0;
+      }
     }
     const dist = approachPos
       ? startPos.distanceTo(approachPos) + approachPos.distanceTo(endPos)
