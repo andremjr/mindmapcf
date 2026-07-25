@@ -74,7 +74,7 @@ function initialDiveDuration(distance: number) {
 function computeInitialDiveTarget(
   sceneItems: SceneItem[],
   startPos: THREE.Vector3,
-  _startLook: THREE.Vector3,
+  startLook: THREE.Vector3,
   fallbackEndPos: THREE.Vector3,
 ): {
   approachPos: THREE.Vector3;
@@ -85,11 +85,10 @@ function computeInitialDiveTarget(
   const first = sceneItems[0];
   if (!first) return null;
   const topCenter = getTopImageCenter(first);
-  // New view ray: from the current camera position straight to the smallest
-  // top. Pivoting to this direction (in place) puts the smallest top at the
-  // screen center while the tallest top stays in the upper region — exactly
-  // the framing we want to hold during the descent.
-  const direction = topCenter.clone().sub(startPos);
+  // Keep the exact overview viewing direction. The opening move should feel
+  // like a straight dolly/zoom through the same angled frame, not a new side
+  // rotation toward the first bar.
+  const direction = startLook.clone().sub(startPos);
   if (direction.lengthSq() < 0.0001) {
     return null;
   }
