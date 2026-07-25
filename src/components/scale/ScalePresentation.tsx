@@ -3,9 +3,7 @@ import type { MindNode, Project } from "@/lib/types";
 import { resolveImage } from "@/lib/imageStorage";
 import { PresentationShell } from "@/components/shared/PresentationShell";
 import { AvatarLayer } from "@/components/shared/AvatarLayer";
-import {
-  formatValue, heightRatio, parseItemData, parseScaleConfig,
-} from "@/lib/scaleConfig";
+import { formatValue, parseItemData, parseScaleConfig } from "@/lib/scaleConfig";
 import { orderItems, mix } from "./ScaleEditor";
 
 /* ---------- image resolver ---------- */
@@ -24,124 +22,10 @@ function useResolvedImage(node: MindNode | undefined) {
   return url;
 }
 
-/* ---------- 3D bar (presentation) ---------- */
-function Bar3D({
-  node, height, width, color, accent, active,
-}: {
-  node: MindNode;
-  height: number; // px
-  width: number;  // px
-  color: string;
-  accent: string;
-  active: boolean;
-}) {
-  const url = useResolvedImage(node);
-  const depth = Math.max(18, Math.min(46, width * 0.28));
-  const imgSize = Math.min(width * 0.9, 140);
-
-  return (
-    <div className="relative flex flex-col items-center" style={{ width: width + depth }}>
-      {/* Image + name above the bar (top of the bar) */}
-      <div
-        className="flex flex-col items-center transition-all duration-700"
-        style={{
-          transform: active ? "translateY(-6px) scale(1.04)" : "translateY(0)",
-          opacity: active ? 1 : 0.85,
-        }}
-      >
-        {url ? (
-          <div
-            className="rounded-full overflow-hidden bg-muted shadow-xl mb-2"
-            style={{
-              width: imgSize,
-              height: imgSize,
-              border: `3px solid ${active ? accent : "rgba(255,255,255,0.35)"}`,
-              boxShadow: active ? `0 8px 40px ${accent}88` : "0 4px 18px rgba(0,0,0,0.35)",
-            }}
-          >
-            <img src={url} alt="" className="size-full object-cover" />
-          </div>
-        ) : (
-          <div
-            className="rounded-full grid place-items-center bg-muted mb-2 text-2xl font-black text-muted-foreground"
-            style={{
-              width: imgSize, height: imgSize,
-              border: `3px solid ${active ? accent : "rgba(255,255,255,0.35)"}`,
-            }}
-          >{(node.text || "?").slice(0, 1).toUpperCase()}</div>
-        )}
-        <div
-          className="text-center font-semibold px-3 py-1 rounded-md backdrop-blur-sm"
-          style={{
-            fontSize: Math.max(14, Math.min(22, width * 0.16)),
-            color: "#fff",
-            background: active ? `${accent}dd` : "rgba(0,0,0,0.45)",
-            boxShadow: active ? `0 4px 20px ${accent}66` : undefined,
-            maxWidth: width + depth + 40,
-          }}
-        >
-          {node.text}
-        </div>
-      </div>
-
-      {/* Bar itself (with 3D faces) */}
-      <div className="relative mt-2" style={{ width: width + depth, height }}>
-        {/* Top face */}
-        <div
-          className="absolute"
-          style={{
-            left: depth, top: 0, width, height: depth,
-            transform: "skewX(-45deg)", transformOrigin: "left top",
-            background: `linear-gradient(to bottom, ${mix(color, "#ffffff", 0.55)}, ${mix(color, "#ffffff", 0.25)})`,
-            borderRadius: "4px 4px 0 0",
-          }}
-        />
-        {/* Right side */}
-        <div
-          className="absolute"
-          style={{
-            left: depth + width, top: depth, width: depth, height: height - depth,
-            transform: "skewY(-45deg)", transformOrigin: "left top",
-            background: `linear-gradient(to right, ${mix(color, "#000000", 0.25)}, ${mix(color, "#000000", 0.55)})`,
-          }}
-        />
-        {/* Front face */}
-        <div
-          className="absolute rounded-sm overflow-hidden"
-          style={{
-            left: depth, top: depth, width, height: height - depth,
-            background: `linear-gradient(to bottom, ${mix(color, "#ffffff", 0.15)}, ${color} 55%, ${mix(color, "#000000", 0.25)})`,
-            boxShadow: active
-              ? `0 0 32px ${accent}bb, inset 0 0 0 2px ${accent}`
-              : "inset 0 0 0 1px rgba(255,255,255,0.12)",
-            transition: "box-shadow 700ms ease",
-          }}
-        >
-          {/* Value label engraved on the front face when tall enough */}
-          {height > 90 && (
-            <div
-              className="absolute inset-x-0 bottom-3 text-center font-black tracking-tight"
-              style={{
-                color: "rgba(255,255,255,0.95)",
-                fontSize: Math.max(14, Math.min(28, width * 0.2)),
-                textShadow: "0 2px 8px rgba(0,0,0,0.6)",
-              }}
-            >
-              {formatValue(parseItemData(node.body).value)}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ---------- steps ---------- */
-type Step =
-  | { kind: "overview" }
-  | { kind: "focus"; index: number };
-
 /* ================================================================= */
+/* Steps: overview → focus 0 → focus 1 → ... → focus N-1 → overview   */
+type Step = { kind: "overview" } | { kind: "focus"; index: number };
+
 export function ScalePresentation({ project, recording }: { project: Project; recording: boolean }) {
   const rootNode = project.nodes.find((n) => n.role === "scale" || !n.parentId);
   const items = useMemo(
@@ -192,6 +76,102 @@ export function ScalePresentation({ project, recording }: { project: Project; re
   );
 }
 
+/* ---------- head (image + name) rendered as a screen-space overlay ---------- */
+function BarHead({
+  node, size, accent, active,
+}: { node: MindNode; size: number; accent: string; active: boolean }) {
+  const url = useResolvedImage(node);
+  const nameSize = Math.max(12, Math.min(22, size * 0.14));
+  return (
+    <div className="flex flex-col items-center pointer-events-none select-none">
+      {url ? (
+        <div
+          className="rounded-full overflow-hidden bg-muted"
+          style={{
+            width: size, height: size,
+            border: `3px solid ${active ? accent : "rgba(255,255,255,0.35)"}`,
+            boxShadow: active ? `0 8px 40px ${accent}aa` : "0 4px 18px rgba(0,0,0,0.35)",
+            transition: "border-color 700ms ease, box-shadow 700ms ease",
+          }}
+        >
+          <img src={url} alt="" className="size-full object-cover" />
+        </div>
+      ) : (
+        <div
+          className="rounded-full grid place-items-center bg-muted text-2xl font-black text-muted-foreground"
+          style={{
+            width: size, height: size,
+            border: `3px solid ${active ? accent : "rgba(255,255,255,0.35)"}`,
+          }}
+        >{(node.text || "?").slice(0, 1).toUpperCase()}</div>
+      )}
+      <div
+        className="mt-2 text-center font-semibold px-3 py-1 rounded-md backdrop-blur-sm"
+        style={{
+          fontSize: nameSize,
+          color: "#fff",
+          background: active ? `${accent}dd` : "rgba(0,0,0,0.55)",
+          boxShadow: active ? `0 4px 20px ${accent}66` : undefined,
+          maxWidth: Math.max(180, size * 1.8),
+          transition: "background 700ms ease",
+        }}
+      >
+        {node.text}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- 3D bar body (rendered inside the transformed stage) ---------- */
+function Bar3D({
+  node, hWorld, wWorld, color, accent, active,
+}: {
+  node: MindNode;
+  hWorld: number;
+  wWorld: number;
+  color: string;
+  accent: string;
+  active: boolean;
+}) {
+  const depth = Math.max(18, Math.min(46, wWorld * 0.28));
+  return (
+    <div className="absolute bottom-0" style={{ width: wWorld + depth, height: hWorld, left: 0 }}>
+      {/* Top face */}
+      <div
+        className="absolute"
+        style={{
+          left: depth, top: 0, width: wWorld, height: depth,
+          transform: "skewX(-45deg)", transformOrigin: "left top",
+          background: `linear-gradient(to bottom, ${mix(color, "#ffffff", 0.55)}, ${mix(color, "#ffffff", 0.25)})`,
+          borderRadius: "4px 4px 0 0",
+        }}
+      />
+      {/* Right side */}
+      <div
+        className="absolute"
+        style={{
+          left: depth + wWorld, top: depth, width: depth, height: hWorld - depth,
+          transform: "skewY(-45deg)", transformOrigin: "left top",
+          background: `linear-gradient(to right, ${mix(color, "#000000", 0.25)}, ${mix(color, "#000000", 0.55)})`,
+        }}
+      />
+      {/* Front face */}
+      <div
+        className="absolute rounded-sm overflow-hidden"
+        style={{
+          left: depth, top: depth, width: wWorld, height: hWorld - depth,
+          background: `linear-gradient(to bottom, ${mix(color, "#ffffff", 0.15)}, ${color} 55%, ${mix(color, "#000000", 0.25)})`,
+          boxShadow: active
+            ? `0 0 32px ${accent}bb, inset 0 0 0 2px ${accent}`
+            : "inset 0 0 0 1px rgba(255,255,255,0.12)",
+          transition: "box-shadow 700ms ease",
+        }}
+        aria-hidden
+      />
+    </div>
+  );
+}
+
 /* ---------- frame with camera ---------- */
 function ScaleFrame({
   size, items, config, focusIndex, isOverview, project,
@@ -203,47 +183,88 @@ function ScaleFrame({
   isOverview: boolean;
   project: Project;
 }) {
-  const values = items.map((n) => parseItemData(n.body).value);
-  const gap = Math.max(24, Math.min(80, size.w * 0.03));
-  const maxBars = items.length || 1;
-  // Bar width auto-scales so all fit; capped for readability.
-  const availableW = size.w - gap * (maxBars + 1);
-  const barW = Math.max(60, Math.min(180, availableW / maxBars));
-  const maxBarH = size.h * 0.6;
+  /* ----- world layout (real proportional heights) ----- */
+  // Fixed reserved screen space (in px) at top for the bar head (image + name)
+  // and at bottom for the ground line + shadow padding.
+  const HEAD_SCREEN = 210;   // ~180 image + label + margin
+  const GROUND_SCREEN = 60;
+
+  const values = items.map((n) => Math.max(0, parseItemData(n.body).value));
+  const positives = values.filter((v) => v > 0);
+  const minPos = positives.length ? Math.min(...positives) : 1;
+  const maxPos = positives.length ? Math.max(...positives) : 1;
+
+  // Choose pxPerUnit so the SMALLEST positive bar has a nice base height in world units.
+  // The camera later maps this to screen via `scale`. A world base of 400 gives the
+  // smallest bar a comfortable 1:2 aspect at its focused scale.
+  const BASE_WORLD_H = 400;
+  const pxPerUnit = BASE_WORLD_H / (minPos || 1);
+
+  const barWorldW = 200;                                          // fixed bar width in world
+  const depth = Math.max(18, Math.min(46, barWorldW * 0.28));
+  const gapWorld = 120;
+  const cellW = barWorldW + depth + gapWorld;
+
+  const heights = values.map((v) => (v > 0 ? v * pxPerUnit : 8));
+  const maxWorldH = Math.max(BASE_WORLD_H, ...heights);
+
+  const positions = items.map((_, i) => ({
+    left: gapWorld / 2 + i * cellW,
+    centerX: gapWorld / 2 + i * cellW + (barWorldW + depth) / 2,
+  }));
+  const totalWorldW = Math.max(cellW, gapWorld + items.length * cellW);
+
+  // Stage has ground at its bottom; bars sit at bottom, image head lives above bar top.
+  // Stage height in world coords equals maxWorldH (bars). Head is a screen overlay.
+
+  /* ----- camera ----- */
+  // Focus: scale so the focused bar's world height maps to (viewport.h - HEAD_SCREEN - GROUND_SCREEN).
+  // Overview: fit tallest bar into that same band AND fit total width into ~90% viewport width.
+  const usableH = Math.max(120, size.h - HEAD_SCREEN - GROUND_SCREEN);
+
+  let scale: number;
+  let translateX: number;
+  const groundScreenY = size.h - GROUND_SCREEN;
+
+  if (isOverview || focusIndex == null) {
+    const scaleForH = usableH / maxWorldH;
+    const scaleForW = (size.w * 0.9) / totalWorldW;
+    scale = Math.min(scaleForH, scaleForW);
+    translateX = (size.w - totalWorldW * scale) / 2;
+  } else {
+    const focusH = heights[focusIndex];
+    scale = usableH / Math.max(focusH, 1);
+    translateX = size.w / 2 - positions[focusIndex].centerX * scale;
+  }
+
+  // Stage transform: place ground line at groundScreenY. Stage top is at
+  // groundScreenY - maxWorldH*scale (may be off-screen for tall bars — intentional).
+  const stageTopScreen = groundScreenY - maxWorldH * scale;
+  const stageWidthScreen = totalWorldW * scale;
+
+  /* ----- helpers to project world coords → screen ----- */
+  function worldToScreen(worldX: number, worldYFromGround: number) {
+    // worldYFromGround measured upward from ground (0 = ground)
+    return {
+      x: translateX + worldX * scale,
+      y: groundScreenY - worldYFromGround * scale,
+    };
+  }
 
   const focusNode = focusIndex != null ? items[focusIndex] : null;
   const focusData = focusNode ? parseItemData(focusNode.body) : null;
-
-  // Build positions once per layout so camera can target them.
-  const layout = useMemo(() => {
-    const positions: Array<{ x: number; barH: number; w: number }> = [];
-    let cursor = gap;
-    items.forEach((n) => {
-      const ratio = heightRatio(parseItemData(n.body).value, values, config.scaleMode);
-      const barH = Math.max(60, Math.round(ratio * maxBarH));
-      const depth = Math.max(18, Math.min(46, barW * 0.28));
-      positions.push({ x: cursor + (barW + depth) / 2, barH, w: barW });
-      cursor += barW + depth + gap;
-    });
-    const totalW = cursor;
-    return { positions, totalW };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items.length, size.w, size.h, config.scaleMode, config.sortMode]);
-
-  // Camera: translate+scale a stage sized to `totalW`.
-  const overviewScale = Math.min(1, (size.w - 40) / Math.max(layout.totalW, 1));
-  const focusPos = focusIndex != null ? layout.positions[focusIndex] : null;
-  const targetScale = isOverview ? overviewScale : Math.min(2.4, Math.max(1.2, size.w / (focusPos!.w * 5)));
-  const stageWorldH = maxBarH + 260; // room for the head (image + name) above bar
-
-  const translateX = isOverview
-    ? (size.w - layout.totalW * overviewScale) / 2
-    : (size.w / 2 - focusPos!.x * targetScale);
-  // For focus, push the stage down a bit so the top of the bar (image + name)
-  // sits comfortably above the center of the frame.
-  const translateY = isOverview
-    ? (size.h - stageWorldH * overviewScale) / 2 - 20
-    : (size.h * 0.55 - (stageWorldH - focusPos!.barH - 260 / 2) * targetScale);
+  const focusRatioLabel = focusIndex != null && focusIndex > 0
+    ? (() => {
+        // Compare to previous bar for context ("X vezes a de Y")
+        const prev = items[focusIndex - 1];
+        const prevV = parseItemData(prev.body).value;
+        const cur = parseItemData(items[focusIndex].body).value;
+        if (!prevV || !cur || prevV <= 0) return null;
+        const times = cur / prevV;
+        if (!Number.isFinite(times) || times <= 1.05) return null;
+        return { times, prevName: prev.text || "anterior" };
+      })()
+    : null;
 
   return (
     <div className="absolute inset-0 overflow-hidden">
@@ -255,42 +276,59 @@ function ScaleFrame({
                        linear-gradient(to bottom, #0b1220 0%, #0b1220 55%, ${mix(config.barColor, "#000000", 0.6)} 100%)`,
         }}
       />
-      {/* Ground line */}
+
+      {/* Ground line — stays fixed at the frame's bottom band */}
       <div
         className="absolute inset-x-0"
         style={{
-          bottom: `${(size.h - (translateY + stageWorldH * targetScale)) / size.h * 100}%`,
-          height: 1, background: "rgba(255,255,255,0.15)",
+          top: groundScreenY,
+          height: 1,
+          background: "rgba(255,255,255,0.18)",
+          boxShadow: "0 0 40px rgba(255,255,255,0.08)",
         }}
       />
 
-      {/* Camera stage */}
+      {/* Camera stage: bars only */}
       <div
-        className="absolute top-0 left-0"
+        className="absolute"
         style={{
-          transform: `translate(${translateX}px, ${translateY}px) scale(${targetScale})`,
-          transformOrigin: "0 0",
-          transition: "transform 1600ms cubic-bezier(0.65, 0, 0.35, 1)",
-          width: layout.totalW,
-          height: stageWorldH,
+          left: translateX,
+          top: stageTopScreen,
+          width: stageWidthScreen,
+          height: maxWorldH * scale,
+          transition: "left 1600ms cubic-bezier(0.65, 0, 0.35, 1), top 1600ms cubic-bezier(0.65, 0, 0.35, 1), width 1600ms cubic-bezier(0.65, 0, 0.35, 1), height 1600ms cubic-bezier(0.65, 0, 0.35, 1)",
         }}
       >
-        {/* Bars row aligned to the ground */}
-        <div className="absolute inset-x-0 bottom-0 flex items-end" style={{ gap }}>
-          <div style={{ width: gap - gap }} />
+        <div
+          className="absolute inset-0"
+          style={{
+            transform: `scale(${scale})`,
+            transformOrigin: "0 100%",
+            transition: "transform 1600ms cubic-bezier(0.65, 0, 0.35, 1)",
+            width: totalWorldW,
+            height: maxWorldH,
+          }}
+        >
           {items.map((n, i) => {
-            const barH = layout.positions[i]?.barH ?? 80;
+            const hWorld = heights[i];
             const isActive = focusIndex === i;
             const dim = focusIndex != null && !isActive;
             return (
-              <div key={n.id}
-                className="transition-opacity duration-700"
-                style={{ opacity: dim ? 0.35 : 1 }}
+              <div
+                key={n.id}
+                className="absolute bottom-0"
+                style={{
+                  left: positions[i].left,
+                  width: barWorldW + depth,
+                  height: hWorld,
+                  opacity: dim ? 0.5 : 1,
+                  transition: "opacity 700ms ease",
+                }}
               >
                 <Bar3D
                   node={n}
-                  height={barH + 260}   /* space reserved above bar for head */
-                  width={barW}
+                  hWorld={hWorld}
+                  wWorld={barWorldW}
                   color={n.color ?? config.barColor}
                   accent={config.accentColor}
                   active={isActive}
@@ -298,22 +336,57 @@ function ScaleFrame({
               </div>
             );
           })}
-          <div style={{ width: gap - gap }} />
         </div>
       </div>
+
+      {/* Bar heads — screen-space overlays that ride the top of each bar.
+          Because they live outside the transformed stage, image & label stay
+          readable at any zoom level. */}
+      {items.map((n, i) => {
+        const isActive = focusIndex === i;
+        const dim = focusIndex != null && !isActive;
+        // Anchor: horizontal center of the bar (accounting for depth), top of the bar in world.
+        const anchorWorldX = positions[i].left + (barWorldW + depth) / 2;
+        const anchorWorldY = heights[i]; // from ground upward
+        const p = worldToScreen(anchorWorldX, anchorWorldY);
+        const headSize = isActive ? 168 : 116;
+        // Push head above the bar top by a small screen gap.
+        const gapAboveBar = 14;
+        return (
+          <div
+            key={`head-${n.id}`}
+            className="absolute"
+            style={{
+              left: p.x,
+              top: p.y - gapAboveBar,
+              transform: "translate(-50%, -100%)",
+              opacity: dim ? 0.35 : 1,
+              transition: "left 1600ms cubic-bezier(0.65, 0, 0.35, 1), top 1600ms cubic-bezier(0.65, 0, 0.35, 1), opacity 700ms ease",
+              zIndex: isActive ? 5 : 2,
+            }}
+          >
+            <BarHead
+              node={n}
+              size={headSize}
+              accent={config.accentColor}
+              active={isActive}
+            />
+          </div>
+        );
+      })}
 
       {/* Focus card (name + value + unit + note) — bottom-left overlay */}
       {focusNode && focusData && (
         <div
           key={focusNode.id}
-          className="absolute left-8 bottom-8 max-w-[42%] p-5 rounded-2xl border-2 backdrop-blur-md bg-black/50 animate-fade-in"
+          className="absolute left-8 bottom-24 max-w-[42%] p-5 rounded-2xl border-2 backdrop-blur-md bg-black/50 animate-fade-in"
           style={{
             borderColor: config.accentColor,
             boxShadow: `0 20px 60px ${config.accentColor}44`,
           }}
         >
           <div className="text-[11px] uppercase tracking-widest opacity-80" style={{ color: config.accentColor }}>
-            Comparação em escala
+            Comparação em escala real
           </div>
           <div className="text-3xl md:text-4xl font-black leading-tight text-white mt-1">
             {focusNode.text}
@@ -324,6 +397,11 @@ function ScaleFrame({
             </span>
             <span className="ml-2 text-lg opacity-90">{focusData.unit || config.unit}</span>
           </div>
+          {focusRatioLabel && (
+            <div className="mt-2 text-sm text-white/85">
+              ≈ <b>{focusRatioLabel.times.toLocaleString("pt-BR", { maximumFractionDigits: focusRatioLabel.times >= 10 ? 0 : 1 })}×</b> a de <i>{focusRatioLabel.prevName}</i>
+            </div>
+          )}
           {focusData.note && (
             <p className="mt-3 text-sm md:text-base text-white/85 leading-relaxed whitespace-pre-wrap">
               {focusData.note}
@@ -341,10 +419,7 @@ function ScaleFrame({
         </div>
       )}
 
-      <AvatarLayer
-        project={project}
-        frameSize={size}
-      />
+      <AvatarLayer project={project} frameSize={size} />
     </div>
   );
 }

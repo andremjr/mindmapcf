@@ -1,13 +1,13 @@
 // Config for the "Comparação de Escala" format.
 // Stored as JSON in the root node's `body` field.
 
-export type ScaleMode = "real" | "compressed" | "visual";
+export type ScaleMode = "real";
 export type SortMode = "asc" | "desc" | "manual";
 
 export interface ScaleConfig {
   /** Global default unit ("m", "km", "R$", "hab.", "km/h", ...). */
   unit: string;
-  /** How bar heights map from values. */
+  /** Always real (proportional). Kept for backward compat. */
   scaleMode: ScaleMode;
   /** Sort order of bars. */
   sortMode: SortMode;
@@ -21,7 +21,7 @@ export interface ScaleConfig {
 
 export const DEFAULT_SCALE: ScaleConfig = {
   unit: "",
-  scaleMode: "visual",
+  scaleMode: "real",
   sortMode: "asc",
   accentColor: "#fbbf24",
   barColor: "#38bdf8",
@@ -31,8 +31,7 @@ export const DEFAULT_SCALE: ScaleConfig = {
 export function parseScaleConfig(body: string | undefined): ScaleConfig {
   try {
     const p = body ? JSON.parse(body) : {};
-    const merged: ScaleConfig = { ...DEFAULT_SCALE, ...p };
-    if (!["real", "compressed", "visual"].includes(merged.scaleMode)) merged.scaleMode = "visual";
+    const merged: ScaleConfig = { ...DEFAULT_SCALE, ...p, scaleMode: "real" };
     if (!["asc", "desc", "manual"].includes(merged.sortMode)) merged.sortMode = "asc";
     if (typeof merged.accentColor !== "string" || !merged.accentColor) merged.accentColor = "#fbbf24";
     if (typeof merged.barColor !== "string" || !merged.barColor) merged.barColor = "#38bdf8";
@@ -74,33 +73,14 @@ export function serializeItemData(d: ScaleItemData): string {
 }
 
 /**
- * Map a numeric value → 0..1 bar height ratio according to the scale mode.
- * `values` is the list of ALL values on the chart (so we can normalize).
+ * Real proportional height ratio (0..1) relative to the tallest positive value.
+ * Kept for the editor thumbnail strip; the presentation now uses world coords directly.
  */
-export function heightRatio(value: number, values: number[], mode: ScaleMode): number {
+export function heightRatio(value: number, values: number[]): number {
   const pos = values.filter((v) => Number.isFinite(v) && v > 0);
   if (pos.length === 0 || !Number.isFinite(value) || value <= 0) return 0.02;
   const max = Math.max(...pos);
-  const min = Math.min(...pos);
-  if (mode === "real") {
-    return Math.max(0.02, Math.min(1, value / max));
-  }
-  if (mode === "compressed") {
-    // log compression: very tall bars still tower over short ones,
-    // but tiny values remain visible.
-    const lv = Math.log10(value + 1);
-    const lmax = Math.log10(max + 1);
-    return Math.max(0.06, Math.min(1, lv / lmax));
-  }
-  // "visual": rank-based spread → readable even when values differ by orders of magnitude
-  const sorted = [...pos].sort((a, b) => a - b);
-  const rank = sorted.indexOf(value);
-  const norm = sorted.length > 1 ? rank / (sorted.length - 1) : 1;
-  // Bias so the smallest still has ~18% of the tallest and the tallest is 100%.
-  const eased = 0.18 + norm * 0.82;
-  // Small tie-break using true value ratio so ties near max don't look identical.
-  const trueRatio = value / max;
-  return Math.max(0.06, Math.min(1, eased * 0.7 + trueRatio * 0.3));
+  return Math.max(0.02, Math.min(1, value / max));
 }
 
 export function formatValue(v: number): string {
