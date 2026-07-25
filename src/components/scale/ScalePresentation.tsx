@@ -171,7 +171,7 @@ function ScaleFrame({
         height,
         rawHeight,
         value,
-        color: item.node.color ?? config.barColor,
+        color: item.node.color ?? AUTO_PALETTE[index % AUTO_PALETTE.length],
         panelCenter,
         index,
       };
