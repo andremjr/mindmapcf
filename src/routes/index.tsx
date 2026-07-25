@@ -78,8 +78,9 @@ function LandingPage() {
               Transforme ideias em vídeos visuais e envolventes.
             </h1>
             <p className="mt-6 text-lg text-muted-foreground">
-              Escolha entre seis formatos — mapa mental, tier list, iceberg, chaveamento, matriz e
-              ranking — e apresente com câmera cinematográfica gravando o vídeo pronto para publicar.
+              Escolha entre sete formatos — mapa mental, tier list, iceberg, chaveamento, matriz,
+              ranking e comparação de escala 3D — e apresente com câmera cinematográfica gravando
+              o vídeo pronto para publicar.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/auth">
