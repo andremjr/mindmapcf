@@ -382,15 +382,26 @@ function ScaleThreeScene({
       const fromItem = sceneItems[previousStep.index];
       const toItem = sceneItems[step.index];
       if (fromItem && toItem) {
-        const climb = computeClimbApproach(fromItem, toItem);
-        approachPos = climb.pos;
-        approachLook = climb.look;
-        // Lead: pivot up to the downward-looking angle before moving.
-        // Hold: rise while keeping that angle. Tail: rotate to front focus.
-        leadAngleUntil = 0.18;
-        holdAngleUntil = 0.78;
+        const isAscent = toItem.height > fromItem.height;
+        if (isAscent) {
+          // Ascent: no waypoint. Rise + rotate simultaneously in a single
+          // interpolation so the framing lands right as the camera stops.
+          approachPos = null;
+          approachLook = null;
+          leadAngleUntil = 0;
+          holdAngleUntil = 0;
+        } else {
+          const climb = computeClimbApproach(fromItem, toItem);
+          approachPos = climb.pos;
+          approachLook = climb.look;
+          // Descent: pivot up, hold the downward angle while descending,
+          // rotate to front focus at the tail.
+          leadAngleUntil = 0.18;
+          holdAngleUntil = 0.78;
+        }
       }
     }
+
     const dist = approachPos
       ? startPos.distanceTo(approachPos) + approachPos.distanceTo(next.position)
       : startPos.distanceTo(next.position);
