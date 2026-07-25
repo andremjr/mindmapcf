@@ -294,11 +294,13 @@ function ScaleThreeScene({
     endPos: THREE.Vector3;
     endLook: THREE.Vector3;
     approachPos: THREE.Vector3 | null;
+    approachLook: THREE.Vector3 | null;
     holdAngleUntil: number;
     initialDive: boolean;
     startAt: number;
     duration: number;
   } | null>(null);
+
   const sizeRef = useRef(size);
   const stepRef = useRef<ScaleStep>(step);
 
