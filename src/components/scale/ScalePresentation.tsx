@@ -74,19 +74,23 @@ function initialDiveDuration(distance: number) {
 function computeInitialDiveApproach(
   sceneItems: SceneItem[],
   startPos: THREE.Vector3,
-  startLook: THREE.Vector3,
+  _startLook: THREE.Vector3,
 ) {
   const first = sceneItems[0];
   if (!first) return null;
-  const startDir = startLook.clone().sub(startPos).normalize();
-  const anchor = new THREE.Vector3(
-    first.position.x - STEP_X * 0.35,
-    Math.max(first.panelCenter.y, first.height * 0.7, TOP_IMAGE_SIZE * 1.2),
-    first.position.z - Math.abs(STEP_Z) * 0.45,
+  // Purely vertical drop: keep the same X/Z as the overview so the camera
+  // descends straight down without any horizontal translation. This removes
+  // the parallax "swivel" of the tallest bar drifting across the frame; the
+  // camera simply falls with a constant downward angle until the settle beat
+  // rotates it into the front-facing framing of the first bar.
+  const approachY = Math.max(
+    first.panelCenter.y,
+    first.height * 0.7,
+    TOP_IMAGE_SIZE * 1.2,
   );
-  const approachDistance = Math.max(72, TOP_IMAGE_SIZE * 10, first.height * 1.35);
-  return anchor.addScaledVector(startDir, -approachDistance);
+  return new THREE.Vector3(startPos.x, approachY, startPos.z);
 }
+
 
 // Bar-to-bar "climb": camera tilts down, rises up so the previous bar drops
 // out of view, then settles into the front-facing framing on the target bar.
