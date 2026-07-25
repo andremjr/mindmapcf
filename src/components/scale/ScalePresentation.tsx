@@ -342,6 +342,19 @@ function ScaleThreeScene({
     if (initialDive) {
       approachPos = computeInitialDiveApproach(sceneItems, startPos, startLook);
       holdAngleUntil = 0.88;
+      // Snap the gaze onto the first bar's top from frame one, so the target
+      // stays centered as the camera descends (previous bars pass through the
+      // frame). Only the final beat rotates to the front-facing framing.
+      const first = sceneItems[0];
+      if (first) {
+        startLook.set(
+          first.position.x,
+          first.height + TOP_IMAGE_SIZE * 0.6,
+          first.position.z,
+        );
+        lookRef.current.copy(startLook);
+      }
+
     } else if (
       previousStep.kind === "focus" &&
       step.kind === "focus" &&
