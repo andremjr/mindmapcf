@@ -383,24 +383,23 @@ function ScaleThreeScene({
       const toItem = sceneItems[step.index];
       if (fromItem && toItem) {
         const isAscent = toItem.height > fromItem.height;
+        const climb = computeClimbApproach(fromItem, toItem);
+        approachPos = climb.pos;
+        approachLook = climb.look;
         if (isAscent) {
-          // Ascent: no waypoint. Rise + rotate simultaneously in a single
-          // interpolation so the framing lands right as the camera stops.
-          approachPos = null;
-          approachLook = null;
+          // Ascent: rise + angle down to previous top happen simultaneously
+          // (no lead pivot). Then settle rotates to the next bar's front.
           leadAngleUntil = 0;
-          holdAngleUntil = 0;
+          holdAngleUntil = 0.78;
         } else {
-          const climb = computeClimbApproach(fromItem, toItem);
-          approachPos = climb.pos;
-          approachLook = climb.look;
-          // Descent: pivot up, hold the downward angle while descending,
-          // rotate to front focus at the tail.
+          // Descent: pivot up first, hold the downward angle while descending,
+          // then rotate to the front focus at the tail.
           leadAngleUntil = 0.18;
           holdAngleUntil = 0.78;
         }
       }
     }
+
 
     const dist = approachPos
       ? startPos.distanceTo(approachPos) + approachPos.distanceTo(next.position)
@@ -521,17 +520,25 @@ function ScaleThreeScene({
         }
 
         if (tween.approachLook) {
-          // Climb: rotate up first (lead), hold the downward angle while
-          // rising, then rotate to the front-facing framing on the settle.
+          // Climb: optional lead pivot, then rise while holding the downward
+          // angle, then rotate to the front-facing framing on the settle.
+          // When leadAngleUntil is 0, the angle lerps simultaneously with the
+          // position during the hold phase for a fluid combined motion.
           if (tween.leadAngleUntil > 0 && t < tween.leadAngleUntil) {
             const leadT = easeInOut(t / Math.max(0.01, tween.leadAngleUntil));
             lookRef.current.lerpVectors(tween.startLook, tween.approachLook, leadT);
           } else if (t < tween.holdAngleUntil) {
-            lookRef.current.copy(tween.approachLook);
+            if (tween.leadAngleUntil > 0) {
+              lookRef.current.copy(tween.approachLook);
+            } else {
+              const holdT = easeInOut(t / Math.max(0.01, tween.holdAngleUntil));
+              lookRef.current.lerpVectors(tween.startLook, tween.approachLook, holdT);
+            }
           } else {
             const lookT = easeInOut((t - tween.holdAngleUntil) / Math.max(0.01, 1 - tween.holdAngleUntil));
             lookRef.current.lerpVectors(tween.approachLook, tween.endLook, lookT);
           }
+
         } else {
           // Direction interpolation used by the opening dive: keeps the exact
           // bird's-eye angle until the final beat, preventing visual flipping.
