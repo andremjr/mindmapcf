@@ -518,10 +518,8 @@ function ScaleThreeScene({
       if (tween) {
         const raw = (performance.now() - tween.startAt) / tween.duration;
         const t = raw >= 1 ? 1 : raw <= 0 ? 0 : raw;
-        // Opening descent: travel first toward a bird's-eye approach point over
-        // the first bar, then only in the final beat settle into the front view.
-        // This creates the feeling of a distant point growing smoothly, instead
-        // of bars popping in while the camera is forced to finish too quickly.
+        // Opening descent is now intentionally simple: center the smallest
+        // bar's top immediately and dolly straight along that ray.
         if (tween.approachPos) {
           if (tween.leadAngleUntil > 0 && t < tween.leadAngleUntil) {
             // Lead phase: stay put while the camera pivots up.
@@ -560,8 +558,8 @@ function ScaleThreeScene({
           }
 
         } else {
-          // Direction interpolation used by the opening dive: keeps the exact
-          // bird's-eye angle until the final beat, preventing visual flipping.
+          // Direction interpolation; for the opening dive start/end directions
+          // are the same ray aimed at the smallest bar's top, so it stays centered.
           const startDir = tween.startLook.clone().sub(tween.startPos).normalize();
           const endDir = tween.endLook.clone().sub(tween.endPos).normalize();
           const lookRaw = Math.max(0, (t - tween.lookHoldUntil) / Math.max(0.01, 1 - tween.lookHoldUntil));
