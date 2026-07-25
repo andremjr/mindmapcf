@@ -88,6 +88,32 @@ function computeInitialDiveApproach(
   return anchor.addScaledVector(startDir, -approachDistance);
 }
 
+// Bar-to-bar "climb" approach: rise above the target bar looking down so the
+// viewer perceives the height comparison between the previous and next bar,
+// then the tween settles into the front-facing framing on the target.
+function computeClimbApproach(
+  fromItem: SceneItem,
+  toItem: SceneItem,
+) {
+  const goingUp = toItem.height >= fromItem.height;
+  const peakHeight = Math.max(fromItem.height, toItem.height);
+  // Rise a bit above the taller of the two so both tops are readable.
+  const y = peakHeight + Math.max(TOP_IMAGE_SIZE * 2.2, peakHeight * 0.18);
+  // Sit slightly behind the target on the diagonal so the camera can look
+  // down onto the target bar (and see the previous one falling away).
+  const backX = toItem.position.x - STEP_X * 0.55;
+  const backZ = toItem.position.z - Math.abs(STEP_Z) * 0.65;
+  const anchor = new THREE.Vector3(backX, y, backZ);
+  // Pull the anchor away from the target laterally when descending so the
+  // previous (taller) bar still appears in the shot for the comparison beat.
+  if (!goingUp) {
+    anchor.x -= STEP_X * 0.15;
+    anchor.z -= Math.abs(STEP_Z) * 0.15;
+  }
+  return anchor;
+}
+
+
 export function ScalePresentation({ project, recording }: { project: Project; recording: boolean }) {
   const rootNode = project.nodes.find((n) => n.role === "scale" || !n.parentId);
   const items = useMemo(
