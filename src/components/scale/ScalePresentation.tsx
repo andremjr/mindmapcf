@@ -342,7 +342,7 @@ function ScaleThreeScene({
       renderer.dispose();
       if (renderer.domElement.parentElement === mount) mount.removeChild(renderer.domElement);
     };
-  }, [config, focusIndex, sceneItems]);
+  }, [config, sceneItems]);
 
   const overlayById = useMemo(() => new Map(overlay.map((point) => [point.id, point])), [overlay]);
 
