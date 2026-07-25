@@ -54,6 +54,10 @@ type SceneItem = {
 
 type CameraTarget = { position: THREE.Vector3; lookAt: THREE.Vector3 };
 
+function isInitialDescent(from: ScaleStep, to: ScaleStep) {
+  return from.kind === "overview" && to.kind === "focus" && to.index === 0;
+}
+
 export function ScalePresentation({ project, recording }: { project: Project; recording: boolean }) {
   const rootNode = project.nodes.find((n) => n.role === "scale" || !n.parentId);
   const items = useMemo(
@@ -230,10 +234,12 @@ function ScaleThreeScene({
     startLook: THREE.Vector3;
     endPos: THREE.Vector3;
     endLook: THREE.Vector3;
+    holdAngleUntil: number;
     startAt: number;
     duration: number;
   } | null>(null);
   const sizeRef = useRef(size);
+  const stepRef = useRef<ScaleStep>(step);
 
   // Handle resize.
   useEffect(() => {
@@ -253,6 +259,9 @@ function ScaleThreeScene({
     const aspect = Math.max(0.1, sizeRef.current.w / Math.max(1, sizeRef.current.h));
     const next = computeCameraTarget(sceneItems, step, aspect);
     targetRef.current = next;
+    const previousStep = stepRef.current;
+    stepRef.current = step;
+    if (!cameraRef.current || !sceneRef.current) return;
     // Duration scales with travel distance on a log curve: short hops stay
     // snappy (~1s min) and huge dives (first descent from the tallest bar)
     // get up to ~5s of breathing room so they don't feel glitchy-fast.
@@ -266,6 +275,7 @@ function ScaleThreeScene({
       startLook: lookRef.current.clone(),
       endPos: next.position.clone(),
       endLook: next.lookAt.clone(),
+      holdAngleUntil: isInitialDescent(previousStep, step) ? 0.84 : 0.55,
       startAt: performance.now(),
       duration,
     };
@@ -350,13 +360,16 @@ function ScaleThreeScene({
         // Position uses smooth ease-in-out across the whole trip.
         const posT = easeInOut(t);
         posRef.current.lerpVectors(tween.startPos, tween.endPos, posT);
-        // LookAt orientation is held near the starting angle for the first
-        // 55% of the transition, then aligns with the final framing near
-        // arrival — the camera "descends in the same angle" it started,
-        // letting every bar pass in perspective before locking front-on.
-        const lookRaw = Math.max(0, (t - 0.55) / 0.45);
+        // Interpolate the VIEW DIRECTION, not the absolute lookAt point. During
+        // the opening dive this keeps the exact bird's-eye angle while the
+        // camera descends, preventing the tallest bar from visually flipping
+        // from upper-right to lower-right before the first-bar framing takes over.
+        const startDir = tween.startLook.clone().sub(tween.startPos).normalize();
+        const endDir = tween.endLook.clone().sub(tween.endPos).normalize();
+        const lookRaw = Math.max(0, (t - tween.holdAngleUntil) / Math.max(0.01, 1 - tween.holdAngleUntil));
         const lookT = smoothstep(lookRaw);
-        lookRef.current.lerpVectors(tween.startLook, tween.endLook, lookT);
+        const dir = startDir.lerp(endDir, lookT).normalize();
+        lookRef.current.copy(posRef.current).addScaledVector(dir, 100);
         camera.position.copy(posRef.current);
         camera.lookAt(lookRef.current);
       }
