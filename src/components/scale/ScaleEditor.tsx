@@ -152,6 +152,11 @@ function hexToRgb(hex: string) {
 }
 export { mix };
 
+function BarPreviewWithImage(props: Omit<React.ComponentProps<typeof BarPreview>, "imageUrl"> & { node: MindNode }) {
+  const url = useResolvedImage(props.node);
+  return <BarPreview {...props} imageUrl={url} />;
+}
+
 /* ================================================================= */
 export function ScaleEditor({ project }: { project: Project }) {
   const addNode = useStore((s) => s.addNode);
