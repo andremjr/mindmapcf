@@ -383,24 +383,23 @@ function ScaleThreeScene({
       const toItem = sceneItems[step.index];
       if (fromItem && toItem) {
         const isAscent = toItem.height > fromItem.height;
+        const climb = computeClimbApproach(fromItem, toItem);
+        approachPos = climb.pos;
+        approachLook = climb.look;
         if (isAscent) {
-          // Ascent: no waypoint. Rise + rotate simultaneously in a single
-          // interpolation so the framing lands right as the camera stops.
-          approachPos = null;
-          approachLook = null;
+          // Ascent: rise + angle down to previous top happen simultaneously
+          // (no lead pivot). Then settle rotates to the next bar's front.
           leadAngleUntil = 0;
-          holdAngleUntil = 0;
+          holdAngleUntil = 0.78;
         } else {
-          const climb = computeClimbApproach(fromItem, toItem);
-          approachPos = climb.pos;
-          approachLook = climb.look;
-          // Descent: pivot up, hold the downward angle while descending,
-          // rotate to front focus at the tail.
+          // Descent: pivot up first, hold the downward angle while descending,
+          // then rotate to the front focus at the tail.
           leadAngleUntil = 0.18;
           holdAngleUntil = 0.78;
         }
       }
     }
+
 
     const dist = approachPos
       ? startPos.distanceTo(approachPos) + approachPos.distanceTo(next.position)
