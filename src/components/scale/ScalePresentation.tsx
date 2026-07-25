@@ -559,11 +559,28 @@ function ScaleThreeScene({
         }
 
         if (tween.approachLook) {
-          // Climb: optional lead pivot, then rise while holding the downward
-          // angle, then rotate to the front-facing framing on the settle.
-          // When leadAngleUntil is 0, the angle lerps simultaneously with the
-          // position during the hold phase for a fluid combined motion.
-          if (tween.leadAngleUntil > 0 && t < tween.leadAngleUntil) {
+          if (tween.diveDirection && tween.leadLook) {
+            // Opening dive: 1) pivot in place until smallest top is centered,
+            // 2) translate straight along that ray keeping smallest top
+            // centered (look = pos + dir*100), 3) settle to front-facing.
+            if (t < tween.leadAngleUntil) {
+              const leadT = easeInOut(t / Math.max(0.01, tween.leadAngleUntil));
+              lookRef.current.lerpVectors(tween.startLook, tween.leadLook, leadT);
+            } else if (t < tween.holdAngleUntil) {
+              lookRef.current
+                .copy(posRef.current)
+                .addScaledVector(tween.diveDirection, 100);
+            } else {
+              const settleAnchor = tween.approachPos!
+                .clone()
+                .addScaledVector(tween.diveDirection, 100);
+              const lookT = easeInOut(
+                (t - tween.holdAngleUntil) / Math.max(0.01, 1 - tween.holdAngleUntil),
+              );
+              lookRef.current.lerpVectors(settleAnchor, tween.endLook, lookT);
+            }
+          } else if (tween.leadAngleUntil > 0 && t < tween.leadAngleUntil) {
+            // Climb lead pivot.
             const leadT = easeInOut(t / Math.max(0.01, tween.leadAngleUntil));
             lookRef.current.lerpVectors(tween.startLook, tween.approachLook, leadT);
           } else if (t < tween.holdAngleUntil) {
@@ -577,10 +594,7 @@ function ScaleThreeScene({
             const lookT = easeInOut((t - tween.holdAngleUntil) / Math.max(0.01, 1 - tween.holdAngleUntil));
             lookRef.current.lerpVectors(tween.approachLook, tween.endLook, lookT);
           }
-
         } else {
-          // Direction interpolation; for the opening dive start/end directions
-          // are the same ray aimed at the smallest bar's top, so it stays centered.
           const startDir = tween.startLook.clone().sub(tween.startPos).normalize();
           const endDir = tween.endLook.clone().sub(tween.endPos).normalize();
           const lookRaw = Math.max(0, (t - tween.lookHoldUntil) / Math.max(0.01, 1 - tween.lookHoldUntil));
