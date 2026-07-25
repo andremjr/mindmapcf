@@ -463,18 +463,30 @@ function ScaleThreeScene({
           posRef.current.lerpVectors(tween.startPos, tween.endPos, posT);
         }
 
-        // Interpolate the VIEW DIRECTION, not the absolute lookAt point. During
-        // the opening dive this keeps the exact bird's-eye angle while the
-        // camera descends, preventing the tallest bar from visually flipping
-        // from upper-right to lower-right before the first-bar framing takes over.
-        const startDir = tween.startLook.clone().sub(tween.startPos).normalize();
-        const endDir = tween.endLook.clone().sub(tween.endPos).normalize();
-        const lookRaw = Math.max(0, (t - tween.holdAngleUntil) / Math.max(0.01, 1 - tween.holdAngleUntil));
-        const lookT = smoothstep(lookRaw);
-        const dir = startDir.lerp(endDir, lookT).normalize();
-        lookRef.current.copy(posRef.current).addScaledVector(dir, 100);
+        if (tween.approachLook) {
+          // Climb: lookAt travels through a downward-facing point above the
+          // target, so the camera visibly tilts down while rising, then
+          // rotates to the front-facing framing on the settle.
+          if (t < tween.holdAngleUntil) {
+            const lookT = easeInOut(t / tween.holdAngleUntil);
+            lookRef.current.lerpVectors(tween.startLook, tween.approachLook, lookT);
+          } else {
+            const lookT = easeInOut((t - tween.holdAngleUntil) / Math.max(0.01, 1 - tween.holdAngleUntil));
+            lookRef.current.lerpVectors(tween.approachLook, tween.endLook, lookT);
+          }
+        } else {
+          // Direction interpolation used by the opening dive: keeps the exact
+          // bird's-eye angle until the final beat, preventing visual flipping.
+          const startDir = tween.startLook.clone().sub(tween.startPos).normalize();
+          const endDir = tween.endLook.clone().sub(tween.endPos).normalize();
+          const lookRaw = Math.max(0, (t - tween.holdAngleUntil) / Math.max(0.01, 1 - tween.holdAngleUntil));
+          const lookT = smoothstep(lookRaw);
+          const dir = startDir.lerp(endDir, lookT).normalize();
+          lookRef.current.copy(posRef.current).addScaledVector(dir, 100);
+        }
         camera.position.copy(posRef.current);
         camera.lookAt(lookRef.current);
+
       }
       renderer.render(scene, camera);
       raf = requestAnimationFrame(render);
