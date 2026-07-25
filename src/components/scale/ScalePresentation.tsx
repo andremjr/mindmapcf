@@ -918,31 +918,31 @@ function computeCameraTarget(
   const verticalFov = THREE.MathUtils.degToRad(CAMERA_FOV);
   const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * Math.max(0.1, aspect));
 
-  // Opening frame: high-angle "bird's eye" over the tallest bar looking down.
-  // The bar's top image is the foreground; the rest of the scene falls away
-  // beneath — the other bars don't need to fit, that perspective is the point.
+  // Opening frame: high-angle "bird's eye" over the tallest bar, tilted
+  // strongly downward. Composition: the bar's top image sits in the upper-
+  // right of the frame while the rest of the image opens down-left toward
+  // the ground, giving a real sense of altitude.
   if (step.kind === "overview") {
     const tallest = sceneItems.reduce((a, b) => (b.height > a.height ? b : a), sceneItems[0]);
     const topY = tallest.height + TOP_IMAGE_LIFT + TOP_IMAGE_SIZE / 2;
-    // Camera sits above and slightly in front of the tallest top image,
-    // tilted downward so we look down the bar and toward the ground.
-    const up = TOP_IMAGE_SIZE * 2.2;
-    const forwardOffset = TOP_IMAGE_SIZE * 2.4;
+    const up = TOP_IMAGE_SIZE * 2.6;
+    const forwardOffset = TOP_IMAGE_SIZE * 1.4;
     return {
       position: new THREE.Vector3(
         tallest.position.x - STEP_X * 0.35,
         topY + up,
         tallest.position.z + forwardOffset,
       ),
-      // Aim slightly below the top image so it stays as the foreground subject
-      // while the downward tilt reveals the drop toward the smaller bars.
+      // Aim well below and to the LEFT of the subject so the top image lands
+      // in the upper-right corner and the ground fills the lower-left area.
       lookAt: new THREE.Vector3(
-        tallest.position.x + STEP_X * 0.15,
-        topY - TOP_IMAGE_SIZE * 0.9,
-        tallest.position.z - Math.abs(STEP_Z) * 0.8,
+        tallest.position.x - STEP_X * 1.8,
+        Math.max(0, topY - TOP_IMAGE_SIZE * 6),
+        tallest.position.z - Math.abs(STEP_Z) * 2.2,
       ),
     };
   }
+
 
 
   // Focus on a specific bar — pulled back enough to fit BOTH the front panel
