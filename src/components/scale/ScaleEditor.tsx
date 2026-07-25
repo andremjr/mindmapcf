@@ -315,18 +315,21 @@ export function ScaleEditor({ project }: { project: Project }) {
             </div>
 
             {/* Bars strip preview */}
-            <div className="rounded-xl border border-border/60 bg-gradient-to-b from-muted/20 to-background p-6 overflow-hidden">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground mb-3">Prévia da comparação</div>
+            <div className="rounded-xl border border-border/60 bg-gradient-to-b from-slate-50 to-white dark:from-slate-900/60 dark:to-background p-6 overflow-x-auto">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground mb-3">
+                Prévia da apresentação — pedestais 3D no estilo dos vídeos virais
+              </div>
               {ordered.length === 0 ? (
                 <div className="text-sm text-muted-foreground italic py-10 text-center">
                   Nenhum item ainda. Adicione itens para ver a comparação.
                 </div>
               ) : (
-                <div className="flex items-end justify-center gap-6 min-h-[280px]">
-                  {ordered.map((n) => {
+                <div className="flex items-end justify-center gap-8 min-h-[360px]">
+                  {ordered.map((n, idx) => {
                     const data = parseItemData(n.body);
                     const ratio = heightRatio(data.value, values);
-                    const h = Math.max(20, Math.round(ratio * 240));
+                    const h = Math.max(28, Math.round(ratio * 220));
+                    const color = n.color ?? paletteColorFor(idx);
                     return (
                       <button
                         key={n.id}
@@ -334,17 +337,24 @@ export function ScaleEditor({ project }: { project: Project }) {
                         className="flex flex-col items-center gap-1 group focus:outline-none"
                         title="Clique para editar"
                       >
-                        <div className="text-[10px] text-muted-foreground group-hover:text-foreground">
-                          {formatValue(data.value)} {data.unit || config.unit}
-                        </div>
-                        <BarPreview h={h} color={n.color ?? config.barColor} accent={config.accentColor} active={editingId === n.id} />
-                        <div className="text-[11px] font-medium max-w-[100px] truncate">{n.text}</div>
+                        <BarPreviewWithImage
+                          h={h}
+                          color={color}
+                          accent={config.accentColor}
+                          active={editingId === n.id}
+                          rank={idx + 1}
+                          name={n.text}
+                          value={data.value}
+                          unit={data.unit || config.unit}
+                          node={n}
+                        />
                       </button>
                     );
                   })}
                 </div>
               )}
             </div>
+
 
             {/* Items list (compact rows for quick editing) */}
             <div className="rounded-lg border border-border/60 divide-y divide-border/60 overflow-hidden">
