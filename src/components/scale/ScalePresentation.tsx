@@ -15,6 +15,10 @@ const STEP_X = 8.5;
 const STEP_Z = -5.2;
 const BASE_BAR_HEIGHT = 36;
 const MIN_BAR_HEIGHT = 3;
+const MAX_WORLD_BAR_HEIGHT = 120_000;
+const MAX_MAJOR_RINGS_PER_BAR = 180;
+const MAX_ALTITUDE_BANDS = 90;
+const MAX_BACKGROUND_PILLAR_HEIGHT = 1_800;
 const CAMERA_FOV = 36;
 const PANEL_SIZE = 5.4;
 const PANEL_MARGIN_TOP = 0.35;
@@ -29,6 +33,7 @@ type SceneItem = {
   data: ReturnType<typeof parseItemData>;
   position: THREE.Vector3; // base center of bar (y = 0)
   height: number;
+  rawHeight: number;
   value: number;
   color: string;
   panelCenter: THREE.Vector3; // world-space center of the front-face panel
@@ -129,8 +134,11 @@ function ScaleFrame({
 
     return parsed.map((item, index) => {
       const value = Number.isFinite(item.data.value) ? Math.max(0, item.data.value) : 0;
-      const height = value > 0
+      const rawHeight = value > 0
         ? Math.max(MIN_BAR_HEIGHT, (value / reference) * BASE_BAR_HEIGHT)
+        : MIN_BAR_HEIGHT;
+      const height = value > 0
+        ? compressWorldHeight(rawHeight)
         : MIN_BAR_HEIGHT;
       const position = new THREE.Vector3(index * STEP_X, 0, index * STEP_Z);
       const panelHeight = PANEL_SIZE;
@@ -149,6 +157,7 @@ function ScaleFrame({
         data: item.data,
         position,
         height,
+        rawHeight,
         value,
         color: item.node.color ?? config.barColor,
         panelCenter,
@@ -229,11 +238,11 @@ function ScaleThreeScene({
     const height = Math.max(1, Math.floor(sizeRef.current.h));
     const maxHeight = Math.max(...sceneItems.map((it) => it.height), 1);
     const spanZ = Math.abs(sceneItems.length * STEP_Z) + 200;
-    const farPlane = Math.max(6000, maxHeight * 6, spanZ * 4);
+    const farPlane = Math.min(1_000_000, Math.max(6000, maxHeight * 6, spanZ * 4));
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color("#e8eef7");
-    scene.fog = new THREE.Fog(0xdfe6f2, Math.max(120, maxHeight * 0.6), Math.max(1600, maxHeight * 4));
+    scene.fog = new THREE.Fog(0xdfe6f2, Math.max(120, maxHeight * 0.35), Math.max(1600, Math.min(300_000, maxHeight * 3.2)));
 
     const camera = new THREE.PerspectiveCamera(CAMERA_FOV, width / height, 0.05, farPlane);
     const initialAspect = width / height;
@@ -263,8 +272,8 @@ function ScaleThreeScene({
     key.castShadow = true;
     key.shadow.mapSize.set(2048, 2048);
     key.shadow.camera.near = 5;
-    key.shadow.camera.far = Math.max(1200, maxHeight * 4);
-    const shadowSpan = Math.max(180, sceneItems.length * STEP_X + 200);
+    key.shadow.camera.far = Math.min(20_000, Math.max(1200, maxHeight * 0.8));
+    const shadowSpan = Math.min(2_000, Math.max(180, sceneItems.length * STEP_X + 200));
     key.shadow.camera.left = -shadowSpan;
     key.shadow.camera.right = shadowSpan;
     key.shadow.camera.top = shadowSpan;
@@ -277,7 +286,7 @@ function ScaleThreeScene({
     scene.add(fill);
 
     // Optional accent rim to catch the front face color.
-    const rim = new THREE.DirectionalLight(hexColor(config.accentColor), 0.35);
+    const rim = new THREE.DirectionalLight(safeColor(config.accentColor), 0.35);
     rim.position.set(0, 40, 220);
     scene.add(rim);
 
@@ -385,7 +394,7 @@ function buildScene(
 
   // --- Bars -----------------------------------------------------------------
   sceneItems.forEach((item) => {
-    const color = new THREE.Color(item.color);
+    const color = safeColor(item.color);
     // Horizontal ruler bands tile vertically on the bar sides — every 2 world
     // units — so vertical camera travel reads clearly on tall bars.
     const bandMap = makeBandTexture();
@@ -419,14 +428,14 @@ function buildScene(
 
     // Every 10 world units, a stronger accent ring wraps around the bar so
     // the camera clearly "passes" reference marks on the way up.
-    const majorEvery = 10;
-    const majorCount = Math.floor(item.height / majorEvery);
+      const majorEvery = chooseMajorStep(item.height);
+      const majorCount = Math.min(MAX_MAJOR_RINGS_PER_BAR, Math.floor(item.height / majorEvery));
     for (let i = 1; i <= majorCount; i++) {
       const ringY = i * majorEvery;
       const ring = new THREE.Mesh(
         new THREE.BoxGeometry(BAR_WIDTH + 0.06, 0.12, BAR_DEPTH + 0.06),
         new THREE.MeshBasicMaterial({
-          color: hexColor(config.accentColor),
+          color: safeColor(config.accentColor),
           transparent: true,
           opacity: 0.55,
         }),
@@ -449,7 +458,7 @@ function buildScene(
     // Thin accent frame around the panel — reinforces the "applied" look.
     const frameGeo = new THREE.PlaneGeometry(PANEL_SIZE + 0.14, PANEL_SIZE + 0.14);
     const frameMat = new THREE.MeshBasicMaterial({
-      color: hexColor(config.accentColor),
+        color: safeColor(config.accentColor),
       transparent: true,
       opacity: 0.9,
     });
@@ -496,7 +505,7 @@ function addAltitudeReferences(
   const bandWidth = spanX * 1.6;
   const altitudes: number[] = [];
   // Log-ish progression so short and tall bars both get several bands.
-  for (let a = 5; a <= maxHeight * 1.1; a *= 1.6) altitudes.push(Math.round(a));
+  for (let a = 5; a <= maxHeight * 1.1 && altitudes.length < MAX_ALTITUDE_BANDS; a *= 1.6) altitudes.push(Math.round(a));
   altitudes.forEach((h) => {
     const mesh = new THREE.Mesh(
       new THREE.PlaneGeometry(bandWidth, 0.6),
@@ -529,7 +538,7 @@ function addBackgroundPillars(
   for (let i = 0; i < count; i++) {
     const w = 1.2 + rand() * 2.2;
     const d = 1.2 + rand() * 2.2;
-    const h = maxHeight * (0.15 + rand() * 0.9);
+    const h = Math.min(MAX_BACKGROUND_PILLAR_HEIGHT, maxHeight * (0.15 + rand() * 0.9));
     const x = midX + (rand() - 0.5) * spread;
     const z = backZ - rand() * 260;
     const shade = 0.55 + rand() * 0.25;
@@ -778,7 +787,19 @@ function computeCameraTarget(
 // Helpers
 // ============================================================================
 
-function hexColor(value: string) {
+function safeColor(value: string) {
   try { return new THREE.Color(value); }
   catch { return new THREE.Color("#38bdf8"); }
+}
+
+function compressWorldHeight(rawHeight: number): number {
+  if (!Number.isFinite(rawHeight) || rawHeight <= 0) return MIN_BAR_HEIGHT;
+  if (rawHeight <= MAX_WORLD_BAR_HEIGHT) return rawHeight;
+  const overflow = rawHeight / MAX_WORLD_BAR_HEIGHT;
+  return MAX_WORLD_BAR_HEIGHT * (1 + Math.log10(overflow + 1) * 0.18);
+}
+
+function chooseMajorStep(height: number): number {
+  if (!Number.isFinite(height) || height <= 0) return 10;
+  return Math.max(10, Math.ceil(height / MAX_MAJOR_RINGS_PER_BAR));
 }
