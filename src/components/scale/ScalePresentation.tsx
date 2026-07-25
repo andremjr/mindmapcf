@@ -322,7 +322,25 @@ function ScaleThreeScene({
     const startPos = posRef.current.clone();
     const startLook = lookRef.current.clone();
     const initialDive = isInitialDescent(previousStep, step);
-    const approachPos = initialDive ? computeInitialDiveApproach(sceneItems, startPos, startLook) : null;
+    let approachPos: THREE.Vector3 | null = null;
+    let holdAngleUntil = 0.55;
+    if (initialDive) {
+      approachPos = computeInitialDiveApproach(sceneItems, startPos, startLook);
+      holdAngleUntil = 0.88;
+    } else if (
+      previousStep.kind === "focus" &&
+      step.kind === "focus" &&
+      previousStep.index !== step.index
+    ) {
+      const fromItem = sceneItems[previousStep.index];
+      const toItem = sceneItems[step.index];
+      if (fromItem && toItem) {
+        approachPos = computeClimbApproach(fromItem, toItem);
+        // Hold the "up looking down" framing for most of the tween, then
+        // settle into the front-face focus near the end.
+        holdAngleUntil = 0.62;
+      }
+    }
     const dist = approachPos
       ? startPos.distanceTo(approachPos) + approachPos.distanceTo(next.position)
       : startPos.distanceTo(next.position);
@@ -333,11 +351,12 @@ function ScaleThreeScene({
       endPos: next.position.clone(),
       endLook: next.lookAt.clone(),
       approachPos,
-      holdAngleUntil: initialDive ? 0.88 : 0.55,
+      holdAngleUntil,
       initialDive,
       startAt: performance.now(),
       duration,
     };
+
   }, [step, sceneItems]);
 
   useEffect(() => {
