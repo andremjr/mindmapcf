@@ -221,6 +221,18 @@ function ScaleThreeScene({
   const posRef = useRef(new THREE.Vector3());
   const lookRef = useRef(new THREE.Vector3());
   const targetRef = useRef<CameraTarget | null>(null);
+  // Fixed-duration tween state so every camera move takes roughly the same
+  // wall-clock time regardless of how far the camera has to travel. Bigger
+  // height jumps therefore feel faster (higher perceived speed) which is
+  // exactly what conveys "escala" to the viewer.
+  const tweenRef = useRef<{
+    startPos: THREE.Vector3;
+    startLook: THREE.Vector3;
+    endPos: THREE.Vector3;
+    endLook: THREE.Vector3;
+    startAt: number;
+    duration: number;
+  } | null>(null);
   const sizeRef = useRef(size);
 
   // Handle resize.
@@ -239,7 +251,16 @@ function ScaleThreeScene({
   // Camera targets follow the presentation step.
   useEffect(() => {
     const aspect = Math.max(0.1, sizeRef.current.w / Math.max(1, sizeRef.current.h));
-    targetRef.current = computeCameraTarget(sceneItems, step, aspect);
+    const next = computeCameraTarget(sceneItems, step, aspect);
+    targetRef.current = next;
+    tweenRef.current = {
+      startPos: posRef.current.clone(),
+      startLook: lookRef.current.clone(),
+      endPos: next.position.clone(),
+      endLook: next.lookAt.clone(),
+      startAt: performance.now(),
+      duration: 1800, // ~1.8s per transition, feels tight for YouTube pacing
+    };
   }, [step, sceneItems]);
 
   useEffect(() => {
