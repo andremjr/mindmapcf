@@ -94,13 +94,13 @@ function computeClimbApproach(
   fromItem: SceneItem,
   toItem: SceneItem,
 ): { pos: THREE.Vector3; look: THREE.Vector3 } {
-  const peakHeight = Math.max(fromItem.height, toItem.height);
-  // Peak apex is above the taller of the two so the ascent is legible.
-  const apexY = peakHeight + Math.max(TOP_IMAGE_SIZE * 3, peakHeight * 0.25);
+  // Apex sits just above the target's top so the camera rises only as much as
+  // needed to face the target panel — no overshoot above the taller bar.
+  const apexY = toItem.height + TOP_IMAGE_SIZE * 1.1;
   // Pos: biased toward the target on the diagonal, but still on the "camera
   // side" (front of the bars). Keeps the same front-side depth so the camera
   // just rises vertically instead of arcing behind the row.
-  const t = 0.7; // 0 = from, 1 = to; bias forward so the target is roughly under the camera
+  const t = 0.8; // 0 = from, 1 = to; bias forward so the target is roughly under the camera
   const apexX = fromItem.position.x + (toItem.position.x - fromItem.position.x) * t;
   const apexZ =
     fromItem.position.z + (toItem.position.z - fromItem.position.z) * t
