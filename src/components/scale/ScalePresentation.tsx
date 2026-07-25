@@ -74,29 +74,39 @@ function initialDiveDuration(distance: number) {
 function computeInitialDiveTarget(
   sceneItems: SceneItem[],
   startPos: THREE.Vector3,
-  startLook: THREE.Vector3,
+  _startLook: THREE.Vector3,
   fallbackEndPos: THREE.Vector3,
-): { approachPos: THREE.Vector3; approachLook: THREE.Vector3 } | null {
+): {
+  approachPos: THREE.Vector3;
+  approachLook: THREE.Vector3;
+  diveDirection: THREE.Vector3;
+  leadLook: THREE.Vector3;
+} | null {
   const first = sceneItems[0];
   if (!first) return null;
   const topCenter = getTopImageCenter(first);
-  const direction = startLook.clone().sub(startPos);
+  // New view ray: from the current camera position straight to the smallest
+  // top. Pivoting to this direction (in place) puts the smallest top at the
+  // screen center while the tallest top stays in the upper region — exactly
+  // the framing we want to hold during the descent.
+  const direction = topCenter.clone().sub(startPos);
   if (direction.lengthSq() < 0.0001) {
     return null;
   }
-
   direction.normalize();
+
   const desiredDistance = Math.max(
     TOP_IMAGE_SIZE * 2.8,
     fallbackEndPos.distanceTo(topCenter),
   );
   const approachPos = topCenter.clone().addScaledVector(direction, -desiredDistance);
+  const leadLook = startPos.clone().addScaledVector(direction, 100);
 
   return {
-    // Keep the exact overview angle: translate the whole framing until the
-    // smallest top sits on the same locked ray, then the tail settles front-on.
     approachPos,
     approachLook: approachPos.clone().addScaledVector(direction, 100),
+    diveDirection: direction,
+    leadLook,
   };
 }
 
@@ -337,6 +347,8 @@ function ScaleThreeScene({
     endLook: THREE.Vector3;
     approachPos: THREE.Vector3 | null;
     approachLook: THREE.Vector3 | null;
+    diveDirection: THREE.Vector3 | null;
+    leadLook: THREE.Vector3 | null;
     leadAngleUntil: number;
     holdAngleUntil: number;
     lookHoldUntil: number;
@@ -408,17 +420,23 @@ function ScaleThreeScene({
 
     let endPos = next.position.clone();
     let endLook = next.lookAt.clone();
-    // Opening dive: preserve the overview angle (tallest top stays directed to
-    // the upper-right), translate that framing until the smallest top is on the
-    // same ray, then restore the normal front-facing focus at the end.
+    let diveDirection: THREE.Vector3 | null = null;
+    let leadLook: THREE.Vector3 | null = null;
+    // Opening dive: pivot in place until the smallest top is centered on
+    // screen (tallest top stays in the upper region), then translate straight
+    // along that new ray, then settle into the normal front-facing focus.
     if (initialDive && sceneItems[0]) {
       const diveTarget = computeInitialDiveTarget(sceneItems, startPos, startLook, endPos);
       if (diveTarget) {
         approachPos = diveTarget.approachPos;
         approachLook = diveTarget.approachLook;
-        leadAngleUntil = 0;
-        holdAngleUntil = 0.84;
-        lookHoldUntil = 0.84;
+        diveDirection = diveTarget.diveDirection;
+        leadLook = diveTarget.leadLook;
+        // Short in-place pivot first, then a longer straight descent, then
+        // the final front-facing settle at the smallest bar.
+        leadAngleUntil = 0.18;
+        holdAngleUntil = 0.86;
+        lookHoldUntil = 0.86;
       }
     }
     const dist = approachPos
@@ -432,6 +450,8 @@ function ScaleThreeScene({
       endLook,
       approachPos,
       approachLook,
+      diveDirection,
+      leadLook,
       leadAngleUntil,
       holdAngleUntil,
       lookHoldUntil,
@@ -539,11 +559,28 @@ function ScaleThreeScene({
         }
 
         if (tween.approachLook) {
-          // Climb: optional lead pivot, then rise while holding the downward
-          // angle, then rotate to the front-facing framing on the settle.
-          // When leadAngleUntil is 0, the angle lerps simultaneously with the
-          // position during the hold phase for a fluid combined motion.
-          if (tween.leadAngleUntil > 0 && t < tween.leadAngleUntil) {
+          if (tween.diveDirection && tween.leadLook) {
+            // Opening dive: 1) pivot in place until smallest top is centered,
+            // 2) translate straight along that ray keeping smallest top
+            // centered (look = pos + dir*100), 3) settle to front-facing.
+            if (t < tween.leadAngleUntil) {
+              const leadT = easeInOut(t / Math.max(0.01, tween.leadAngleUntil));
+              lookRef.current.lerpVectors(tween.startLook, tween.leadLook, leadT);
+            } else if (t < tween.holdAngleUntil) {
+              lookRef.current
+                .copy(posRef.current)
+                .addScaledVector(tween.diveDirection, 100);
+            } else {
+              const settleAnchor = tween.approachPos!
+                .clone()
+                .addScaledVector(tween.diveDirection, 100);
+              const lookT = easeInOut(
+                (t - tween.holdAngleUntil) / Math.max(0.01, 1 - tween.holdAngleUntil),
+              );
+              lookRef.current.lerpVectors(settleAnchor, tween.endLook, lookT);
+            }
+          } else if (tween.leadAngleUntil > 0 && t < tween.leadAngleUntil) {
+            // Climb lead pivot.
             const leadT = easeInOut(t / Math.max(0.01, tween.leadAngleUntil));
             lookRef.current.lerpVectors(tween.startLook, tween.approachLook, leadT);
           } else if (t < tween.holdAngleUntil) {
@@ -557,10 +594,7 @@ function ScaleThreeScene({
             const lookT = easeInOut((t - tween.holdAngleUntil) / Math.max(0.01, 1 - tween.holdAngleUntil));
             lookRef.current.lerpVectors(tween.approachLook, tween.endLook, lookT);
           }
-
         } else {
-          // Direction interpolation; for the opening dive start/end directions
-          // are the same ray aimed at the smallest bar's top, so it stays centered.
           const startDir = tween.startLook.clone().sub(tween.startPos).normalize();
           const endDir = tween.endLook.clone().sub(tween.endPos).normalize();
           const lookRaw = Math.max(0, (t - tween.lookHoldUntil) / Math.max(0.01, 1 - tween.lookHoldUntil));
