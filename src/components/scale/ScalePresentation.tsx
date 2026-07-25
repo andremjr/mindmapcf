@@ -88,30 +88,34 @@ function computeInitialDiveApproach(
   return anchor.addScaledVector(startDir, -approachDistance);
 }
 
-// Bar-to-bar "climb" approach: rise above the target bar looking down so the
-// viewer perceives the height comparison between the previous and next bar,
-// then the tween settles into the front-facing framing on the target.
+// Bar-to-bar "climb": camera tilts down, rises up so the previous bar drops
+// out of view, then settles into the front-facing framing on the target bar.
 function computeClimbApproach(
   fromItem: SceneItem,
   toItem: SceneItem,
-) {
-  const goingUp = toItem.height >= fromItem.height;
+): { pos: THREE.Vector3; look: THREE.Vector3 } {
   const peakHeight = Math.max(fromItem.height, toItem.height);
-  // Rise a bit above the taller of the two so both tops are readable.
-  const y = peakHeight + Math.max(TOP_IMAGE_SIZE * 2.2, peakHeight * 0.18);
-  // Sit slightly behind the target on the diagonal so the camera can look
-  // down onto the target bar (and see the previous one falling away).
-  const backX = toItem.position.x - STEP_X * 0.55;
-  const backZ = toItem.position.z - Math.abs(STEP_Z) * 0.65;
-  const anchor = new THREE.Vector3(backX, y, backZ);
-  // Pull the anchor away from the target laterally when descending so the
-  // previous (taller) bar still appears in the shot for the comparison beat.
-  if (!goingUp) {
-    anchor.x -= STEP_X * 0.15;
-    anchor.z -= Math.abs(STEP_Z) * 0.15;
-  }
-  return anchor;
+  // Peak apex is above the taller of the two so the ascent is legible.
+  const apexY = peakHeight + Math.max(TOP_IMAGE_SIZE * 3, peakHeight * 0.25);
+  // Pos: biased toward the target on the diagonal, but still on the "camera
+  // side" (front of the bars). Keeps the same front-side depth so the camera
+  // just rises vertically instead of arcing behind the row.
+  const t = 0.7; // 0 = from, 1 = to; bias forward so the target is roughly under the camera
+  const apexX = fromItem.position.x + (toItem.position.x - fromItem.position.x) * t;
+  const apexZ =
+    fromItem.position.z + (toItem.position.z - fromItem.position.z) * t
+    + Math.abs(STEP_Z) * 0.9; // pull toward the viewer (front side)
+  const pos = new THREE.Vector3(apexX, apexY, apexZ);
+  // Look straight down at the target base so the framing "points down" during
+  // the climb; the tail of the tween rotates it to face the front panel.
+  const look = new THREE.Vector3(
+    toItem.position.x,
+    Math.min(toItem.height * 0.15, TOP_IMAGE_SIZE * 0.5),
+    toItem.position.z,
+  );
+  return { pos, look };
 }
+
 
 
 export function ScalePresentation({ project, recording }: { project: Project; recording: boolean }) {
@@ -290,11 +294,13 @@ function ScaleThreeScene({
     endPos: THREE.Vector3;
     endLook: THREE.Vector3;
     approachPos: THREE.Vector3 | null;
+    approachLook: THREE.Vector3 | null;
     holdAngleUntil: number;
     initialDive: boolean;
     startAt: number;
     duration: number;
   } | null>(null);
+
   const sizeRef = useRef(size);
   const stepRef = useRef<ScaleStep>(step);
 
@@ -323,6 +329,7 @@ function ScaleThreeScene({
     const startLook = lookRef.current.clone();
     const initialDive = isInitialDescent(previousStep, step);
     let approachPos: THREE.Vector3 | null = null;
+    let approachLook: THREE.Vector3 | null = null;
     let holdAngleUntil = 0.55;
     if (initialDive) {
       approachPos = computeInitialDiveApproach(sceneItems, startPos, startLook);
@@ -335,7 +342,9 @@ function ScaleThreeScene({
       const fromItem = sceneItems[previousStep.index];
       const toItem = sceneItems[step.index];
       if (fromItem && toItem) {
-        approachPos = computeClimbApproach(fromItem, toItem);
+        const climb = computeClimbApproach(fromItem, toItem);
+        approachPos = climb.pos;
+        approachLook = climb.look;
         // Hold the "up looking down" framing for most of the tween, then
         // settle into the front-face focus near the end.
         holdAngleUntil = 0.62;
@@ -351,11 +360,13 @@ function ScaleThreeScene({
       endPos: next.position.clone(),
       endLook: next.lookAt.clone(),
       approachPos,
+      approachLook,
       holdAngleUntil,
       initialDive,
       startAt: performance.now(),
       duration,
     };
+
 
   }, [step, sceneItems]);
 
@@ -452,18 +463,30 @@ function ScaleThreeScene({
           posRef.current.lerpVectors(tween.startPos, tween.endPos, posT);
         }
 
-        // Interpolate the VIEW DIRECTION, not the absolute lookAt point. During
-        // the opening dive this keeps the exact bird's-eye angle while the
-        // camera descends, preventing the tallest bar from visually flipping
-        // from upper-right to lower-right before the first-bar framing takes over.
-        const startDir = tween.startLook.clone().sub(tween.startPos).normalize();
-        const endDir = tween.endLook.clone().sub(tween.endPos).normalize();
-        const lookRaw = Math.max(0, (t - tween.holdAngleUntil) / Math.max(0.01, 1 - tween.holdAngleUntil));
-        const lookT = smoothstep(lookRaw);
-        const dir = startDir.lerp(endDir, lookT).normalize();
-        lookRef.current.copy(posRef.current).addScaledVector(dir, 100);
+        if (tween.approachLook) {
+          // Climb: lookAt travels through a downward-facing point above the
+          // target, so the camera visibly tilts down while rising, then
+          // rotates to the front-facing framing on the settle.
+          if (t < tween.holdAngleUntil) {
+            const lookT = easeInOut(t / tween.holdAngleUntil);
+            lookRef.current.lerpVectors(tween.startLook, tween.approachLook, lookT);
+          } else {
+            const lookT = easeInOut((t - tween.holdAngleUntil) / Math.max(0.01, 1 - tween.holdAngleUntil));
+            lookRef.current.lerpVectors(tween.approachLook, tween.endLook, lookT);
+          }
+        } else {
+          // Direction interpolation used by the opening dive: keeps the exact
+          // bird's-eye angle until the final beat, preventing visual flipping.
+          const startDir = tween.startLook.clone().sub(tween.startPos).normalize();
+          const endDir = tween.endLook.clone().sub(tween.endPos).normalize();
+          const lookRaw = Math.max(0, (t - tween.holdAngleUntil) / Math.max(0.01, 1 - tween.holdAngleUntil));
+          const lookT = smoothstep(lookRaw);
+          const dir = startDir.lerp(endDir, lookT).normalize();
+          lookRef.current.copy(posRef.current).addScaledVector(dir, 100);
+        }
         camera.position.copy(posRef.current);
         camera.lookAt(lookRef.current);
+
       }
       renderer.render(scene, camera);
       raf = requestAnimationFrame(render);
