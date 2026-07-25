@@ -798,60 +798,99 @@ function addAltitudeReferences(
   });
 }
 
-// Flat 2D city silhouette behind the scene — one merged skyline block with
-// window cutouts. Purely 2D backdrop for a clean, professional look.
-function addCitySkyline(
+// Atmospheric background: 7 flat parallax layers distributed by altitude,
+// from ground-level cityscape up to distant stars. Each layer is a wide
+// canvas-painted plane placed behind the row of bars at a fraction of the
+// tallest bar's height, so the composition always spans min→max range.
+function addAtmosphereLayers(
   scene: THREE.Scene,
   sceneItems: SceneItem[],
+  minHeight: number,
   maxHeight: number,
   midX: number,
   midZ: number,
 ) {
   const spanZ = Math.abs(sceneItems.length * STEP_Z);
-  const backZ = midZ - Math.max(320, spanZ + 260);
+  const backZ = midZ - Math.max(340, spanZ + 280);
   const width = Math.max(1800, sceneItems.length * STEP_X * 6 + 1200);
-  const height = Math.max(90, Math.min(maxHeight * 0.42, 340));
-  const tex = makeCityTexture(width, height);
-  const mesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(width, height),
-    new THREE.MeshBasicMaterial({
-      map: tex,
-      transparent: true,
-      depthWrite: false,
-      fog: true,
-    }),
-  );
-  mesh.position.set(midX, height / 2, backZ);
-  mesh.renderOrder = -1;
-  scene.add(mesh);
+
+  // Painters in order from lowest to highest altitude.
+  const painters: Array<(w: number, h: number) => THREE.CanvasTexture> = [
+    paintCityLayer,
+    paintSkyscraperLayer,
+    paintBalloonLayer,
+    paintAirplaneLayer,
+    paintCloudBirdLayer,
+    paintSpacecraftLayer,
+    paintCometStarLayer,
+  ];
+
+  // Distribute layer CENTER altitudes across [floor .. maxHeight], with a
+  // small floor above 0 so the ground city has room to sit on the horizon.
+  const floor = Math.max(minHeight * 0.05, maxHeight * 0.02, 4);
+  const top = Math.max(maxHeight, floor + 10);
+  const layerHeight = Math.max(60, (top - floor) / painters.length * 1.05);
+
+  painters.forEach((paint, i) => {
+    const centerY = floor + ((i + 0.5) / painters.length) * (top - floor);
+    const tex = paint(width, layerHeight);
+    const mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(width, layerHeight),
+      new THREE.MeshBasicMaterial({
+        map: tex,
+        transparent: true,
+        depthWrite: false,
+        fog: true,
+      }),
+    );
+    // Push farther-back layers slightly further away for a subtle parallax.
+    const zOffset = -i * 18;
+    mesh.position.set(midX, centerY, backZ + zOffset);
+    mesh.renderOrder = -10 + i;
+    scene.add(mesh);
+  });
 }
 
-function makeCityTexture(worldW: number, worldH: number): THREE.CanvasTexture {
-  const pxW = 2048;
-  const ratio = Math.max(0.04, Math.min(0.6, worldH / worldW));
-  const pxH = Math.max(128, Math.round(pxW * ratio));
+// ---------- Layer painters --------------------------------------------------
+
+function makeLayerCanvas(worldW: number, worldH: number, pxW = 2048) {
+  const ratio = Math.max(0.04, Math.min(0.9, worldH / worldW));
+  const pxH = Math.max(160, Math.round(pxW * ratio));
   const canvas = document.createElement("canvas");
   canvas.width = pxW;
   canvas.height = pxH;
   const ctx = canvas.getContext("2d")!;
   ctx.clearRect(0, 0, pxW, pxH);
+  return { canvas, ctx, pxW, pxH };
+}
 
-  // Deterministic building block layout.
-  let seed = 91;
-  const rand = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+function finalizeLayer(canvas: HTMLCanvasElement): THREE.CanvasTexture {
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  return tex;
+}
 
+function seededRand(seed: number) {
+  let s = seed;
+  return () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+}
+
+// Layer 1 — ground-level city silhouette (short-to-mid buildings).
+function paintCityLayer(worldW: number, worldH: number): THREE.CanvasTexture {
+  const { canvas, ctx, pxW, pxH } = makeLayerCanvas(worldW, worldH);
+  const rand = seededRand(91);
   type B = { x: number; w: number; h: number; roof: "flat" | "step" | "peak" };
   const buildings: B[] = [];
   let x = -20;
   while (x < pxW + 20) {
     const w = 46 + Math.round(rand() * 120);
-    const h = Math.round(pxH * (0.32 + rand() * 0.68));
+    const h = Math.round(pxH * (0.35 + rand() * 0.55));
     const r = rand();
     const roof: B["roof"] = r < 0.55 ? "flat" : r < 0.85 ? "step" : "peak";
     buildings.push({ x, w, h, roof });
-    x += w - 1; // slight overlap so silhouette merges into one block
+    x += w - 1;
   }
-
   ctx.fillStyle = "#b8c2d3";
   for (const b of buildings) {
     const top = pxH - b.h;
@@ -866,38 +905,254 @@ function makeCityTexture(worldW: number, worldH: number): THREE.CanvasTexture {
       ctx.fillRect(b.x + Math.round((b.w - pw) / 2), top - ph, pw, ph);
     }
   }
-
-  // Punch out windows so they render as transparent holes over the sky.
+  // Windows as transparent cutouts.
   ctx.globalCompositeOperation = "destination-out";
   for (const b of buildings) {
-    const winW = 5;
-    const winH = 8;
-    const gapX = 9;
-    const gapY = 13;
-    const padX = 6;
-    const padTop = 16;
-    const padBottom = 8;
-    const cols = Math.floor((b.w - padX * 2) / (winW + gapX));
-    const rows = Math.floor((b.h - padTop - padBottom) / (winH + gapY));
+    const winW = 5, winH = 8, gapX = 9, gapY = 13;
+    const cols = Math.floor((b.w - 12) / (winW + gapX));
+    const rows = Math.floor((b.h - 24) / (winH + gapY));
     if (cols <= 0 || rows <= 0) continue;
     const top = pxH - b.h;
     for (let c = 0; c < cols; c++) {
       for (let r = 0; r < rows; r++) {
-        // Skip a few windows randomly for texture.
         if (((c * 31 + r * 17 + b.x) % 11) === 0) continue;
-        const wx = b.x + padX + c * (winW + gapX);
-        const wy = top + padTop + r * (winH + gapY);
-        ctx.fillRect(wx, wy, winW, winH);
+        ctx.fillRect(b.x + 6 + c * (winW + gapX), top + 16 + r * (winH + gapY), winW, winH);
       }
     }
   }
   ctx.globalCompositeOperation = "source-over";
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
-  return tex;
+  return finalizeLayer(canvas);
 }
+
+// Layer 2 — tall thin skyscrapers, sparser than the city layer.
+function paintSkyscraperLayer(worldW: number, worldH: number): THREE.CanvasTexture {
+  const { canvas, ctx, pxW, pxH } = makeLayerCanvas(worldW, worldH);
+  const rand = seededRand(217);
+  ctx.fillStyle = "#a5b0c4";
+  const count = Math.max(6, Math.round(pxW / 260));
+  for (let i = 0; i < count; i++) {
+    const w = 28 + Math.round(rand() * 34);
+    const h = Math.round(pxH * (0.55 + rand() * 0.4));
+    const x = Math.round((i + rand() * 0.6) * (pxW / count));
+    const top = pxH - h;
+    ctx.fillRect(x, top, w, h);
+    // Antenna
+    ctx.fillRect(x + Math.round(w / 2) - 1, top - Math.round(h * 0.08), 2, Math.round(h * 0.08));
+    // Window bands
+    ctx.save();
+    ctx.globalCompositeOperation = "destination-out";
+    for (let y = top + 20; y < pxH - 10; y += 12) {
+      ctx.fillRect(x + 4, y, w - 8, 3);
+    }
+    ctx.restore();
+  }
+  return finalizeLayer(canvas);
+}
+
+// Layer 3 — hot-air balloons drifting through the sky.
+function paintBalloonLayer(worldW: number, worldH: number): THREE.CanvasTexture {
+  const { canvas, ctx, pxW, pxH } = makeLayerCanvas(worldW, worldH);
+  const rand = seededRand(433);
+  const colors = ["#e57373", "#f4a261", "#e9c46a", "#8ecae6", "#a5b4fc"];
+  const count = Math.max(4, Math.round(pxW / 380));
+  for (let i = 0; i < count; i++) {
+    const cx = Math.round((i + rand() * 0.9) * (pxW / count));
+    const cy = Math.round(pxH * (0.3 + rand() * 0.5));
+    const r = 22 + Math.round(rand() * 18);
+    const color = colors[Math.floor(rand() * colors.length)];
+    // Envelope
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    // Vertical stripe
+    ctx.fillStyle = "rgba(0,0,0,0.15)";
+    ctx.fillRect(cx - 2, cy - r, 4, r * 2);
+    // Basket
+    ctx.fillStyle = "#8b5a2b";
+    ctx.fillRect(cx - 6, cy + r + 6, 12, 6);
+    // Ropes
+    ctx.strokeStyle = "rgba(60,60,60,0.6)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.6, cy + r * 0.7); ctx.lineTo(cx - 5, cy + r + 6);
+    ctx.moveTo(cx + r * 0.6, cy + r * 0.7); ctx.lineTo(cx + 5, cy + r + 6);
+    ctx.stroke();
+  }
+  return finalizeLayer(canvas);
+}
+
+// Layer 4 — airplanes with contrails.
+function paintAirplaneLayer(worldW: number, worldH: number): THREE.CanvasTexture {
+  const { canvas, ctx, pxW, pxH } = makeLayerCanvas(worldW, worldH);
+  const rand = seededRand(619);
+  const count = Math.max(3, Math.round(pxW / 500));
+  for (let i = 0; i < count; i++) {
+    const cx = Math.round((i + rand() * 0.9) * (pxW / count));
+    const cy = Math.round(pxH * (0.3 + rand() * 0.5));
+    // Contrail
+    ctx.fillStyle = "rgba(180,190,210,0.55)";
+    ctx.fillRect(cx - 220, cy - 1, 200, 2);
+    // Fuselage
+    ctx.fillStyle = "#4b5563";
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 24, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Wings
+    ctx.beginPath();
+    ctx.moveTo(cx - 4, cy);
+    ctx.lineTo(cx + 4, cy - 12);
+    ctx.lineTo(cx + 8, cy - 12);
+    ctx.lineTo(cx + 6, cy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(cx - 4, cy);
+    ctx.lineTo(cx + 4, cy + 12);
+    ctx.lineTo(cx + 8, cy + 12);
+    ctx.lineTo(cx + 6, cy);
+    ctx.closePath();
+    ctx.fill();
+    // Tail
+    ctx.beginPath();
+    ctx.moveTo(cx - 24, cy);
+    ctx.lineTo(cx - 20, cy - 8);
+    ctx.lineTo(cx - 16, cy - 8);
+    ctx.lineTo(cx - 18, cy);
+    ctx.closePath();
+    ctx.fill();
+  }
+  return finalizeLayer(canvas);
+}
+
+// Layer 5 — soft clouds with a few bird silhouettes.
+function paintCloudBirdLayer(worldW: number, worldH: number): THREE.CanvasTexture {
+  const { canvas, ctx, pxW, pxH } = makeLayerCanvas(worldW, worldH);
+  const rand = seededRand(811);
+  const count = Math.max(5, Math.round(pxW / 320));
+  for (let i = 0; i < count; i++) {
+    const cx = Math.round((i + rand() * 0.9) * (pxW / count));
+    const cy = Math.round(pxH * (0.25 + rand() * 0.55));
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    const puffs = 4 + Math.floor(rand() * 3);
+    for (let p = 0; p < puffs; p++) {
+      const px = cx + (p - puffs / 2) * 18 + rand() * 6;
+      const py = cy + (rand() - 0.5) * 8;
+      const pr = 18 + rand() * 12;
+      ctx.beginPath();
+      ctx.arc(px, py, pr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  // Birds — small "V" silhouettes.
+  ctx.strokeStyle = "rgba(40,50,70,0.7)";
+  ctx.lineWidth = 1.5;
+  const birdCount = Math.max(6, Math.round(pxW / 220));
+  for (let i = 0; i < birdCount; i++) {
+    const bx = rand() * pxW;
+    const by = rand() * pxH;
+    const s = 4 + rand() * 4;
+    ctx.beginPath();
+    ctx.moveTo(bx - s, by + s * 0.5);
+    ctx.lineTo(bx, by - s * 0.4);
+    ctx.lineTo(bx + s, by + s * 0.5);
+    ctx.stroke();
+  }
+  return finalizeLayer(canvas);
+}
+
+// Layer 6 — spacecraft / satellites / rockets.
+function paintSpacecraftLayer(worldW: number, worldH: number): THREE.CanvasTexture {
+  const { canvas, ctx, pxW, pxH } = makeLayerCanvas(worldW, worldH);
+  const rand = seededRand(1051);
+  const count = Math.max(3, Math.round(pxW / 520));
+  for (let i = 0; i < count; i++) {
+    const cx = Math.round((i + rand() * 0.9) * (pxW / count));
+    const cy = Math.round(pxH * (0.3 + rand() * 0.5));
+    const kind = Math.floor(rand() * 3);
+    if (kind === 0) {
+      // Rocket
+      ctx.fillStyle = "#e5e7eb";
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 22);
+      ctx.lineTo(cx + 8, cy + 10);
+      ctx.lineTo(cx - 8, cy + 10);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#ef4444";
+      ctx.fillRect(cx - 8, cy + 10, 16, 4);
+      // Flame
+      ctx.fillStyle = "rgba(251,146,60,0.85)";
+      ctx.beginPath();
+      ctx.moveTo(cx - 5, cy + 14);
+      ctx.lineTo(cx + 5, cy + 14);
+      ctx.lineTo(cx, cy + 28);
+      ctx.closePath();
+      ctx.fill();
+    } else if (kind === 1) {
+      // Satellite (box + solar panels)
+      ctx.fillStyle = "#cbd5e1";
+      ctx.fillRect(cx - 6, cy - 6, 12, 12);
+      ctx.fillStyle = "#1e3a8a";
+      ctx.fillRect(cx - 26, cy - 3, 18, 6);
+      ctx.fillRect(cx + 8, cy - 3, 18, 6);
+    } else {
+      // UFO
+      ctx.fillStyle = "#94a3b8";
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 20, 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#c7d2fe";
+      ctx.beginPath();
+      ctx.arc(cx, cy - 3, 8, Math.PI, 0);
+      ctx.fill();
+    }
+  }
+  return finalizeLayer(canvas);
+}
+
+// Layer 7 — comets and stars scattered across the top.
+function paintCometStarLayer(worldW: number, worldH: number): THREE.CanvasTexture {
+  const { canvas, ctx, pxW, pxH } = makeLayerCanvas(worldW, worldH);
+  const rand = seededRand(1327);
+  // Stars
+  const starCount = Math.max(80, Math.round(pxW / 20));
+  for (let i = 0; i < starCount; i++) {
+    const sx = rand() * pxW;
+    const sy = rand() * pxH;
+    const r = rand() * 1.6 + 0.6;
+    const shade = 60 + Math.floor(rand() * 60);
+    ctx.fillStyle = `rgba(${shade},${shade + 10},${shade + 40},${0.5 + rand() * 0.4})`;
+    ctx.beginPath();
+    ctx.arc(sx, sy, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // Comets
+  const cometCount = Math.max(3, Math.round(pxW / 480));
+  for (let i = 0; i < cometCount; i++) {
+    const cx = rand() * pxW;
+    const cy = rand() * pxH;
+    const angle = (rand() - 0.5) * 0.5;
+    const len = 120 + rand() * 80;
+    // Tail
+    const grad = ctx.createLinearGradient(cx, cy, cx - Math.cos(angle) * len, cy - Math.sin(angle) * len);
+    grad.addColorStop(0, "rgba(200,220,255,0.9)");
+    grad.addColorStop(1, "rgba(200,220,255,0)");
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx - Math.cos(angle) * len, cy - Math.sin(angle) * len);
+    ctx.stroke();
+    // Head
+    ctx.fillStyle = "#f8fafc";
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  return finalizeLayer(canvas);
+}
+
 
 
 
