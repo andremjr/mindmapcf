@@ -454,8 +454,12 @@ function ScaleThreeScene({
         // This creates the feeling of a distant point growing smoothly, instead
         // of bars popping in while the camera is forced to finish too quickly.
         if (tween.approachPos) {
-          if (t < tween.holdAngleUntil) {
-            const diveT = easeInOut(t / tween.holdAngleUntil);
+          if (tween.leadAngleUntil > 0 && t < tween.leadAngleUntil) {
+            // Lead phase: stay put while the camera pivots up.
+            posRef.current.copy(tween.startPos);
+          } else if (t < tween.holdAngleUntil) {
+            const range = tween.holdAngleUntil - tween.leadAngleUntil;
+            const diveT = easeInOut((t - tween.leadAngleUntil) / Math.max(0.01, range));
             posRef.current.lerpVectors(tween.startPos, tween.approachPos, diveT);
           } else {
             const settleT = easeInOut((t - tween.holdAngleUntil) / Math.max(0.01, 1 - tween.holdAngleUntil));
@@ -467,12 +471,13 @@ function ScaleThreeScene({
         }
 
         if (tween.approachLook) {
-          // Climb: lookAt travels through a downward-facing point above the
-          // target, so the camera visibly tilts down while rising, then
-          // rotates to the front-facing framing on the settle.
-          if (t < tween.holdAngleUntil) {
-            const lookT = easeInOut(t / tween.holdAngleUntil);
-            lookRef.current.lerpVectors(tween.startLook, tween.approachLook, lookT);
+          // Climb: rotate up first (lead), hold the downward angle while
+          // rising, then rotate to the front-facing framing on the settle.
+          if (tween.leadAngleUntil > 0 && t < tween.leadAngleUntil) {
+            const leadT = easeInOut(t / Math.max(0.01, tween.leadAngleUntil));
+            lookRef.current.lerpVectors(tween.startLook, tween.approachLook, leadT);
+          } else if (t < tween.holdAngleUntil) {
+            lookRef.current.copy(tween.approachLook);
           } else {
             const lookT = easeInOut((t - tween.holdAngleUntil) / Math.max(0.01, 1 - tween.holdAngleUntil));
             lookRef.current.lerpVectors(tween.approachLook, tween.endLook, lookT);
