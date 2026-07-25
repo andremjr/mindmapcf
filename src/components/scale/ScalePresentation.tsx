@@ -294,6 +294,7 @@ function ScaleThreeScene({
     endLook: THREE.Vector3;
     approachPos: THREE.Vector3 | null;
     approachLook: THREE.Vector3 | null;
+    leadAngleUntil: number;
     holdAngleUntil: number;
     initialDive: boolean;
     startAt: number;
