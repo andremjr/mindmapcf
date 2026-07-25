@@ -12,6 +12,7 @@ import {
   Layers,
   Mic,
   Play,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -23,13 +24,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Crie mapas mentais, tier lists, icebergs, chaveamentos, matrizes e rankings. Apresente com câmera cinematográfica e grave o vídeo pronto para o YouTube.",
+          "Crie mapas mentais, tier lists, icebergs, chaveamentos, matrizes, rankings e comparações de escala 3D. Apresente com câmera cinematográfica e grave o vídeo pronto para o YouTube.",
       },
       { property: "og:title", content: "Canvas Narrativo — Formatos visuais para vídeos envolventes" },
       {
         property: "og:description",
         content:
-          "Seis formatos narrativos com apresentação cinematográfica e gravação embutida — pensados para YouTube, TikTok e Shorts.",
+          "Sete formatos narrativos com apresentação cinematográfica e gravação embutida — pensados para YouTube, TikTok e Shorts.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -45,6 +46,7 @@ const FORMATS = [
   { icon: Trophy, label: "Chaveamento", desc: "Torneio eliminatório com vencedores." },
   { icon: Grid3x3, label: "Matriz 2×2", desc: "Posicione cards em dois eixos." },
   { icon: ListOrdered, label: "Ranking", desc: "Lista ordenada com revelação progressiva." },
+  { icon: BarChart3, label: "Comparação de escala", desc: "Pedestais 3D em escala real, no estilo dos vídeos virais." },
 ];
 
 function LandingPage() {
