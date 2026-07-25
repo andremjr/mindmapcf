@@ -94,33 +94,48 @@ function computeClimbApproach(
   fromItem: SceneItem,
   toItem: SceneItem,
 ): { pos: THREE.Vector3; look: THREE.Vector3 } {
-  // Apex sits above the target's top image so the camera rises until the top
-  // panel is centered in the frame, then the tail of the tween just rotates
-  // to face the front panel — no descent afterwards.
+  const isAscent = toItem.height > fromItem.height;
+  if (isAscent) {
+    // Ascent: rise vertically above the CURRENT bar keeping its top centered.
+    // The apex sits directly above the previous bar's front view, so the climb
+    // is a pure vertical move — no sideways rotation to expose the target's
+    // base. The settle phase then transitions diagonally to the target's
+    // front-facing framing, rotating up to face the next top.
+    const fromTopY = fromItem.height + TOP_IMAGE_SIZE * 0.6;
+    const apexY = Math.max(
+      toItem.height + TOP_IMAGE_SIZE * 0.6,
+      fromTopY + TOP_IMAGE_SIZE * 1.2,
+    );
+    const pos = new THREE.Vector3(
+      fromItem.position.x,
+      apexY,
+      fromItem.position.z,
+    );
+    const look = new THREE.Vector3(
+      fromItem.position.x,
+      fromTopY,
+      fromItem.position.z,
+    );
+    return { pos, look };
+  }
+  // Descent: apex sits above/beyond the target, looking down toward its base
+  // so the camera tilts down while descending.
   const topImageY = toItem.height + TOP_IMAGE_SIZE * 0.6;
   const apexY = topImageY + TOP_IMAGE_SIZE * 2.4;
-  const t = 0.85; // bias forward so the target sits roughly under the camera
+  const t = 0.85;
   const apexX = fromItem.position.x + (toItem.position.x - fromItem.position.x) * t;
   const apexZ =
     fromItem.position.z + (toItem.position.z - fromItem.position.z) * t
     + Math.abs(STEP_Z) * 0.6;
   const pos = new THREE.Vector3(apexX, apexY, apexZ);
-  // Ascent vs descent behave differently:
-  // - Ascent (target taller): keep the PREVIOUS bar's top centered while
-  //   the camera rises, which naturally tilts the gaze downward as it climbs.
-  // - Descent (target shorter): look down toward the base area so the camera
-  //   tilts down while descending.
-  const isAscent = toItem.height > fromItem.height;
-  const lookY = isAscent
-    ? fromItem.height + TOP_IMAGE_SIZE * 0.6
-    : Math.min(fromItem.height, toItem.height) * 0.15;
-  const lookX = isAscent ? fromItem.position.x : toItem.position.x;
-  const lookZ = isAscent ? fromItem.position.z : toItem.position.z;
-  const look = new THREE.Vector3(lookX, lookY, lookZ);
-
-
+  const look = new THREE.Vector3(
+    toItem.position.x,
+    Math.min(fromItem.height, toItem.height) * 0.15,
+    toItem.position.z,
+  );
   return { pos, look };
 }
+
 
 
 
