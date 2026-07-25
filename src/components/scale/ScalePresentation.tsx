@@ -331,6 +331,7 @@ function ScaleThreeScene({
     let approachPos: THREE.Vector3 | null = null;
     let approachLook: THREE.Vector3 | null = null;
     let holdAngleUntil = 0.55;
+    let leadAngleUntil = 0;
     if (initialDive) {
       approachPos = computeInitialDiveApproach(sceneItems, startPos, startLook);
       holdAngleUntil = 0.88;
@@ -345,9 +346,10 @@ function ScaleThreeScene({
         const climb = computeClimbApproach(fromItem, toItem);
         approachPos = climb.pos;
         approachLook = climb.look;
-        // Hold the "up looking down" framing for most of the tween, then
-        // settle into the front-face focus near the end.
-        holdAngleUntil = 0.62;
+        // Lead: pivot up to the downward-looking angle before moving.
+        // Hold: rise while keeping that angle. Tail: rotate to front focus.
+        leadAngleUntil = 0.18;
+        holdAngleUntil = 0.78;
       }
     }
     const dist = approachPos
@@ -361,6 +363,7 @@ function ScaleThreeScene({
       endLook: next.lookAt.clone(),
       approachPos,
       approachLook,
+      leadAngleUntil,
       holdAngleUntil,
       initialDive,
       startAt: performance.now(),
