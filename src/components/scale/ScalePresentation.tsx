@@ -940,9 +940,9 @@ function computeCameraTarget(
       // top image lands in the upper-right corner and the ground fills the
       // lower-left area of the frame.
       lookAt: new THREE.Vector3(
-        tallest.position.x - STEP_X * 2.2,
-        Math.max(0, topY - TOP_IMAGE_SIZE * 5),
-        tallest.position.z - Math.abs(STEP_Z) * 2.6,
+        tallest.position.x - STEP_X * 2.6,
+        Math.max(-TOP_IMAGE_SIZE * 4, topY - TOP_IMAGE_SIZE * 9),
+        tallest.position.z - Math.abs(STEP_Z) * 3.0,
       ),
     };
   }
