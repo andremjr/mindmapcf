@@ -918,18 +918,27 @@ function computeCameraTarget(
   const verticalFov = THREE.MathUtils.degToRad(CAMERA_FOV);
   const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * Math.max(0.1, aspect));
 
-  // Overview: high, tilted, looking down the diagonal row.
+  // Opening frame: focus on the TOP of the tallest bar (photo + head panel)
+  // so viewers instantly read the item, then the next step descends toward
+  // the first bar for the reveal.
   if (step.kind === "overview") {
-    const first = sceneItems[0];
-    const last = sceneItems[Math.min(sceneItems.length - 1, 3)];
-    const midX = (first.position.x + last.position.x) / 2;
-    const midZ = (first.position.z + last.position.z) / 2;
-    const maxH = Math.max(...sceneItems.slice(0, 4).map((it) => it.height));
+    const tallest = sceneItems.reduce((a, b) => (b.height > a.height ? b : a), sceneItems[0]);
+    const topY = tallest.height + TOP_IMAGE_LIFT + TOP_IMAGE_SIZE / 2;
+    // Frame ~2.6× the top image so both the photo and the head chip are visible.
+    const frame = TOP_IMAGE_SIZE * 2.6;
+    const distV = (frame / 2) / Math.tan(verticalFov / 2);
+    const distH = (frame / 2) / Math.tan(horizontalFov / 2);
+    const distance = Math.max(distV, distH) * 1.15;
     return {
-      position: new THREE.Vector3(midX - STEP_X * 1.2, Math.max(28, maxH * 0.9), midZ + Math.abs(STEP_Z) * 4 + 26),
-      lookAt: new THREE.Vector3(midX + STEP_X * 0.8, Math.max(6, maxH * 0.35), midZ),
+      position: new THREE.Vector3(
+        tallest.position.x - STEP_X * 0.25,
+        topY + TOP_IMAGE_SIZE * 0.25,
+        tallest.position.z + distance,
+      ),
+      lookAt: new THREE.Vector3(tallest.position.x, topY, tallest.position.z),
     };
   }
+
 
   // Focus on a specific bar — travelling camera positioned in front of the
   // bar's panel, slightly toward the next bar so previous bars stay visible
