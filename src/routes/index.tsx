@@ -12,6 +12,7 @@ import {
   Layers,
   Mic,
   Play,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -23,13 +24,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Crie mapas mentais, tier lists, icebergs, chaveamentos, matrizes e rankings. Apresente com câmera cinematográfica e grave o vídeo pronto para o YouTube.",
+          "Crie mapas mentais, tier lists, icebergs, chaveamentos, matrizes, rankings e comparações de escala 3D. Apresente com câmera cinematográfica e grave o vídeo pronto para o YouTube.",
       },
       { property: "og:title", content: "Canvas Narrativo — Formatos visuais para vídeos envolventes" },
       {
         property: "og:description",
         content:
-          "Seis formatos narrativos com apresentação cinematográfica e gravação embutida — pensados para YouTube, TikTok e Shorts.",
+          "Sete formatos narrativos com apresentação cinematográfica e gravação embutida — pensados para YouTube, TikTok e Shorts.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -45,6 +46,7 @@ const FORMATS = [
   { icon: Trophy, label: "Chaveamento", desc: "Torneio eliminatório com vencedores." },
   { icon: Grid3x3, label: "Matriz 2×2", desc: "Posicione cards em dois eixos." },
   { icon: ListOrdered, label: "Ranking", desc: "Lista ordenada com revelação progressiva." },
+  { icon: BarChart3, label: "Comparação de escala", desc: "Pedestais 3D em escala real, no estilo dos vídeos virais." },
 ];
 
 function LandingPage() {
@@ -76,8 +78,9 @@ function LandingPage() {
               Transforme ideias em vídeos visuais e envolventes.
             </h1>
             <p className="mt-6 text-lg text-muted-foreground">
-              Escolha entre seis formatos — mapa mental, tier list, iceberg, chaveamento, matriz e
-              ranking — e apresente com câmera cinematográfica gravando o vídeo pronto para publicar.
+              Escolha entre sete formatos — mapa mental, tier list, iceberg, chaveamento, matriz,
+              ranking e comparação de escala 3D — e apresente com câmera cinematográfica gravando
+              o vídeo pronto para publicar.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link to="/auth">
@@ -99,7 +102,7 @@ function LandingPage() {
 
         <section className="border-t border-border bg-card/30">
           <div className="mx-auto max-w-6xl px-6 py-16">
-            <h2 className="text-3xl font-semibold tracking-tight">Seis formatos, um só app</h2>
+            <h2 className="text-3xl font-semibold tracking-tight">Sete formatos, um só app</h2>
             <p className="mt-2 text-muted-foreground">
               Cada formato tem seu próprio editor e modo de apresentação — todos com gravação, avatar sonoro e narração.
             </p>
