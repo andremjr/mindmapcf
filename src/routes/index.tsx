@@ -102,7 +102,7 @@ function LandingPage() {
 
         <section className="border-t border-border bg-card/30">
           <div className="mx-auto max-w-6xl px-6 py-16">
-            <h2 className="text-3xl font-semibold tracking-tight">Seis formatos, um só app</h2>
+            <h2 className="text-3xl font-semibold tracking-tight">Sete formatos, um só app</h2>
             <p className="mt-2 text-muted-foreground">
               Cada formato tem seu próprio editor e modo de apresentação — todos com gravação, avatar sonoro e narração.
             </p>
