@@ -400,15 +400,28 @@ function ScaleThreeScene({
     }
 
 
+    let endPos = next.position.clone();
+    let endLook = next.lookAt.clone();
+    // On the opening dive, land the camera framing the TOP of the first bar
+    // (its top image) instead of the panel center — otherwise the descent
+    // resolves aimed at the base of a small bar. We shift the focus pose
+    // vertically so the viewing angle stays level with the top image.
+    if (initialDive && sceneItems[0]) {
+      const first = sceneItems[0];
+      const topCenterY = first.height + TOP_IMAGE_LIFT + TOP_IMAGE_SIZE / 2;
+      const dy = topCenterY - endLook.y;
+      endLook = new THREE.Vector3(first.position.x, topCenterY, first.position.z);
+      endPos = new THREE.Vector3(endPos.x, endPos.y + dy, endPos.z);
+    }
     const dist = approachPos
-      ? startPos.distanceTo(approachPos) + approachPos.distanceTo(next.position)
-      : startPos.distanceTo(next.position);
+      ? startPos.distanceTo(approachPos) + approachPos.distanceTo(endPos)
+      : startPos.distanceTo(endPos);
     const duration = initialDive ? initialDiveDuration(dist) : regularMoveDuration(dist);
     tweenRef.current = {
       startPos,
       startLook,
-      endPos: next.position.clone(),
-      endLook: next.lookAt.clone(),
+      endPos,
+      endLook,
       approachPos,
       approachLook,
       leadAngleUntil,
