@@ -58,6 +58,36 @@ function isInitialDescent(from: ScaleStep, to: ScaleStep) {
   return from.kind === "overview" && to.kind === "focus" && to.index === 0;
 }
 
+function regularMoveDuration(distance: number) {
+  return Math.min(
+    5000,
+    Math.max(1000, 800 + 900 * Math.log2(1 + distance / 20)),
+  );
+}
+
+function initialDiveDuration(distance: number) {
+  // No 5s ceiling for the opening drop: the curve keeps normal cases compact,
+  // but gives universe-scale comparisons enough time to read as a real descent.
+  return Math.max(3200, 2200 + 650 * Math.log2(1 + distance / 35));
+}
+
+function computeInitialDiveApproach(
+  sceneItems: SceneItem[],
+  startPos: THREE.Vector3,
+  startLook: THREE.Vector3,
+) {
+  const first = sceneItems[0];
+  if (!first) return null;
+  const startDir = startLook.clone().sub(startPos).normalize();
+  const anchor = new THREE.Vector3(
+    first.position.x - STEP_X * 0.35,
+    Math.max(first.panelCenter.y, first.height * 0.7, TOP_IMAGE_SIZE * 1.2),
+    first.position.z - Math.abs(STEP_Z) * 0.45,
+  );
+  const approachDistance = Math.max(72, TOP_IMAGE_SIZE * 10, first.height * 1.35);
+  return anchor.addScaledVector(startDir, -approachDistance);
+}
+
 export function ScalePresentation({ project, recording }: { project: Project; recording: boolean }) {
   const rootNode = project.nodes.find((n) => n.role === "scale" || !n.parentId);
   const items = useMemo(
@@ -225,16 +255,17 @@ function ScaleThreeScene({
   const posRef = useRef(new THREE.Vector3());
   const lookRef = useRef(new THREE.Vector3());
   const targetRef = useRef<CameraTarget | null>(null);
-  // Fixed-duration tween state so every camera move takes roughly the same
-  // wall-clock time regardless of how far the camera has to travel. Bigger
-  // height jumps therefore feel faster (higher perceived speed) which is
-  // exactly what conveys "escala" to the viewer.
+  // Camera tween state. Regular bar-to-bar moves keep a compact max duration;
+  // the opening drop has its own guided approach so huge scales still feel
+  // continuous instead of cutting into the first bar.
   const tweenRef = useRef<{
     startPos: THREE.Vector3;
     startLook: THREE.Vector3;
     endPos: THREE.Vector3;
     endLook: THREE.Vector3;
+    approachPos: THREE.Vector3 | null;
     holdAngleUntil: number;
+    initialDive: boolean;
     startAt: number;
     duration: number;
   } | null>(null);
@@ -262,20 +293,22 @@ function ScaleThreeScene({
     const previousStep = stepRef.current;
     stepRef.current = step;
     if (!cameraRef.current || !sceneRef.current) return;
-    // Duration scales with travel distance on a log curve: short hops stay
-    // snappy (~1s min) and huge dives (first descent from the tallest bar)
-    // get up to ~5s of breathing room so they don't feel glitchy-fast.
-    const dist = posRef.current.distanceTo(next.position);
-    const duration = Math.min(
-      5000,
-      Math.max(1000, 800 + 900 * Math.log2(1 + dist / 20)),
-    );
+    const startPos = posRef.current.clone();
+    const startLook = lookRef.current.clone();
+    const initialDive = isInitialDescent(previousStep, step);
+    const approachPos = initialDive ? computeInitialDiveApproach(sceneItems, startPos, startLook) : null;
+    const dist = approachPos
+      ? startPos.distanceTo(approachPos) + approachPos.distanceTo(next.position)
+      : startPos.distanceTo(next.position);
+    const duration = initialDive ? initialDiveDuration(dist) : regularMoveDuration(dist);
     tweenRef.current = {
-      startPos: posRef.current.clone(),
-      startLook: lookRef.current.clone(),
+      startPos,
+      startLook,
       endPos: next.position.clone(),
       endLook: next.lookAt.clone(),
-      holdAngleUntil: isInitialDescent(previousStep, step) ? 0.84 : 0.55,
+      approachPos,
+      holdAngleUntil: initialDive ? 0.88 : 0.55,
+      initialDive,
       startAt: performance.now(),
       duration,
     };
@@ -357,9 +390,22 @@ function ScaleThreeScene({
       if (tween) {
         const raw = (performance.now() - tween.startAt) / tween.duration;
         const t = raw >= 1 ? 1 : raw <= 0 ? 0 : raw;
-        // Position uses smooth ease-in-out across the whole trip.
-        const posT = easeInOut(t);
-        posRef.current.lerpVectors(tween.startPos, tween.endPos, posT);
+        // Opening descent: travel first toward a bird's-eye approach point over
+        // the first bar, then only in the final beat settle into the front view.
+        // This creates the feeling of a distant point growing smoothly, instead
+        // of bars popping in while the camera is forced to finish too quickly.
+        if (tween.initialDive && tween.approachPos) {
+          if (t < tween.holdAngleUntil) {
+            const diveT = easeInOut(t / tween.holdAngleUntil);
+            posRef.current.lerpVectors(tween.startPos, tween.approachPos, diveT);
+          } else {
+            const settleT = easeInOut((t - tween.holdAngleUntil) / Math.max(0.01, 1 - tween.holdAngleUntil));
+            posRef.current.lerpVectors(tween.approachPos, tween.endPos, settleT);
+          }
+        } else {
+          const posT = easeInOut(t);
+          posRef.current.lerpVectors(tween.startPos, tween.endPos, posT);
+        }
         // Interpolate the VIEW DIRECTION, not the absolute lookAt point. During
         // the opening dive this keeps the exact bird's-eye angle while the
         // camera descends, preventing the tallest bar from visually flipping
