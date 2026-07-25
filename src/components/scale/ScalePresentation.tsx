@@ -7,50 +7,35 @@ import { AvatarLayer } from "@/components/shared/AvatarLayer";
 import { formatValue, parseItemData, parseScaleConfig } from "@/lib/scaleConfig";
 import { orderItems } from "./ScaleEditor";
 
-const BAR_WIDTH = 2.15;
-const BAR_DEPTH = 1.55;
-const BAR_SPACING = 5.6;
-const BASE_BAR_HEIGHT = 52;
-const CAMERA_FOV = 42;
-const MIN_BAR_HEIGHT = 0.12;
+// Bar footprint stays constant across the scene; only height varies.
+const BAR_WIDTH = 6;
+const BAR_DEPTH = 6;
+// The row advances diagonally, so previous bars remain visible over the shoulder.
+const STEP_X = 8.5;
+const STEP_Z = -5.2;
+const BASE_BAR_HEIGHT = 36;
+const MIN_BAR_HEIGHT = 3;
+const CAMERA_FOV = 36;
+const PANEL_SIZE = 5.4;
+const PANEL_MARGIN_TOP = 0.35;
 
-type ScaleStep = { kind: "empty" } | { kind: "focus"; index: number };
+type ScaleStep =
+  | { kind: "empty" }
+  | { kind: "overview" }
+  | { kind: "focus"; index: number };
 
 type SceneItem = {
   node: MindNode;
   data: ReturnType<typeof parseItemData>;
-  x: number;
+  position: THREE.Vector3; // base center of bar (y = 0)
   height: number;
   value: number;
   color: string;
+  panelCenter: THREE.Vector3; // world-space center of the front-face panel
+  index: number;
 };
 
-type OverlayPoint = {
-  id: string;
-  x: number;
-  y: number;
-  visible: boolean;
-};
-
-type CameraTarget = {
-  position: THREE.Vector3;
-  lookAt: THREE.Vector3;
-};
-
-function useResolvedImage(node: MindNode | undefined) {
-  const [url, setUrl] = useState<string | null>(null);
-  const key = node?.imageRef?.id ?? node?.image ?? "";
-  useEffect(() => {
-    if (!node) { setUrl(null); return; }
-    if (node.image) { setUrl(node.image); return; }
-    if (!node.imageRef) { setUrl(null); return; }
-    let alive = true;
-    resolveImage(node.imageRef).then((u) => alive && setUrl(u));
-    return () => { alive = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-  return url;
-}
+type CameraTarget = { position: THREE.Vector3; lookAt: THREE.Vector3 };
 
 export function ScalePresentation({ project, recording }: { project: Project; recording: boolean }) {
   const rootNode = project.nodes.find((n) => n.role === "scale" || !n.parentId);
@@ -60,10 +45,14 @@ export function ScalePresentation({ project, recording }: { project: Project; re
   );
   const config = useMemo(() => parseScaleConfig(rootNode?.body), [rootNode?.body]);
   const ordered = useMemo(() => orderItems(items, config.sortMode), [items, config.sortMode]);
-  const steps: ScaleStep[] = useMemo(
-    () => ordered.length ? ordered.map((_, index) => ({ kind: "focus", index })) : [{ kind: "empty" }],
-    [ordered],
-  );
+
+  const steps: ScaleStep[] = useMemo(() => {
+    if (!ordered.length) return [{ kind: "empty" }];
+    const seq: ScaleStep[] = [{ kind: "overview" }];
+    ordered.forEach((_, index) => seq.push({ kind: "focus", index }));
+    return seq;
+  }, [ordered]);
+
   const [stepIdx, setStepIdx] = useState(0);
 
   useEffect(() => {
@@ -71,7 +60,6 @@ export function ScalePresentation({ project, recording }: { project: Project; re
   }, [stepIdx, steps.length]);
 
   const active = steps[stepIdx] ?? { kind: "empty" };
-  const focusIndex = active.kind === "focus" ? active.index : null;
 
   return (
     <PresentationShell
@@ -89,7 +77,7 @@ export function ScalePresentation({ project, recording }: { project: Project; re
           size={size}
           items={ordered}
           config={config}
-          focusIndex={focusIndex}
+          step={active}
           project={project}
         />
       )}
@@ -98,108 +86,95 @@ export function ScalePresentation({ project, recording }: { project: Project; re
 }
 
 function ScaleFrame({
-  size, items, config, focusIndex, project,
+  size, items, config, step, project,
 }: {
   size: { w: number; h: number };
   items: MindNode[];
   config: ReturnType<typeof parseScaleConfig>;
-  focusIndex: number | null;
+  step: ScaleStep;
   project: Project;
 }) {
+  // Resolve image URLs asynchronously (indexeddb blobs / user uploads).
+  const [urls, setUrls] = useState<Record<string, string | null>>({});
+  useEffect(() => {
+    let alive = true;
+    Promise.all(items.map(async (node) => {
+      if (node.image) return [node.id, node.image] as const;
+      if (node.imageRef) {
+        try {
+          const u = await resolveImage(node.imageRef);
+          return [node.id, u ?? null] as const;
+        } catch {
+          return [node.id, null] as const;
+        }
+      }
+      return [node.id, null] as const;
+    })).then((pairs) => {
+      if (!alive) return;
+      const next: Record<string, string | null> = {};
+      for (const [id, u] of pairs) next[id] = u;
+      setUrls(next);
+    });
+    return () => { alive = false; };
+  }, [items]);
+
   const sceneItems = useMemo<SceneItem[]>(() => {
     const parsed = items.map((node) => ({ node, data: parseItemData(node.body) }));
-    const firstPositive = parsed.find((item) => Number.isFinite(item.data.value) && item.data.value > 0)?.data.value;
-    const smallestPositive = parsed
-      .map((item) => Number.isFinite(item.data.value) ? item.data.value : 0)
-      .filter((value) => value > 0)
-      .reduce((min, value) => Math.min(min, value), Number.POSITIVE_INFINITY);
-    const referenceValue = firstPositive && firstPositive > 0
-      ? firstPositive
-      : Number.isFinite(smallestPositive)
-        ? smallestPositive
-        : 1;
-    const mid = (parsed.length - 1) / 2;
+    // Reference: smallest strictly-positive value keeps the very first bar visually tall
+    // enough to become the yardstick for everything after it.
+    const positives = parsed
+      .map((it) => (Number.isFinite(it.data.value) ? it.data.value : 0))
+      .filter((v) => v > 0);
+    const reference = positives.length ? Math.min(...positives) : 1;
 
     return parsed.map((item, index) => {
       const value = Number.isFinite(item.data.value) ? Math.max(0, item.data.value) : 0;
+      const height = value > 0
+        ? Math.max(MIN_BAR_HEIGHT, (value / reference) * BASE_BAR_HEIGHT)
+        : MIN_BAR_HEIGHT;
+      const position = new THREE.Vector3(index * STEP_X, 0, index * STEP_Z);
+      const panelHeight = PANEL_SIZE;
+      // Panel sits high on the front face, integrated with the bar surface.
+      const panelCenterY = Math.max(
+        panelHeight / 2 + PANEL_MARGIN_TOP,
+        height - panelHeight / 2 - PANEL_MARGIN_TOP,
+      );
+      const panelCenter = new THREE.Vector3(
+        position.x,
+        panelCenterY,
+        position.z + BAR_DEPTH / 2 + 0.02,
+      );
       return {
         node: item.node,
         data: item.data,
-        x: (index - mid) * BAR_SPACING,
-        height: value > 0 ? Math.max(MIN_BAR_HEIGHT, (value / referenceValue) * BASE_BAR_HEIGHT) : MIN_BAR_HEIGHT,
+        position,
+        height,
         value,
         color: item.node.color ?? config.barColor,
+        panelCenter,
+        index,
       };
     });
   }, [config.barColor, items]);
 
-  const focusItem = focusIndex != null ? sceneItems[focusIndex] : null;
-  const previousItem = focusIndex != null && focusIndex > 0 ? sceneItems[focusIndex - 1] : null;
-  const ratioLabel = focusItem && previousItem && previousItem.value > 0 && focusItem.value > 0
-    ? focusItem.value / previousItem.value
-    : null;
-
   return (
-    <div className="absolute inset-0 overflow-hidden bg-background">
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            `radial-gradient(circle at 50% 6%, ${mix(config.accentColor, "#020617", 0.78)} 0%, #020617 42%, #050816 100%)`,
-        }}
-      />
-      <div className="absolute inset-0 opacity-40 scale-grid-mask" />
-
+    <div className="absolute inset-0 overflow-hidden">
       {sceneItems.length ? (
         <ScaleThreeScene
           size={size}
           sceneItems={sceneItems}
           config={config}
-          focusIndex={focusIndex}
+          step={step}
+          urls={urls}
         />
       ) : (
-        <div className="absolute inset-0 grid place-items-center text-muted-foreground">
+        <div className="absolute inset-0 grid place-items-center bg-background text-muted-foreground">
           Adicione itens para apresentar a comparação.
         </div>
       )}
 
-      {focusItem && (
-        <div
-          className="absolute left-7 bottom-24 max-w-[42%] p-5 rounded-xl border backdrop-blur-md bg-background/70 animate-fade-in"
-          style={{
-            borderColor: config.accentColor,
-            boxShadow: `0 24px 80px ${config.accentColor}33`,
-          }}
-        >
-          <div className="text-[11px] uppercase tracking-widest" style={{ color: config.accentColor }}>
-            Comparação em escala real
-          </div>
-          <div className="text-3xl md:text-4xl font-black leading-tight text-foreground mt-1">
-            {focusItem.node.text}
-          </div>
-          <div className="mt-2 text-foreground">
-            <span className="text-4xl md:text-5xl font-black" style={{ color: config.accentColor }}>
-              {formatValue(focusItem.data.value)}
-            </span>
-            <span className="ml-2 text-lg opacity-90">{focusItem.data.unit || config.unit}</span>
-          </div>
-          {previousItem && ratioLabel && Number.isFinite(ratioLabel) && (
-            <div className="mt-2 text-sm text-foreground/85">
-              {ratioLabel >= 1
-                ? <>≈ <b>{ratioLabel.toLocaleString("pt-BR", { maximumFractionDigits: ratioLabel >= 10 ? 0 : 1 })}×</b> a de <i>{previousItem.node.text}</i></>
-                : <>≈ <b>{(1 / ratioLabel).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}× menor</b> que <i>{previousItem.node.text}</i></>}
-            </div>
-          )}
-          {focusItem.data.note && (
-            <p className="mt-3 text-sm md:text-base text-foreground/85 leading-relaxed whitespace-pre-wrap">
-              {focusItem.data.note}
-            </p>
-          )}
-        </div>
-      )}
-
       <div className="absolute inset-x-0 top-5 flex justify-center pointer-events-none">
-        <div className="px-4 py-2 rounded-full bg-background/55 backdrop-blur text-foreground/85 text-sm border border-border">
+        <div className="px-4 py-2 rounded-full bg-background/60 backdrop-blur text-foreground/85 text-sm border border-border">
           {config.caption || "Uma comparação em escala."}
         </div>
       </div>
@@ -210,23 +185,24 @@ function ScaleFrame({
 }
 
 function ScaleThreeScene({
-  size, sceneItems, config, focusIndex,
+  size, sceneItems, config, step, urls,
 }: {
   size: { w: number; h: number };
   sceneItems: SceneItem[];
   config: ReturnType<typeof parseScaleConfig>;
-  focusIndex: number | null;
+  step: ScaleStep;
+  urls: Record<string, string | null>;
 }) {
   const mountRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
-  const lookRef = useRef(new THREE.Vector3(0, 0, 0));
+  const posRef = useRef(new THREE.Vector3());
+  const lookRef = useRef(new THREE.Vector3());
   const targetRef = useRef<CameraTarget | null>(null);
   const sizeRef = useRef(size);
-  const itemsRef = useRef(sceneItems);
-  const [overlay, setOverlay] = useState<OverlayPoint[]>([]);
 
+  // Handle resize.
   useEffect(() => {
     sizeRef.current = size;
     const renderer = rendererRef.current;
@@ -239,13 +215,11 @@ function ScaleThreeScene({
     camera.updateProjectionMatrix();
   }, [size]);
 
+  // Camera targets follow the presentation step.
   useEffect(() => {
-    itemsRef.current = sceneItems;
-  }, [sceneItems]);
-
-  useEffect(() => {
-    targetRef.current = computeCameraTarget(sceneItems, focusIndex, size.w / Math.max(1, size.h));
-  }, [focusIndex, sceneItems, size.h, size.w]);
+    const aspect = Math.max(0.1, sizeRef.current.w / Math.max(1, sizeRef.current.h));
+    targetRef.current = computeCameraTarget(sceneItems, step, aspect);
+  }, [step, sceneItems]);
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -253,19 +227,24 @@ function ScaleThreeScene({
 
     const width = Math.max(1, Math.floor(sizeRef.current.w));
     const height = Math.max(1, Math.floor(sizeRef.current.h));
-    const maxSceneHeight = Math.max(...sceneItems.map((item) => item.height), 1);
-    const farPlane = Math.max(50000, maxSceneHeight * 8, sceneItems.length * BAR_SPACING * 40);
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x050816, Math.max(80, maxSceneHeight * 0.08), Math.max(2400, maxSceneHeight * 3.2));
+    const maxHeight = Math.max(...sceneItems.map((it) => it.height), 1);
+    const spanZ = Math.abs(sceneItems.length * STEP_Z) + 200;
+    const farPlane = Math.max(6000, maxHeight * 6, spanZ * 4);
 
-    const camera = new THREE.PerspectiveCamera(CAMERA_FOV, width / height, 0.01, farPlane);
-    const initialTarget = computeCameraTarget(sceneItems, focusIndex, width / height);
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color("#e8eef7");
+    scene.fog = new THREE.Fog(0xdfe6f2, Math.max(120, maxHeight * 0.6), Math.max(1600, maxHeight * 4));
+
+    const camera = new THREE.PerspectiveCamera(CAMERA_FOV, width / height, 0.05, farPlane);
+    const initialAspect = width / height;
+    const initialTarget = computeCameraTarget(sceneItems, step, initialAspect);
     camera.position.copy(initialTarget.position);
-    camera.lookAt(initialTarget.lookAt);
+    posRef.current.copy(initialTarget.position);
     lookRef.current.copy(initialTarget.lookAt);
+    camera.lookAt(lookRef.current);
     targetRef.current = initialTarget;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, logarithmicDepthBuffer: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(width, height, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -276,26 +255,33 @@ function ScaleThreeScene({
     renderer.domElement.style.display = "block";
     mount.appendChild(renderer.domElement);
 
-    const ambient = new THREE.HemisphereLight(0xe8f3ff, 0x0a1020, 1.05);
-    scene.add(ambient);
+    // --- Lighting: soft, uniform daylight -----------------------------------
+    scene.add(new THREE.HemisphereLight(0xffffff, 0xbfc9d9, 0.9));
 
-    const key = new THREE.DirectionalLight(0xffffff, 2.8);
-    key.position.set(-18, 34, 28);
+    const key = new THREE.DirectionalLight(0xffffff, 1.55);
+    key.position.set(60, 120, 90);
     key.castShadow = true;
     key.shadow.mapSize.set(2048, 2048);
-    key.shadow.camera.near = 1;
-    key.shadow.camera.far = 2600;
-    key.shadow.camera.left = -80;
-    key.shadow.camera.right = 80;
-    key.shadow.camera.top = 1200;
-    key.shadow.camera.bottom = -80;
+    key.shadow.camera.near = 5;
+    key.shadow.camera.far = Math.max(1200, maxHeight * 4);
+    const shadowSpan = Math.max(180, sceneItems.length * STEP_X + 200);
+    key.shadow.camera.left = -shadowSpan;
+    key.shadow.camera.right = shadowSpan;
+    key.shadow.camera.top = shadowSpan;
+    key.shadow.camera.bottom = -shadowSpan;
+    key.shadow.bias = -0.0004;
     scene.add(key);
 
-    const rim = new THREE.DirectionalLight(hexColor(config.accentColor), 2.1);
-    rim.position.set(26, 18, -32);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.4);
+    fill.position.set(-80, 60, 40);
+    scene.add(fill);
+
+    // Optional accent rim to catch the front face color.
+    const rim = new THREE.DirectionalLight(hexColor(config.accentColor), 0.35);
+    rim.position.set(0, 40, 220);
     scene.add(rim);
 
-    buildWorld(scene, sceneItems, config);
+    buildScene(scene, sceneItems, config, urls);
 
     rendererRef.current = renderer;
     cameraRef.current = camera;
@@ -303,34 +289,19 @@ function ScaleThreeScene({
 
     let raf = 0;
     const clock = new THREE.Clock();
-    const projected = new THREE.Vector3();
-    const top = new THREE.Vector3();
 
     const render = () => {
       const dt = Math.min(0.05, clock.getDelta());
-      const currentTarget = targetRef.current;
-      if (currentTarget) {
-        const smooth = 1 - Math.exp(-dt * 1.45);
-        camera.position.lerp(currentTarget.position, smooth);
-        lookRef.current.lerp(currentTarget.lookAt, smooth);
+      const tgt = targetRef.current;
+      if (tgt) {
+        // Slow-in / slow-out via exponential smoothing.
+        const smooth = 1 - Math.exp(-dt * 1.35);
+        posRef.current.lerp(tgt.position, smooth);
+        lookRef.current.lerp(tgt.lookAt, smooth);
+        camera.position.copy(posRef.current);
         camera.lookAt(lookRef.current);
       }
-
       renderer.render(scene, camera);
-
-      const frame = sizeRef.current;
-      const nextOverlay = itemsRef.current.map((item) => {
-        top.set(item.x, item.height + Math.min(2.4, Math.max(0.7, item.height * 0.012)), 0);
-        projected.copy(top).project(camera);
-        return {
-          id: item.node.id,
-          x: (projected.x * 0.5 + 0.5) * frame.w,
-          y: (-projected.y * 0.5 + 0.5) * frame.h,
-          visible: projected.z > -1 && projected.z < 1,
-        };
-      });
-      setOverlay(nextOverlay);
-
       raf = requestAnimationFrame(render);
     };
     raf = requestAnimationFrame(render);
@@ -340,256 +311,362 @@ function ScaleThreeScene({
       rendererRef.current = null;
       cameraRef.current = null;
       sceneRef.current = null;
-      scene.traverse((object) => {
-        if (object instanceof THREE.Mesh) {
-          object.geometry.dispose();
-          const material = object.material;
-          if (Array.isArray(material)) material.forEach((m) => m.dispose());
-          else material.dispose();
+      scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          obj.geometry.dispose();
+          const mat = obj.material;
+          if (Array.isArray(mat)) mat.forEach((m) => disposeMaterial(m));
+          else disposeMaterial(mat);
         }
       });
       renderer.dispose();
       if (renderer.domElement.parentElement === mount) mount.removeChild(renderer.domElement);
     };
-  }, [config, sceneItems]);
+    // Rebuild the world when data / colors / images change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sceneItems, config, urls]);
 
-  const overlayById = useMemo(() => new Map(overlay.map((point) => [point.id, point])), [overlay]);
-
-  return (
-    <>
-      <div ref={mountRef} className="absolute inset-0" />
-      <div className="absolute inset-0 pointer-events-none select-none">
-        {sceneItems.map((item, index) => {
-          const point = overlayById.get(item.node.id);
-          if (!point || !point.visible) return null;
-          const isActive = focusIndex === index;
-          const isPrevious = focusIndex != null && index === focusIndex - 1;
-          const isContext = focusIndex == null || isActive || isPrevious;
-          return (
-            <ScaleHeadOverlay
-              key={item.node.id}
-              item={item}
-              point={point}
-              active={isActive}
-              previous={isPrevious}
-              muted={!isContext}
-              accent={config.accentColor}
-              unit={item.data.unit || config.unit}
-            />
-          );
-        })}
-      </div>
-    </>
-  );
+  return <div ref={mountRef} className="absolute inset-0" />;
 }
 
-function buildWorld(scene: THREE.Scene, sceneItems: SceneItem[], config: ReturnType<typeof parseScaleConfig>) {
-  const minX = sceneItems.length ? Math.min(...sceneItems.map((item) => item.x)) - 18 : -24;
-  const maxX = sceneItems.length ? Math.max(...sceneItems.map((item) => item.x)) + 18 : 24;
-  const floorWidth = Math.max(80, maxX - minX);
-  const floorGeometry = new THREE.PlaneGeometry(floorWidth, 52, 1, 1);
-  const floorMaterial = new THREE.MeshStandardMaterial({
-    color: hexColor(mix(config.barColor, "#020617", 0.84)),
-    metalness: 0.15,
-    roughness: 0.72,
-  });
-  const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.set((minX + maxX) / 2, -0.012, 0);
-  floor.receiveShadow = true;
-  scene.add(floor);
+// ============================================================================
+// Scene assembly
+// ============================================================================
 
-  const grid = new THREE.GridHelper(floorWidth, Math.max(12, Math.round(floorWidth / 4)), hexColor(config.accentColor), 0x263244);
-  grid.position.set((minX + maxX) / 2, 0.006, 0);
-  const gridMaterial = grid.material;
-  if (Array.isArray(gridMaterial)) gridMaterial.forEach((material) => {
-    material.transparent = true;
-    material.opacity = 0.24;
-  });
-  else {
-    gridMaterial.transparent = true;
-    gridMaterial.opacity = 0.24;
-  }
+function buildScene(
+  scene: THREE.Scene,
+  sceneItems: SceneItem[],
+  config: ReturnType<typeof parseScaleConfig>,
+  urls: Record<string, string | null>,
+) {
+  // --- Ground ---------------------------------------------------------------
+  const spanX = Math.max(400, sceneItems.length * STEP_X * 2 + 400);
+  const spanZ = Math.max(400, Math.abs(sceneItems.length * STEP_Z) * 2 + 400);
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(spanX, spanZ, 1, 1),
+    new THREE.MeshStandardMaterial({
+      color: 0xe4ebf5,
+      roughness: 0.95,
+      metalness: 0.02,
+    }),
+  );
+  ground.rotation.x = -Math.PI / 2;
+  const midX = ((sceneItems.length - 1) * STEP_X) / 2;
+  const midZ = ((sceneItems.length - 1) * STEP_Z) / 2;
+  ground.position.set(midX, 0, midZ);
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Subtle grid — helps read parallax without competing with the bars.
+  const grid = new THREE.GridHelper(
+    Math.max(spanX, spanZ),
+    Math.max(20, Math.round(Math.max(spanX, spanZ) / 12)),
+    0xb8c2d1,
+    0xd6dde8,
+  );
+  grid.position.set(midX, 0.01, midZ);
+  const gridMat = grid.material;
+  if (Array.isArray(gridMat)) gridMat.forEach((m) => { m.transparent = true; m.opacity = 0.35; });
+  else { gridMat.transparent = true; gridMat.opacity = 0.35; }
   scene.add(grid);
 
+  // Horizon disc — clean, distant fade.
+  const horizon = new THREE.Mesh(
+    new THREE.PlaneGeometry(spanX * 3, 1),
+    new THREE.MeshBasicMaterial({ color: 0xdfe6f2 }),
+  );
+  horizon.position.set(midX, 0, midZ - spanZ);
+  scene.add(horizon);
+
+  // --- Bars -----------------------------------------------------------------
   sceneItems.forEach((item) => {
     const color = new THREE.Color(item.color);
-    const side = color.clone().lerp(new THREE.Color(0x020617), 0.25);
-    const highlight = color.clone().lerp(new THREE.Color(0xffffff), 0.18);
-
-    const geometry = new THREE.BoxGeometry(BAR_WIDTH, item.height, BAR_DEPTH);
-    const material = new THREE.MeshPhysicalMaterial({
+    const barMat = new THREE.MeshStandardMaterial({
       color,
-      metalness: 0.22,
-      roughness: 0.36,
-      clearcoat: 0.35,
-      clearcoatRoughness: 0.5,
-      emissive: side,
-      emissiveIntensity: 0.06,
-    });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.position.set(item.x, item.height / 2, 0);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    scene.add(mesh);
-
-    const topThickness = Math.min(0.32, Math.max(0.055, item.height * 0.002));
-    const topGeometry = new THREE.BoxGeometry(BAR_WIDTH * 1.08, topThickness, BAR_DEPTH * 1.08);
-    const topMaterial = new THREE.MeshStandardMaterial({
-      color: highlight,
+      roughness: 0.5,
       metalness: 0.18,
-      roughness: 0.3,
-      emissive: hexColor(config.accentColor),
-      emissiveIntensity: 0.08,
     });
-    const top = new THREE.Mesh(topGeometry, topMaterial);
-    top.position.set(item.x, item.height + topThickness / 2, 0);
-    top.castShadow = true;
-    scene.add(top);
+    const geo = new THREE.BoxGeometry(BAR_WIDTH, item.height, BAR_DEPTH);
+    const bar = new THREE.Mesh(geo, barMat);
+    bar.position.set(item.position.x, item.height / 2, item.position.z);
+    bar.castShadow = true;
+    bar.receiveShadow = true;
+    scene.add(bar);
 
-    const edgeGeometry = new THREE.EdgesGeometry(geometry);
-    const edgeMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22 });
-    const edges = new THREE.LineSegments(edgeGeometry, edgeMaterial);
-    edges.position.copy(mesh.position);
-    scene.add(edges);
+    // Top cap — subtle highlight strip.
+    const capThickness = 0.18;
+    const cap = new THREE.Mesh(
+      new THREE.BoxGeometry(BAR_WIDTH * 1.02, capThickness, BAR_DEPTH * 1.02),
+      new THREE.MeshStandardMaterial({
+        color: color.clone().lerp(new THREE.Color(0xffffff), 0.35),
+        roughness: 0.4,
+        metalness: 0.2,
+      }),
+    );
+    cap.position.set(item.position.x, item.height + capThickness / 2, item.position.z);
+    cap.castShadow = true;
+    scene.add(cap);
 
-    const baseGeometry = new THREE.CylinderGeometry(BAR_WIDTH * 0.78, BAR_WIDTH * 1.05, 0.08, 32);
-    const baseMaterial = new THREE.MeshStandardMaterial({
-      color: hexColor(mix(config.accentColor, "#020617", 0.55)),
-      metalness: 0.3,
-      roughness: 0.4,
+    // --- Front-face panel (canvas texture) ---------------------------------
+    const panelTexture = makePanelTexture(item, urls[item.node.id] ?? null, config);
+    const panelMat = new THREE.MeshBasicMaterial({
+      map: panelTexture,
+      toneMapped: false,
     });
-    const base = new THREE.Mesh(baseGeometry, baseMaterial);
-    base.scale.z = BAR_DEPTH / BAR_WIDTH;
-    base.position.set(item.x, 0.04, 0);
-    base.castShadow = true;
-    base.receiveShadow = true;
-    scene.add(base);
+    const panelGeo = new THREE.PlaneGeometry(PANEL_SIZE, PANEL_SIZE);
+    const panel = new THREE.Mesh(panelGeo, panelMat);
+    panel.position.copy(item.panelCenter);
+    scene.add(panel);
+
+    // Thin accent frame around the panel — reinforces the "applied" look.
+    const frameThickness = 0.06;
+    const frameGeo = new THREE.PlaneGeometry(PANEL_SIZE + 0.14, PANEL_SIZE + 0.14);
+    const frameMat = new THREE.MeshBasicMaterial({
+      color: hexColor(config.accentColor),
+      transparent: true,
+      opacity: 0.9,
+    });
+    const frame = new THREE.Mesh(frameGeo, frameMat);
+    frame.position.copy(item.panelCenter);
+    frame.position.z -= 0.005;
+    frame.scale.multiplyScalar(1);
+    void frameThickness; // kept for reference; real depth handled by z-offset
+    scene.add(frame);
   });
 }
 
-function computeCameraTarget(sceneItems: SceneItem[], focusIndex: number | null, aspect: number): CameraTarget {
-  if (!sceneItems.length) {
+function disposeMaterial(mat: THREE.Material) {
+  const anyMat = mat as unknown as { map?: THREE.Texture | null };
+  if (anyMat.map) anyMat.map.dispose?.();
+  mat.dispose();
+}
+
+// ============================================================================
+// Panel texture — image + name + value baked into a canvas per bar.
+// ============================================================================
+
+function makePanelTexture(
+  item: SceneItem,
+  url: string | null,
+  config: ReturnType<typeof parseScaleConfig>,
+): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const ctx = canvas.getContext("2d")!;
+  drawPanel(ctx, item, null, config);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  if (url) {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        drawPanel(ctx, item, img, config);
+        tex.needsUpdate = true;
+      } catch {
+        /* tainted canvas — keep placeholder */
+      }
+    };
+    img.onerror = () => { /* keep placeholder */ };
+    img.src = url;
+  }
+  return tex;
+}
+
+function drawPanel(
+  ctx: CanvasRenderingContext2D,
+  item: SceneItem,
+  img: HTMLImageElement | null,
+  config: ReturnType<typeof parseScaleConfig>,
+) {
+  const W = ctx.canvas.width;
+  const H = ctx.canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // Panel background — dark card so it reads on any bar color.
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, "#0f172a");
+  bg.addColorStop(1, "#111c33");
+  ctx.fillStyle = bg;
+  roundRect(ctx, 0, 0, W, H, 44);
+  ctx.fill();
+
+  // Accent inner border.
+  ctx.strokeStyle = config.accentColor;
+  ctx.lineWidth = 6;
+  roundRect(ctx, 14, 14, W - 28, H - 28, 36);
+  ctx.stroke();
+
+  // Rank chip (top-left).
+  const chip = `#${item.index + 1}`;
+  ctx.fillStyle = config.accentColor;
+  roundRect(ctx, 34, 34, 130, 60, 30);
+  ctx.fill();
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "bold 40px system-ui, -apple-system, Segoe UI, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(chip, 34 + 65, 34 + 30);
+
+  // Image area (large, top ~55%).
+  const pad = 44;
+  const imgY = 120;
+  const imgW = W - pad * 2;
+  const imgH = Math.round(H * 0.5);
+  ctx.save();
+  roundRect(ctx, pad, imgY, imgW, imgH, 26);
+  ctx.clip();
+  if (img && img.width > 0 && img.height > 0) {
+    const ir = img.width / img.height;
+    const br = imgW / imgH;
+    let dw: number, dh: number, dx: number, dy: number;
+    if (ir > br) {
+      dh = imgH;
+      dw = dh * ir;
+      dx = pad - (dw - imgW) / 2;
+      dy = imgY;
+    } else {
+      dw = imgW;
+      dh = dw / ir;
+      dx = pad;
+      dy = imgY - (dh - imgH) / 2;
+    }
+    ctx.drawImage(img, dx, dy, dw, dh);
+  } else {
+    ctx.fillStyle = "#1e293b";
+    ctx.fillRect(pad, imgY, imgW, imgH);
+    ctx.fillStyle = "#64748b";
+    ctx.font = "bold 260px system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText((item.node.text || "?").slice(0, 1).toUpperCase(), W / 2, imgY + imgH / 2);
+  }
+  ctx.restore();
+
+  // Name.
+  ctx.fillStyle = "#f8fafc";
+  ctx.font = "bold 62px system-ui, -apple-system, Segoe UI, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  const nameY = imgY + imgH + 26;
+  fitText(ctx, item.node.text || "", W / 2, nameY, W - pad * 2);
+
+  // Value — the hero number.
+  ctx.fillStyle = config.accentColor;
+  ctx.font = "900 128px system-ui, -apple-system, Segoe UI, sans-serif";
+  const valY = nameY + 90;
+  ctx.fillText(formatValue(item.value), W / 2, valY);
+
+  // Unit.
+  const unit = item.data.unit || config.unit;
+  if (unit) {
+    ctx.fillStyle = "#cbd5f5";
+    ctx.font = "500 44px system-ui, sans-serif";
+    ctx.fillText(unit, W / 2, valY + 140);
+  }
+}
+
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number, r: number,
+) {
+  const radius = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
+}
+
+function fitText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+) {
+  let size = 62;
+  ctx.font = `bold ${size}px system-ui, -apple-system, Segoe UI, sans-serif`;
+  while (size > 28 && ctx.measureText(text).width > maxWidth) {
+    size -= 4;
+    ctx.font = `bold ${size}px system-ui, -apple-system, Segoe UI, sans-serif`;
+  }
+  ctx.fillText(text, x, y);
+}
+
+// ============================================================================
+// Camera choreography
+// ============================================================================
+
+function computeCameraTarget(
+  sceneItems: SceneItem[],
+  step: ScaleStep,
+  aspect: number,
+): CameraTarget {
+  if (!sceneItems.length || step.kind === "empty") {
     return {
-      position: new THREE.Vector3(0, 8, 18),
-      lookAt: new THREE.Vector3(0, 3, 0),
+      position: new THREE.Vector3(0, 20, 40),
+      lookAt: new THREE.Vector3(0, 6, 0),
     };
   }
 
   const verticalFov = THREE.MathUtils.degToRad(CAMERA_FOV);
   const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * Math.max(0.1, aspect));
 
-  if (focusIndex == null) {
-    const minX = Math.min(...sceneItems.map((item) => item.x)) - BAR_WIDTH * 1.8;
-    const maxX = Math.max(...sceneItems.map((item) => item.x)) + BAR_WIDTH * 1.8;
-    const maxH = Math.max(...sceneItems.map((item) => item.height), 1);
-    const centerX = (minX + maxX) / 2;
-    const width = Math.max(maxX - minX, BAR_WIDTH * 4);
-    const distanceV = maxH / (2 * Math.tan(verticalFov / 2) * 0.55);
-    const distanceH = width / (2 * Math.tan(horizontalFov / 2) * 0.62);
-    const distance = Math.max(distanceV, distanceH, 16);
+  // Overview: high, tilted, looking down the diagonal row.
+  if (step.kind === "overview") {
+    const first = sceneItems[0];
+    const last = sceneItems[Math.min(sceneItems.length - 1, 3)];
+    const midX = (first.position.x + last.position.x) / 2;
+    const midZ = (first.position.z + last.position.z) / 2;
+    const maxH = Math.max(...sceneItems.slice(0, 4).map((it) => it.height));
     return {
-      position: new THREE.Vector3(centerX, maxH * 0.44, distance),
-      lookAt: new THREE.Vector3(centerX, maxH * 0.4, 0),
+      position: new THREE.Vector3(midX - STEP_X * 1.2, Math.max(28, maxH * 0.9), midZ + Math.abs(STEP_Z) * 4 + 26),
+      lookAt: new THREE.Vector3(midX + STEP_X * 0.8, Math.max(6, maxH * 0.35), midZ),
     };
   }
 
-  const current = sceneItems[focusIndex] ?? sceneItems[0];
-  const previous = focusIndex > 0 ? sceneItems[focusIndex - 1] : null;
-  const pair = previous ? [previous, current] : [current];
-  const minX = Math.min(...pair.map((item) => item.x)) - BAR_WIDTH * 2.1;
-  const maxX = Math.max(...pair.map((item) => item.x)) + BAR_WIDTH * 2.1;
-  const maxH = Math.max(...pair.map((item) => item.height), 0.4);
-  const minPairH = Math.max(0.0001, Math.min(...pair.map((item) => item.height).filter((height) => height > 0)));
-  const ratio = maxH / minPairH;
-  const width = Math.max(maxX - minX, BAR_WIDTH * 4.2);
-  const centerX = previous ? (previous.x * 0.38 + current.x * 0.62) : current.x;
-  const lookY = ratio > 90 ? maxH * 0.66 : maxH * 0.42;
-  const distanceV = maxH / (2 * Math.tan(verticalFov / 2) * 0.64);
-  const distanceH = width / (2 * Math.tan(horizontalFov / 2) * 0.56);
-  const distance = Math.max(distanceV, distanceH, 6.5);
+  // Focus on a specific bar — travelling camera positioned in front of the
+  // bar's panel, slightly toward the next bar so previous bars stay visible
+  // over the shoulder.
+  const idx = Math.max(0, Math.min(sceneItems.length - 1, step.index));
+  const current = sceneItems[idx];
+  const next = sceneItems[idx + 1];
 
-  return {
-    position: new THREE.Vector3(centerX, lookY + maxH * 0.04, distance),
-    lookAt: new THREE.Vector3(centerX, lookY, 0),
-  };
+  const distV = (PANEL_SIZE / 2) / Math.tan(verticalFov / 2) * 1.75;
+  const distH = (PANEL_SIZE / 2) / Math.tan(horizontalFov / 2) * 1.75;
+  const distance = Math.max(distV, distH);
+
+  // Push the camera slightly along the travel direction (toward next bar)
+  // and to the "outside" of the diagonal so the previous bars line up in frame.
+  const forward = new THREE.Vector3(0, 0, 1); // panels face +Z
+  const travel = next
+    ? new THREE.Vector3(next.position.x - current.position.x, 0, next.position.z - current.position.z).normalize()
+    : new THREE.Vector3(STEP_X, 0, STEP_Z).normalize();
+
+  const lateral = 2.2;
+  const heightBias = 0.4;
+
+  const pos = new THREE.Vector3()
+    .copy(current.panelCenter)
+    .addScaledVector(forward, distance)
+    .addScaledVector(travel, lateral)
+    .add(new THREE.Vector3(0, heightBias, 0));
+
+  const look = current.panelCenter.clone();
+
+  return { position: pos, lookAt: look };
 }
 
-function ScaleHeadOverlay({
-  item, point, active, previous, muted, accent, unit,
-}: {
-  item: SceneItem;
-  point: OverlayPoint;
-  active: boolean;
-  previous: boolean;
-  muted: boolean;
-  accent: string;
-  unit: string;
-}) {
-  const url = useResolvedImage(item.node);
-  const size = active ? 118 : previous ? 88 : 62;
-  const opacity = muted ? 0.22 : previous ? 0.76 : 1;
-
-  return (
-    <div
-      className="absolute flex flex-col items-center"
-      style={{
-        left: point.x,
-        top: point.y,
-        transform: "translate(-50%, -100%)",
-        opacity,
-        transition: "opacity 500ms ease",
-        zIndex: active ? 4 : previous ? 3 : 1,
-      }}
-    >
-      <div
-        className="rounded-full overflow-hidden bg-muted grid place-items-center font-black text-muted-foreground"
-        style={{
-          width: size,
-          height: size,
-          border: `3px solid ${active ? accent : previous ? "rgba(255,255,255,0.72)" : "rgba(255,255,255,0.3)"}`,
-          boxShadow: active ? `0 16px 60px ${accent}aa` : "0 10px 28px rgba(0,0,0,0.45)",
-        }}
-      >
-        {url ? (
-          <img src={url} alt="" className="size-full object-cover" />
-        ) : (
-          <span style={{ fontSize: Math.max(18, size * 0.36) }}>{(item.node.text || "?").slice(0, 1).toUpperCase()}</span>
-        )}
-      </div>
-      <div
-        className="mt-2 text-center rounded-md px-3 py-1 bg-background/72 backdrop-blur border border-border text-foreground shadow-lg"
-        style={{ maxWidth: active ? 260 : 190 }}
-      >
-        <div className="text-sm font-bold leading-tight truncate">{item.node.text}</div>
-        <div className="text-xs text-foreground/75 tabular-nums">
-          {formatValue(item.data.value)} {unit}
-        </div>
-      </div>
-    </div>
-  );
-}
+// ============================================================================
+// Helpers
+// ============================================================================
 
 function hexColor(value: string) {
   try { return new THREE.Color(value); }
   catch { return new THREE.Color("#38bdf8"); }
-}
-
-function mix(a: string, b: string, t: number): string {
-  const ca = safeRgb(a);
-  const cb = safeRgb(b);
-  if (!ca || !cb) return a;
-  const r = Math.round(ca.r + (cb.r - ca.r) * t);
-  const g = Math.round(ca.g + (cb.g - ca.g) * t);
-  const bl = Math.round(ca.b + (cb.b - ca.b) * t);
-  return `rgb(${r}, ${g}, ${bl})`;
-}
-
-function safeRgb(value: string) {
-  try {
-    const color = new THREE.Color(value);
-    return { r: color.r * 255, g: color.g * 255, b: color.b * 255 };
-  } catch {
-    return null;
-  }
 }
