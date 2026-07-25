@@ -787,7 +787,7 @@ function computeCameraTarget(
 // Helpers
 // ============================================================================
 
-function hexColor(value: string) {
+function safeColor(value: string) {
   try { return new THREE.Color(value); }
   catch { return new THREE.Color("#38bdf8"); }
 }
