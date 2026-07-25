@@ -49,7 +49,7 @@ const PLANS: Record<PlanKey, {
 
 const FEATURES = [
   "Canvas e nós ilimitados",
-  "Todos os 6 formatos (mapa, tier list, iceberg, chaveamento, matriz, ranking)",
+  "Todos os 7 formatos (mapa, tier list, iceberg, chaveamento, matriz, ranking, comparação de escala 3D)",
   "Imagens, vídeos e links embutidos nos nós",
   "Modo apresentação cinematográfico em todos os formatos",
   "Gravação integrada em 720p, Full HD, 4K, quadrado ou vertical",
