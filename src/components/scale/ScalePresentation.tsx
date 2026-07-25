@@ -419,28 +419,28 @@ function ScaleThreeScene({
 
     let endPos = next.position.clone();
     let endLook = next.lookAt.clone();
-    let diveDirection: THREE.Vector3 | null = null;
-    let leadLook: THREE.Vector3 | null = null;
-    // Opening dive: keep the overview angle and translate straight toward the
-    // first bar's top. No sideways pivot — just a dolly/zoom in the same frame.
+    const diveDirection: THREE.Vector3 | null = null;
+    const leadLook: THREE.Vector3 | null = null;
+    // Opening dive: reuse the exact bar-to-bar descent animation. We synthesize
+    // a "from" bar (the tallest one, which the overview naturally frames) and
+    // descend to the first bar with the same climb/descent waypoint + timing
+    // as pressing "prev" from the top of the tallest bar.
     if (initialDive && sceneItems[0]) {
-      const diveTarget = computeInitialDiveTarget(sceneItems, startPos, startLook, endPos);
-      if (diveTarget) {
-        approachPos = diveTarget.approachPos;
-        approachLook = diveTarget.approachLook;
-        diveDirection = diveTarget.diveDirection;
-        leadLook = diveTarget.leadLook;
-        // No lead pivot: start moving immediately in the locked overview angle,
-        // then only settle to the front-facing first-bar framing at the end.
-        leadAngleUntil = 0;
-        holdAngleUntil = 0.86;
-        lookHoldUntil = 0.86;
+      const tallest = sceneItems.reduce((a, b) => (b.height > a.height ? b : a));
+      const target = sceneItems[0];
+      if (tallest && target && tallest !== target) {
+        const climb = computeClimbApproach(tallest, target);
+        approachPos = climb.pos;
+        approachLook = climb.look;
+        leadAngleUntil = 0.18;
+        holdAngleUntil = 0.78;
+        lookHoldUntil = 0.78;
       }
     }
     const dist = approachPos
       ? startPos.distanceTo(approachPos) + approachPos.distanceTo(endPos)
       : startPos.distanceTo(endPos);
-    const duration = initialDive ? initialDiveDuration(dist) : regularMoveDuration(dist);
+    const duration = regularMoveDuration(dist);
     tweenRef.current = {
       startPos,
       startLook,
