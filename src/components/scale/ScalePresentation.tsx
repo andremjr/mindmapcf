@@ -399,10 +399,11 @@ function buildScene(
   horizon.position.set(midX, 0, midZ - spanZ);
   scene.add(horizon);
 
-  // --- Altitude reference bands & distant pillars (motion parallax) --------
+  // --- Altitude reference bands & flat city skyline (motion parallax) ------
   const maxHeight = Math.max(...sceneItems.map((it) => it.height), 1);
   addAltitudeReferences(scene, sceneItems, maxHeight, midX, midZ, spanX);
-  addBackgroundPillars(scene, sceneItems, maxHeight, midX, midZ);
+  addCitySkyline(scene, sceneItems, maxHeight, midX, midZ);
+
 
   // --- Bars -----------------------------------------------------------------
   sceneItems.forEach((item) => {
