@@ -211,6 +211,26 @@ export function IcebergEditor({ project }: { project: Project }) {
     setTimeout(() => renumberLevel(levelId), 0);
   }
 
+  async function importImages(levelId: string) {
+    const refs = await pickMediaMultipleAndStore("image");
+    if (refs.length === 0) return;
+    let count = (itemsByLevel.get(levelId) ?? []).length;
+    for (const ref of refs) {
+      const id = addNode(project.id, { parentId: levelId });
+      if (!id) continue;
+      const baseName = ref.name.replace(/\.[^.]+$/, "");
+      count += 1;
+      updateNode(project.id, id, {
+        text: `${count}. ${baseName || "Item"}`,
+        role: "item",
+        width: 240,
+        imageRef: ref,
+        imageName: ref.name,
+      } as Partial<MindNode>);
+    }
+    setTimeout(() => renumberLevel(levelId), 0);
+  }
+
   function handleDeleteItem(item: MindNode) {
     const levelId = item.parentId;
     deleteNode(project.id, item.id);
