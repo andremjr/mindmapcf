@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useStore } from "@/lib/store";
 import type { MindNode, Project } from "@/lib/types";
-import { pickMediaAndStore, resolveImage } from "@/lib/imageStorage";
+import { pickMediaAndStore, pickMediaMultipleAndStore, resolveImage } from "@/lib/imageStorage";
 import { IcebergBackground } from "./IcebergBackground";
 import { IcebergBackgroundRealista } from "./IcebergBackgroundRealista";
 import { IcebergBackgroundUltra } from "./IcebergBackgroundUltra";
@@ -211,6 +211,26 @@ export function IcebergEditor({ project }: { project: Project }) {
     setTimeout(() => renumberLevel(levelId), 0);
   }
 
+  async function importImages(levelId: string) {
+    const refs = await pickMediaMultipleAndStore("image");
+    if (refs.length === 0) return;
+    let count = (itemsByLevel.get(levelId) ?? []).length;
+    for (const ref of refs) {
+      const id = addNode(project.id, { parentId: levelId });
+      if (!id) continue;
+      const baseName = ref.name.replace(/\.[^.]+$/, "");
+      count += 1;
+      updateNode(project.id, id, {
+        text: `${count}. ${baseName || "Item"}`,
+        role: "item",
+        width: 240,
+        imageRef: ref,
+        imageName: ref.name,
+      } as Partial<MindNode>);
+    }
+    setTimeout(() => renumberLevel(levelId), 0);
+  }
+
   function handleDeleteItem(item: MindNode) {
     const levelId = item.parentId;
     deleteNode(project.id, item.id);
@@ -332,6 +352,15 @@ export function IcebergEditor({ project }: { project: Project }) {
                       onClick={() => addItem(lvl.id)}
                     >
                       <Plus className="size-3.5" /> Item
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="bg-white/20 hover:bg-white/30 text-white border-white/20"
+                      onClick={() => importImages(lvl.id)}
+                      title="Importar várias imagens de uma vez"
+                    >
+                      <ImageIcon className="size-3.5" /> Imagens
                     </Button>
                     <button
                       onClick={() => deleteNode(project.id, lvl.id)}
