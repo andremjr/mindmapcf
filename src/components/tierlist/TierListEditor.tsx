@@ -347,6 +347,23 @@ export function TierListEditor({ project }: { project: Project }) {
 
   const placedCount = allItems.length - poolItems.length;
 
+  /** Send every item placed in a tier back to the available pool. */
+  function resetTiers() {
+    if (placedCount === 0) return;
+    if (!confirm("Devolver todos os itens dos tiers para os itens disponíveis?")) return;
+    let next = poolItems.length;
+    for (const tier of tiers) {
+      for (const item of itemsByTier.get(tier.id) ?? []) {
+        if (board) setParent(project.id, item.id, board.id);
+        updateNode(project.id, item.id, {
+          order: next,
+          placementOrder: undefined,
+        } as Partial<MindNode>);
+        next += 1;
+      }
+    }
+  }
+
   return (
     <div className="h-screen bg-background text-foreground flex flex-col overflow-hidden">
       <header className="border-b border-border/60 px-4 py-3 flex items-center gap-3">
