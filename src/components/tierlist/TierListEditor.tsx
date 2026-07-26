@@ -379,6 +379,16 @@ export function TierListEditor({ project }: { project: Project }) {
           />
           <span className="text-xs text-muted-foreground shrink-0">Tier List</span>
         </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={resetTiers}
+          disabled={placedCount === 0}
+          className="gap-1.5"
+          title="Devolver todos os itens dos tiers para os disponíveis"
+        >
+          <RotateCcw className="size-4" /> Resetar
+        </Button>
         <NarrationDock projectId={project.id} narrationRef={project.narrationRef} />
         <ThemeToggle />
         <Button variant="destructive" size="sm" onClick={() => setRecordOpen(true)} className="gap-1.5">
