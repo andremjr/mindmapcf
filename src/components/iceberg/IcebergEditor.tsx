@@ -353,6 +353,15 @@ export function IcebergEditor({ project }: { project: Project }) {
                     >
                       <Plus className="size-3.5" /> Item
                     </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="bg-white/20 hover:bg-white/30 text-white border-white/20"
+                      onClick={() => importImages(lvl.id)}
+                      title="Importar várias imagens de uma vez"
+                    >
+                      <ImageIcon className="size-3.5" /> Imagens
+                    </Button>
                     <button
                       onClick={() => deleteNode(project.id, lvl.id)}
                       className="text-xs opacity-70 hover:opacity-100 flex items-center gap-1"
