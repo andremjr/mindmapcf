@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useStore } from "@/lib/store";
 import type { MindNode, Project } from "@/lib/types";
-import { pickMediaAndStore, resolveImage } from "@/lib/imageStorage";
+import { pickMediaAndStore, pickMediaMultipleAndStore, resolveImage } from "@/lib/imageStorage";
 import { IcebergBackground } from "./IcebergBackground";
 import { IcebergBackgroundRealista } from "./IcebergBackgroundRealista";
 import { IcebergBackgroundUltra } from "./IcebergBackgroundUltra";
