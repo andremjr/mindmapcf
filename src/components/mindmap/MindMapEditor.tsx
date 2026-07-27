@@ -57,6 +57,8 @@ export function MindMapEditor({ project }: { project: Project }) {
   const runAutoLayout = useStore((s) => s.autoLayout);
   const renameProject = useStore((s) => s.renameProject);
   const replaceProjectNodes = useStore((s) => s.replaceProjectNodes);
+  const setProjectNodes = useStore((s) => s.setProjectNodes);
+
   const setNodeColor = useStore((s) => s.setNodeColor);
   const setViewportPersist = useStore((s) => s.setViewport);
   const setNarration = useStore((s) => s.setNarration);
