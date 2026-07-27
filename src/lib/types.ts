@@ -25,7 +25,7 @@ export interface MindNode {
   x: number;
   y: number;
   /** Card width in world px. */
-  width: number;
+  width?: number;
   /** Parent node id — null means root. */
   parentId: string | null;
   /** Hide descendants when true. */
