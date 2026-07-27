@@ -157,11 +157,14 @@ export function nodeEffectiveWidth(n: MindNode): number {
   const isRoot = !n.parentId;
   const hasMedia = !!(n.imageRef || n.image);
   // Explicit width only counts for media nodes, or for text nodes the user
-  // resized by hand (legacy default widths 520/560 are treated as "auto").
+  // resized by hand. Legacy defaults (520/560 from the editor, 260/300 from
+  // the AI/Markdown importer) are treated as "auto".
+  const LEGACY_AUTO_WIDTHS = [520, 560, 260, 300];
   if (typeof n.width === "number" && n.width > 0) {
     if (hasMedia) return n.width;
-    if (n.width !== 520 && n.width !== 560) return n.width;
+    if (!LEGACY_AUTO_WIDTHS.includes(n.width)) return n.width;
   }
+
   if (hasMedia) return isRoot ? 560 : 520;
 
   // Auto width: measure the text and shrink-wrap the card.
