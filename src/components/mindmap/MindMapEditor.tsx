@@ -17,6 +17,9 @@ import {
   ChevronDown,
   X,
   Keyboard,
+  Undo2,
+  Redo2,
+
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
