@@ -180,7 +180,7 @@ function treeToNodes(root: TreeNode): MindNode[] {
       text: t.text,
       x: 0,
       y: 0,
-      width: parentId ? 260 : 300,
+      // No explicit width: let the auto shrink-wrap logic size the card.
       parentId,
     });
     for (const c of t.children) walk(c, id, depth + 1);
