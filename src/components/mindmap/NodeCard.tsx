@@ -178,7 +178,9 @@ export function NodeCard({
       ? isThemed
         ? "shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]"
         : "border-primary/80 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)] ring-2 ring-primary/40"
-      : "border-border/20 opacity-25 blur-[1.5px]"
+      : manual
+        ? "border-border/30 opacity-45 hover:opacity-90 cursor-pointer"
+        : "border-border/20 opacity-25 blur-[1.5px]"
     : selected
       ? isThemed
         ? "shadow-[0_10px_30px_-14px_rgba(0,0,0,0.5)]"
@@ -199,13 +201,18 @@ export function NodeCard({
         ...borderStyle,
       }}
       onPointerDown={(e) => {
+        if (presentation && manual) {
+          if ((e.target as HTMLElement).closest("[data-nodrag]")) return;
+          onSelect(e);
+          return;
+        }
         if (presentation) return;
         if ((e.target as HTMLElement).closest("[data-nodrag]")) return;
         onSelect(e);
         onDragStart(e);
       }}
       onDoubleClick={(e) => {
-        if (presentation) return;
+        if (presentation && !manual) return;
         e.stopPropagation();
         onStartEdit();
       }}
