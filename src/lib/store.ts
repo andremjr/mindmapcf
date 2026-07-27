@@ -188,9 +188,17 @@ export function nodeEffectiveWidth(n: MindNode): number {
 
   // Ideal single-line width: text + identical padding on both sides.
   const naturalW = Math.ceil(longestLine) + CARD_PAD_X;
+
+  // Short text (single line, up to ~100 chars) must never wrap automatically:
+  // it stays on one line even if that exceeds the regular max width.
+  if (segments.length === 1 && raw.length <= 100) {
+    return Math.max(minW, naturalW);
+  }
+
   if (naturalW <= maxW) {
     return Math.min(maxW, Math.max(minW, naturalW));
   }
+
 
 
   // Text must wrap: pick a width that yields a balanced block instead of
