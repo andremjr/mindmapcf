@@ -23,6 +23,7 @@ import { AvatarLayer } from "@/components/shared/AvatarLayer";
 import { DropIndicator, visualInsertIndex } from "@/components/shared/DropIndicator";
 import { aspectDims, parseTierListConfig, type ItemAspect } from "@/lib/tierlistConfig";
 import { TextCardBody } from "@/components/shared/TextCardBody";
+import { SpotlightCard } from "@/components/shared/SpotlightCard";
 
 
 function fmtDur(ms: number) {
@@ -724,41 +725,22 @@ export function TierListPresentation({
                     className="relative rounded-2xl overflow-hidden border-2 border-white/40 shadow-2xl"
                     style={{
                       ...(() => {
-                        const base = Math.min(size.w, size.h) * 0.6;
+                        const base = Math.min(size.w, size.h) * 0.75;
                         const { w, h } = aspectDims(base, itemAspect);
                         return { width: w, height: h };
                       })(),
                       background: autoSpotlightNode.color ?? "#111",
                     }}
                   >
-                    {autoSpotlightUrl && (
-                      <img src={autoSpotlightUrl} alt="" className="absolute inset-0 size-full object-cover" />
-                    )}
-                    {!autoSpotlightUrl ? (
-                      <div className="absolute inset-0 text-white">
-                        <TextCardBody
-                          title={autoSpotlightNode.text}
-                          body={autoSpotlightNode.body}
-                          max={72}
-                          min={12}
-                          scale="lg"
-                          deps={`${size.w}|${autoSpotlightNode.text}|${autoSpotlightNode.body ?? ""}`}
-                        />
-                      </div>
-                    ) : (
-                      autoSpotlightNode.text && (
-                        <div className="absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-6 py-4">
-                          <div className="text-white text-2xl md:text-4xl font-bold break-words">
-                            {autoSpotlightNode.text}
-                          </div>
-                          {autoSpotlightNode.body && (
-                            <div className="text-white/85 text-sm md:text-lg mt-1 break-words line-clamp-4">
-                              {autoSpotlightNode.body}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    )}
+                    <SpotlightCard
+                      title={autoSpotlightNode.text}
+                      body={autoSpotlightNode.body}
+                      mediaUrl={autoSpotlightUrl}
+                      color={autoSpotlightNode.color}
+                      max={72}
+                      min={10}
+                      deps={`${size.w}|${autoSpotlightNode.text}|${autoSpotlightNode.body ?? ""}`}
+                    />
 
                   </motion.div>
                 </motion.div>
@@ -817,7 +799,7 @@ export function TierListPresentation({
                   className="relative rounded-2xl overflow-hidden border-2 border-white/40 shadow-2xl"
                   style={{
                     ...(() => {
-                      const base = Math.min(size.w, size.h) * 0.7;
+                      const base = Math.min(size.w, size.h) * 0.8;
                       const { w, h } = aspectDims(base, itemAspect);
                       return { width: w, height: h };
                     })(),
@@ -825,35 +807,15 @@ export function TierListPresentation({
                   }}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {spotlightUrl && (
-                    <img src={spotlightUrl} alt="" className="absolute inset-0 size-full object-cover" />
-                  )}
-                  {!spotlightUrl ? (
-                    <div className="absolute inset-0 text-white">
-                      <TextCardBody
-                        title={spotlightNode.text}
-                        body={spotlightNode.body}
-                        max={72}
-                        min={12}
-                        scale="lg"
-                        deps={`${size.w}|${spotlightNode.text}|${spotlightNode.body ?? ""}`}
-                      />
-                    </div>
-
-                  ) : (
-                    spotlightNode.text && (
-                      <div className="absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-6 py-4">
-                        <div className="text-white text-2xl md:text-4xl font-bold break-words">
-                          {spotlightNode.text}
-                        </div>
-                        {spotlightNode.body && (
-                          <div className="text-white/85 text-sm md:text-lg mt-1 break-words line-clamp-4">
-                            {spotlightNode.body}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  )}
+                  <SpotlightCard
+                    title={spotlightNode.text}
+                    body={spotlightNode.body}
+                    mediaUrl={spotlightUrl}
+                    color={spotlightNode.color}
+                    max={72}
+                    min={10}
+                    deps={`${size.w}|${spotlightNode.text}|${spotlightNode.body ?? ""}`}
+                  />
 
                   <button
                     onClick={() => setSpotlightId(null)}
