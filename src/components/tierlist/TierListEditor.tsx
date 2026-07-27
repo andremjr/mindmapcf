@@ -625,6 +625,18 @@ export function TierListEditor({ project }: { project: Project }) {
                   />
                 </div>
 
+                <div>
+                  <label className="text-[11px] text-muted-foreground">Descrição (texto longo)</label>
+                  <textarea
+                    value={selected.body ?? ""}
+                    onChange={(e) => updateNode(project.id, selected.id, { body: e.target.value })}
+                    placeholder="Explicação do item — aparece no card quando não há imagem"
+                    rows={4}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+                  />
+                </div>
+
+
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="outline" onClick={setSelectedImage} className="gap-1.5">
                     <ImageIcon className="size-3.5" />
