@@ -575,7 +575,10 @@ export const useStore = create<State & Actions>()((set) => ({
           text: patch?.text ?? "",
           x: patch?.x ?? auto.x,
           y: patch?.y ?? auto.y,
-          width: patch?.width ?? (parentId ? 520 : 560),
+          // Width is adaptive by default (see nodeEffectiveWidth); only an
+          // explicit request pins it.
+          width: patch?.width,
+
           parentId,
           image: patch?.image,
           imageRef: patch?.imageRef,
