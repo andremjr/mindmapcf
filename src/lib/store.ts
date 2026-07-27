@@ -118,10 +118,16 @@ function autoFontPx(text: string, isRoot: boolean): number {
  * Explicit `n.width` overrides (reserved for future resize UI).
  */
 export function nodeEffectiveWidth(n: MindNode): number {
-  if (typeof n.width === "number" && n.width > 0) return n.width;
   const isRoot = !n.parentId;
   const hasMedia = !!(n.imageRef || n.image);
+  // Explicit width only counts for media nodes, or for text nodes the user
+  // resized by hand (legacy default widths 520/560 are treated as "auto").
+  if (typeof n.width === "number" && n.width > 0) {
+    if (hasMedia) return n.width;
+    if (n.width !== 520 && n.width !== 560) return n.width;
+  }
   if (hasMedia) return isRoot ? 560 : 520;
+
   const len = (n.text || "").length;
   if (isRoot) {
     if (len < 12) return 220;
