@@ -321,7 +321,7 @@ export function NodeCard({
       )}
 
       {/* Collapse toggle */}
-      {!presentation && childCount > 0 && (
+      {(!presentation || (manual && active)) && childCount > 0 && (
         <button
           data-nodrag
           onClick={onToggleCollapsed}
@@ -353,17 +353,20 @@ export function NodeCard({
       )}
 
       {/* Quick add child button */}
-      {!presentation && selected && !editing && onAddChild && (
+      {(presentation ? manual && active : selected) && !editing && onAddChild && (
         <button
           data-nodrag
           onClick={onAddChild}
-          className="absolute top-1/2 -translate-y-1/2 -right-14 size-7 rounded-full bg-primary text-primary-foreground grid place-items-center shadow hover:scale-105"
+          className={`absolute top-1/2 -translate-y-1/2 size-7 rounded-full bg-primary text-primary-foreground grid place-items-center shadow hover:scale-105 ${
+            presentation ? "-right-10" : "-right-14"
+          }`}
           title="Adicionar filho (Tab)"
           aria-label="Adicionar filho"
         >
           +
         </button>
       )}
+
 
       {/* Toolbar */}
       {selected && !presentation && !editing && (
