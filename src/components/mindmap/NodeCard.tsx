@@ -44,6 +44,12 @@ interface Props {
   selected: boolean;
   editing: boolean;
   presentation?: boolean;
+  /**
+   * Manual presentation mode: the card stays in presentation styling but the
+   * author can click to focus, expand/collapse, edit the text and add
+   * children live (during a presentation or a recording).
+   */
+  manual?: boolean;
   active?: boolean;
   /** Resolved accent color (inherits from ancestors — computed by parent). */
   effectiveColor?: string;
