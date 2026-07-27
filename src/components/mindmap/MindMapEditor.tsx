@@ -798,6 +798,27 @@ export function MindMapEditor({ project }: { project: Project }) {
           )}
           <Button
             variant="ghost"
+            size="icon"
+            onClick={undo}
+            disabled={!canUndo}
+            title="Desfazer (Ctrl+Z)"
+            aria-label="Desfazer"
+          >
+            <Undo2 className="size-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={redo}
+            disabled={!canRedo}
+            title="Refazer (Ctrl+Shift+Z)"
+            aria-label="Refazer"
+          >
+            <Redo2 className="size-4" />
+          </Button>
+          <Button
+
+            variant="ghost"
             size="sm"
             onClick={() => runAutoLayout(project.id)}
             className="gap-2"
