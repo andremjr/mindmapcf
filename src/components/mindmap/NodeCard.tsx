@@ -438,12 +438,16 @@ export function NodeCard({
           )}
           <button
             onClick={() => {
-              onSetColor?.(undefined, false);
+              onSetColor?.(undefined, cascade && !!hasDescendants);
               setColorMenuOpen(false);
             }}
             className="w-full text-xs rounded-md px-2 py-1.5 border border-border/60 hover:bg-muted"
           >
-            {node.color ? "Limpar cor deste nó" : "Sem cor personalizada"}
+            {node.color
+              ? cascade && hasDescendants
+                ? "Limpar cor da ramificação"
+                : "Limpar cor deste nó"
+              : "Sem cor personalizada"}
           </button>
         </div>
       )}
