@@ -21,6 +21,9 @@ interface Actions {
   createProject: (title: string, folderId?: string | null, template?: ProjectTemplate) => string;
   importProject: (project: Project) => string;
   replaceProjectNodes: (projectId: string, nodes: MindNode[], title?: string) => void;
+  /** Set nodes verbatim (no reflow, no viewport reset) — used by undo/redo. */
+  setProjectNodes: (projectId: string, nodes: MindNode[]) => void;
+
   deleteProject: (id: string) => void;
   renameProject: (id: string, title: string) => void;
   setIcebergAtmosphere: (id: string, atmosphere: "ludico" | "realista" | "ultra") => void;
