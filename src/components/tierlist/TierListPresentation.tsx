@@ -23,6 +23,7 @@ import { AvatarLayer } from "@/components/shared/AvatarLayer";
 import { DropIndicator, visualInsertIndex } from "@/components/shared/DropIndicator";
 import { aspectDims, parseTierListConfig, type ItemAspect } from "@/lib/tierlistConfig";
 import { TextCardBody } from "@/components/shared/TextCardBody";
+import { SpotlightCard } from "@/components/shared/SpotlightCard";
 
 
 function fmtDur(ms: number) {
