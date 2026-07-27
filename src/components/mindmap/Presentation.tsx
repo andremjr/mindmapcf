@@ -587,8 +587,9 @@ export function Presentation({
     function bump() {
       setUiVisible(true);
       if (hideTimer.current) window.clearTimeout(hideTimer.current);
-      // Never auto-hide while recording — the user needs the Stop button.
-      if (recording) return;
+      // Never auto-hide while recording or in manual mode — the user needs
+      // the Stop button / the manual controls at all times.
+      if (recording || manualMode) return;
       hideTimer.current = window.setTimeout(() => setUiVisible(false), 2200);
     }
     bump();
