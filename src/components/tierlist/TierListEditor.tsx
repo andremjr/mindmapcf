@@ -74,10 +74,21 @@ function ItemThumb({
         <img src={url} alt="" className="absolute inset-0 size-full object-cover" />
       )}
       {!url && (
-        <div className="absolute inset-0 grid place-items-center text-center px-1.5 leading-tight text-[11px] break-words whitespace-normal overflow-hidden">
-          {node.text || "Item"}
-        </div>
+        <AutoFitText
+          className="absolute inset-0 grid place-items-center text-center px-1.5"
+          max={12}
+          min={5}
+          deps={`${w}x${h}|${node.text}|${node.body ?? ""}`}
+        >
+          <div className="font-semibold break-words whitespace-normal">{node.text || "Item"}</div>
+          {node.body && (
+            <div className="mt-1 text-muted-foreground break-words whitespace-normal" style={{ fontSize: "0.82em" }}>
+              {node.body}
+            </div>
+          )}
+        </AutoFitText>
       )}
+
       {url && node.text && (
         <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] px-1 py-0.5 leading-tight break-words whitespace-normal max-h-[45%] overflow-hidden">
           {node.text}
