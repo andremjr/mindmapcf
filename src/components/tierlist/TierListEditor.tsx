@@ -4,6 +4,8 @@ import { ChevronLeft, Plus, Trash2, Image as ImageIcon, X, Play, Circle, GripVer
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AutoFitText } from "@/components/shared/AutoFitText";
+
 import { useStore } from "@/lib/store";
 import type { MindNode, Project } from "@/lib/types";
 import { pickMediaAndStore, pickMediaMultipleAndStore, resolveImage } from "@/lib/imageStorage";
@@ -74,10 +76,21 @@ function ItemThumb({
         <img src={url} alt="" className="absolute inset-0 size-full object-cover" />
       )}
       {!url && (
-        <div className="absolute inset-0 grid place-items-center text-center px-1.5 leading-tight text-[11px] break-words whitespace-normal overflow-hidden">
-          {node.text || "Item"}
-        </div>
+        <AutoFitText
+          className="absolute inset-0 grid place-items-center text-center px-1.5"
+          max={12}
+          min={5}
+          deps={`${w}x${h}|${node.text}|${node.body ?? ""}`}
+        >
+          <div className="font-semibold break-words whitespace-normal">{node.text || "Item"}</div>
+          {node.body && (
+            <div className="mt-1 text-muted-foreground break-words whitespace-normal" style={{ fontSize: "0.82em" }}>
+              {node.body}
+            </div>
+          )}
+        </AutoFitText>
       )}
+
       {url && node.text && (
         <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] px-1 py-0.5 leading-tight break-words whitespace-normal max-h-[45%] overflow-hidden">
           {node.text}
@@ -611,6 +624,18 @@ export function TierListEditor({ project }: { project: Project }) {
                     placeholder="Nome do item"
                   />
                 </div>
+
+                <div>
+                  <label className="text-[11px] text-muted-foreground">Descrição (texto longo)</label>
+                  <textarea
+                    value={selected.body ?? ""}
+                    onChange={(e) => updateNode(project.id, selected.id, { body: e.target.value })}
+                    placeholder="Explicação do item — aparece no card quando não há imagem"
+                    rows={4}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+                  />
+                </div>
+
 
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="outline" onClick={setSelectedImage} className="gap-1.5">

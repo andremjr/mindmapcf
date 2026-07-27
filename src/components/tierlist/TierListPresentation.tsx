@@ -22,6 +22,8 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { AvatarLayer } from "@/components/shared/AvatarLayer";
 import { DropIndicator, visualInsertIndex } from "@/components/shared/DropIndicator";
 import { aspectDims, parseTierListConfig, type ItemAspect } from "@/lib/tierlistConfig";
+import { AutoFitText } from "@/components/shared/AutoFitText";
+
 
 function fmtDur(ms: number) {
   const s = Math.floor(ms / 1000);
@@ -83,15 +85,26 @@ function TierItem({
       {url ? (
         <img src={url} alt="" className="absolute inset-0 size-full object-cover" />
       ) : (
-        <div className="absolute inset-0 grid place-items-center text-[11px] text-center px-1.5 leading-tight text-white/95 break-words whitespace-normal overflow-hidden">
-          {node.text || "Item"}
-        </div>
+        <AutoFitText
+          className="absolute inset-0 grid place-items-center text-center px-1.5 text-white/95"
+          max={13}
+          min={5}
+          deps={`${w}x${h}|${node.text}|${node.body ?? ""}`}
+        >
+          <div className="font-bold break-words whitespace-normal">{node.text || "Item"}</div>
+          {node.body && (
+            <div className="mt-1 opacity-85 break-words whitespace-normal" style={{ fontSize: "0.82em" }}>
+              {node.body}
+            </div>
+          )}
+        </AutoFitText>
       )}
       {url && node.text && (
         <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] px-1 py-0.5 leading-tight break-words whitespace-normal max-h-[55%] overflow-hidden">
           {node.text}
         </div>
       )}
+
     </div>
   );
 }
@@ -724,13 +737,35 @@ export function TierListPresentation({
                     {autoSpotlightUrl && (
                       <img src={autoSpotlightUrl} alt="" className="absolute inset-0 size-full object-cover" />
                     )}
-                    {autoSpotlightNode.text && (
-                      <div className="absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-6 py-4">
-                        <div className="text-white text-2xl md:text-4xl font-bold break-words">
-                          {autoSpotlightNode.text}
+                    {!autoSpotlightUrl ? (
+                      <AutoFitText
+                        className="absolute inset-0 grid place-items-center text-center px-8 text-white"
+                        max={64}
+                        min={12}
+                        deps={`${size.w}|${autoSpotlightNode.text}|${autoSpotlightNode.body ?? ""}`}
+                      >
+                        <div className="font-bold break-words">{autoSpotlightNode.text || "Item"}</div>
+                        {autoSpotlightNode.body && (
+                          <div className="mt-3 opacity-90 break-words" style={{ fontSize: "0.5em" }}>
+                            {autoSpotlightNode.body}
+                          </div>
+                        )}
+                      </AutoFitText>
+                    ) : (
+                      autoSpotlightNode.text && (
+                        <div className="absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-6 py-4">
+                          <div className="text-white text-2xl md:text-4xl font-bold break-words">
+                            {autoSpotlightNode.text}
+                          </div>
+                          {autoSpotlightNode.body && (
+                            <div className="text-white/85 text-sm md:text-lg mt-1 break-words line-clamp-4">
+                              {autoSpotlightNode.body}
+                            </div>
+                          )}
                         </div>
-                      </div>
+                      )
                     )}
+
                   </motion.div>
                 </motion.div>
               )}
@@ -799,13 +834,35 @@ export function TierListPresentation({
                   {spotlightUrl && (
                     <img src={spotlightUrl} alt="" className="absolute inset-0 size-full object-cover" />
                   )}
-                  {spotlightNode.text && (
-                    <div className="absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-6 py-4">
-                      <div className="text-white text-2xl md:text-4xl font-bold break-words">
-                        {spotlightNode.text}
+                  {!spotlightUrl ? (
+                    <AutoFitText
+                      className="absolute inset-0 grid place-items-center text-center px-8 text-white"
+                      max={64}
+                      min={12}
+                      deps={`${size.w}|${spotlightNode.text}|${spotlightNode.body ?? ""}`}
+                    >
+                      <div className="font-bold break-words">{spotlightNode.text || "Item"}</div>
+                      {spotlightNode.body && (
+                        <div className="mt-3 opacity-90 break-words" style={{ fontSize: "0.5em" }}>
+                          {spotlightNode.body}
+                        </div>
+                      )}
+                    </AutoFitText>
+                  ) : (
+                    spotlightNode.text && (
+                      <div className="absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-6 py-4">
+                        <div className="text-white text-2xl md:text-4xl font-bold break-words">
+                          {spotlightNode.text}
+                        </div>
+                        {spotlightNode.body && (
+                          <div className="text-white/85 text-sm md:text-lg mt-1 break-words line-clamp-4">
+                            {spotlightNode.body}
+                          </div>
+                        )}
                       </div>
-                    </div>
+                    )
                   )}
+
                   <button
                     onClick={() => setSpotlightId(null)}
                     className="absolute top-3 right-3 size-9 grid place-items-center rounded-full bg-black/60 text-white hover:bg-black/80"
