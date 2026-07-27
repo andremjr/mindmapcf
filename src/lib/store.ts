@@ -117,6 +117,38 @@ function autoFontPx(text: string, isRoot: boolean): number {
 }
 
 /**
+ * Real text measurement (canvas) so short, single-line nodes shrink-wrap to
+ * exactly the text width + the same padding used on the left/right.
+ * Falls back to a character estimate during SSR.
+ */
+let measureCtx: CanvasRenderingContext2D | null | undefined;
+const measureCache = new Map<string, number>();
+
+function measureTextPx(text: string, fontPx: number): number {
+  const key = `${fontPx}|${text}`;
+  const cached = measureCache.get(key);
+  if (cached !== undefined) return cached;
+
+  let width: number;
+  if (typeof document !== "undefined") {
+    if (measureCtx === undefined) {
+      measureCtx = document.createElement("canvas").getContext("2d");
+    }
+    if (measureCtx) {
+      measureCtx.font = `500 ${fontPx}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif`;
+      width = measureCtx.measureText(text).width;
+    } else {
+      width = text.length * fontPx * 0.52;
+    }
+  } else {
+    width = text.length * fontPx * 0.52;
+  }
+  if (measureCache.size > 2000) measureCache.clear();
+  measureCache.set(key, width);
+  return width;
+}
+
+/**
  * Adaptive node width — narrower for short text, wider for long text or when
  * the node carries media (media stays at consistent large size).
  * Explicit `n.width` overrides (reserved for future resize UI).
@@ -134,25 +166,29 @@ export function nodeEffectiveWidth(n: MindNode): number {
 
   // Auto width: measure the text and shrink-wrap the card.
   const raw = (n.text || "").trim();
-  if (!raw) return isRoot ? 160 : 120;
+  if (!raw) return isRoot ? 96 : 72;
 
   const fontPx = autoFontPx(raw, isRoot);
   const charW = fontPx * 0.52;
-  const minW = isRoot ? 140 : 100;
+  // Only enough room for a couple of glyphs — short words must stay tight.
+  const minW = CARD_PAD_X + Math.ceil(fontPx * 1.6);
   const maxW = isRoot ? 560 : 520;
 
   const segments = raw.split(/\r?\n/);
-  const longestLine = Math.max(...segments.map((s) => s.length));
+  const longestLine = Math.max(
+    ...segments.map((s) => measureTextPx(s, fontPx)),
+  );
   const longestWord = Math.max(
-    ...raw.split(/\s+/).map((w) => w.length),
+    ...raw.split(/\s+/).map((w) => measureTextPx(w, fontPx)),
     1,
   );
 
-  // Ideal single-line width for the longest explicit line.
-  const naturalW = Math.ceil(longestLine * charW) + CARD_PAD_X;
+  // Ideal single-line width: text + identical padding on both sides.
+  const naturalW = Math.ceil(longestLine) + CARD_PAD_X;
   if (naturalW <= maxW) {
     return Math.min(maxW, Math.max(minW, naturalW));
   }
+
 
   // Text must wrap: pick a width that yields a balanced block instead of
   // always jumping to the maximum.
