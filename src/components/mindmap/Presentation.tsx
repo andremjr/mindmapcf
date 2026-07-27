@@ -486,6 +486,23 @@ export function Presentation({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      const ae0 = document.activeElement as HTMLElement | null;
+      const typing =
+        !!ae0 &&
+        (ae0.tagName === "TEXTAREA" ||
+          ae0.tagName === "INPUT" ||
+          ae0.isContentEditable);
+      // While the author is typing in a node (manual mode), the presentation
+      // shortcuts must stay out of the way — only Escape ends the edit.
+      if (typing) {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          setEditingId(null);
+          (ae0 as HTMLTextAreaElement).blur();
+        }
+        return;
+      }
       const isNav =
         e.key === "ArrowRight" ||
         e.key === "ArrowDown" ||
@@ -502,6 +519,31 @@ export function Presentation({
         if (ae && (ae.tagName === "VIDEO" || ae.closest("video"))) {
           ae.blur();
         }
+      }
+      if (manualMode && e.key === "Tab") {
+        e.preventDefault();
+        manualAddChild(manualFocusId ?? null);
+        return;
+      }
+      if (manualMode && e.key === "Enter") {
+        e.preventDefault();
+        if (manualFocusId) manualAddSibling();
+        else manualAddChild(null);
+        return;
+      }
+      if (manualMode && (e.key === "F2" || e.key === "e")) {
+        if (manualFocusId) {
+          e.preventDefault();
+          setEditingId(manualFocusId);
+        }
+        return;
+      }
+      if (manualMode && (e.key === "c" || e.key === "C")) {
+        if (manualFocusId) {
+          e.preventDefault();
+          toggleCollapsed(project.id, manualFocusId);
+        }
+        return;
       }
       if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === " " || e.key === "PageDown") {
         e.preventDefault();
@@ -523,7 +565,8 @@ export function Presentation({
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order.length, recording]);
+  }, [order.length, recording, manualMode, manualFocusId, project.nodes]);
+
 
   // Recording state ticker.
   const [, setRecTick] = useState(0);
