@@ -91,6 +91,69 @@ export function MindMapEditor({ project }: { project: Project }) {
     | null
   >(null);
 
+  // --- Undo / redo history over project.nodes ---
+  const pastRef = useRef<MindNode[][]>([]);
+  const futureRef = useRef<MindNode[][]>([]);
+  const nodesRef = useRef<MindNode[]>(project.nodes);
+  const skipHistoryRef = useRef(false);
+  const lastPushRef = useRef(0);
+  const [historyTick, setHistoryTick] = useState(0);
+
+  useEffect(() => {
+    if (nodesRef.current === project.nodes) return;
+    if (skipHistoryRef.current) {
+      skipHistoryRef.current = false;
+    } else {
+      const now = Date.now();
+      // Coalesce rapid bursts (drags, typing) into a single history entry.
+      if (now - lastPushRef.current > 500 || pastRef.current.length === 0) {
+        pastRef.current.push(nodesRef.current);
+        if (pastRef.current.length > 100) pastRef.current.shift();
+      }
+      lastPushRef.current = now;
+      futureRef.current = [];
+    }
+    nodesRef.current = project.nodes;
+    setHistoryTick((t) => t + 1);
+  }, [project.nodes]);
+
+  const undo = useCallback(() => {
+    const prev = pastRef.current.pop();
+    if (!prev) return;
+    futureRef.current.push(nodesRef.current);
+    skipHistoryRef.current = true;
+    setProjectNodes(project.id, prev);
+  }, [project.id, setProjectNodes]);
+
+  const redo = useCallback(() => {
+    const next = futureRef.current.pop();
+    if (!next) return;
+    pastRef.current.push(nodesRef.current);
+    skipHistoryRef.current = true;
+    setProjectNodes(project.id, next);
+  }, [project.id, setProjectNodes]);
+
+  const canUndo = pastRef.current.length > 0 && historyTick >= 0;
+  const canRedo = futureRef.current.length > 0;
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const k = e.key.toLowerCase();
+      if (k === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      } else if (k === "y") {
+        e.preventDefault();
+        redo();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo, redo]);
+
+
   const handleNodeSelect = useCallback(
     (id: string, additive: boolean) => {
       if (!additive) {
