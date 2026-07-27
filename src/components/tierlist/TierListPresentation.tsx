@@ -89,9 +89,9 @@ function TierItem({
           <TextCardBody
             title={node.text}
             body={node.body}
-            max={Math.max(12, Math.round(Math.min(w, h) * 0.24))}
-            min={8}
-            clampBody={3}
+            max={Math.max(14, Math.round(Math.min(w, h) * 0.32))}
+            min={7}
+            clampBody={5}
             deps={`${w}x${h}|${node.text}|${node.body ?? ""}`}
           />
         </div>
