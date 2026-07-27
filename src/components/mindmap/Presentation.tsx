@@ -652,18 +652,29 @@ export function Presentation({
                 <NodeCard
                   key={n.id}
                   node={n}
-                  childCount={0}
+                  childCount={childCountById.get(n.id) ?? 0}
                   selected={false}
-                  editing={false}
-                  active={n.id === litId}
+                  editing={manualMode && editingId === n.id}
+                  active={manualMode ? n.id === activeId : n.id === litId}
                   effectiveColor={colorMap.get(n.id)}
                   presentation
-                  onSelect={() => {}}
-                  onStartEdit={() => {}}
-                  onEndEdit={() => {}}
-                  onChange={() => {}}
-                  onDelete={() => {}}
+                  manual={manualMode}
+                  onSelect={() => {
+                    if (manualMode) focusNode(n.id);
+                  }}
+                  onStartEdit={() => {
+                    if (manualMode) setEditingId(n.id);
+                  }}
+                  onEndEdit={() => setEditingId(null)}
+                  onChange={(patch) => {
+                    if (manualMode) updateNode(project.id, n.id, patch);
+                  }}
+                  onDelete={() => {
+                    if (manualMode) deleteNodeAction(project.id, n.id);
+                  }}
                   onDragStart={() => {}}
+                  onAddChild={() => manualAddChild(n.id)}
+                  onToggleCollapsed={() => toggleCollapsed(project.id, n.id)}
                   onOpenLink={() => {
                     if (!recording) {
                       if (n.url) openLinkInNewTab(n.url);
@@ -674,6 +685,7 @@ export function Presentation({
                     setLinkOpen(true);
                   }}
                 />
+
               );
             })}
           </MindMapCanvas>
