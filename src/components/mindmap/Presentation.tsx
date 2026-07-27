@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, X, Download, ExternalLink, Link as LinkIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, X, Download, ExternalLink, Link as LinkIcon, Hand, Plus, Pencil, Trash2 } from "lucide-react";
 import type { Project } from "@/lib/types";
 import { presentationOrder, descendantIds } from "@/lib/store";
 import { buildColorMap } from "@/lib/nodeColors";
@@ -195,8 +195,73 @@ export function Presentation({
 
   const colorMap = useMemo(() => buildColorMap(project.nodes), [project.nodes]);
 
-  const activeId = order[idx];
+  /* ================= MANUAL MODE =================
+   * The author drives the map live: click a node to focus it, expand /
+   * collapse branches, edit texts and create new nodes while presenting or
+   * recording. All controls that are not part of the map itself live outside
+   * the captured frame, so the recording stays clean. */
+  const [manualMode, setManualMode] = useState(false);
+  const [manualFocusId, setManualFocusId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const addNode = useStore((s) => s.addNode);
+  const updateNode = useStore((s) => s.updateNode);
+  const deleteNodeAction = useStore((s) => s.deleteNode);
+  const toggleCollapsed = useStore((s) => s.toggleCollapsed);
+  const setProjectNodes = useStore((s) => s.setProjectNodes);
+
+  const childCountById = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const n of project.nodes) {
+      if (n.parentId) m.set(n.parentId, (m.get(n.parentId) ?? 0) + 1);
+    }
+    return m;
+  }, [project.nodes]);
+
+  const activeId = manualMode ? manualFocusId ?? order[0] : order[idx];
   const activeNode = project.nodes.find((n) => n.id === activeId);
+
+  function enterManual() {
+    setManualMode(true);
+    setManualFocusId(order[idx] ?? order[0] ?? null);
+  }
+  function exitManual() {
+    setManualMode(false);
+    setEditingId(null);
+    const i = order.indexOf(manualFocusId ?? "");
+    if (i >= 0) setIdx(i);
+  }
+  function focusNode(id: string) {
+    setLinkOpen(false);
+    setManualFocusId(id);
+  }
+  function manualAddChild(parentId: string | null) {
+    if (parentId) {
+      const parent = project.nodes.find((n) => n.id === parentId);
+      if (parent?.collapsed) toggleCollapsed(project.id, parentId);
+    }
+    const id = addNode(project.id, { parentId });
+    setManualFocusId(id);
+    setEditingId(id);
+  }
+  function manualAddSibling() {
+    const cur = project.nodes.find((n) => n.id === manualFocusId);
+    if (!cur) return;
+    manualAddChild(cur.parentId ?? null);
+  }
+  function setAllCollapsed(collapsed: boolean) {
+    setProjectNodes(
+      project.id,
+      project.nodes.map((n) =>
+        childCountById.has(n.id) ? { ...n, collapsed } : n,
+      ),
+    );
+    if (collapsed) {
+      const root = project.nodes.find((n) => !n.parentId);
+      if (root) setManualFocusId(root.id);
+    }
+  }
+
+
 
   // Lit id lags activeId so the node "acende" only when the incoming edge
   // fill animation reaches it. Root has no incoming edge → lights immediately.
@@ -295,11 +360,23 @@ export function Presentation({
   function next() {
     if (countdown !== null) return;
     setLinkOpen(false);
+    if (manualMode) {
+      const i = order.indexOf(manualFocusId ?? "");
+      const nid = order[Math.min(order.length - 1, i + 1)];
+      if (nid) setManualFocusId(nid);
+      return;
+    }
     setIdx((i) => Math.min(order.length - 1, i + 1));
   }
   function prev() {
     if (countdown !== null) return;
     setLinkOpen(false);
+    if (manualMode) {
+      const i = order.indexOf(manualFocusId ?? "");
+      const nid = order[Math.max(0, i - 1)];
+      if (nid) setManualFocusId(nid);
+      return;
+    }
     setIdx((i) => Math.max(0, i - 1));
   }
   async function stopAndDownload() {
@@ -409,6 +486,23 @@ export function Presentation({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      const ae0 = document.activeElement as HTMLElement | null;
+      const typing =
+        !!ae0 &&
+        (ae0.tagName === "TEXTAREA" ||
+          ae0.tagName === "INPUT" ||
+          ae0.isContentEditable);
+      // While the author is typing in a node (manual mode), the presentation
+      // shortcuts must stay out of the way — only Escape ends the edit.
+      if (typing) {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          e.stopPropagation();
+          setEditingId(null);
+          (ae0 as HTMLTextAreaElement).blur();
+        }
+        return;
+      }
       const isNav =
         e.key === "ArrowRight" ||
         e.key === "ArrowDown" ||
@@ -425,6 +519,31 @@ export function Presentation({
         if (ae && (ae.tagName === "VIDEO" || ae.closest("video"))) {
           ae.blur();
         }
+      }
+      if (manualMode && e.key === "Tab") {
+        e.preventDefault();
+        manualAddChild(manualFocusId ?? null);
+        return;
+      }
+      if (manualMode && e.key === "Enter") {
+        e.preventDefault();
+        if (manualFocusId) manualAddSibling();
+        else manualAddChild(null);
+        return;
+      }
+      if (manualMode && (e.key === "F2" || e.key === "e")) {
+        if (manualFocusId) {
+          e.preventDefault();
+          setEditingId(manualFocusId);
+        }
+        return;
+      }
+      if (manualMode && (e.key === "c" || e.key === "C")) {
+        if (manualFocusId) {
+          e.preventDefault();
+          toggleCollapsed(project.id, manualFocusId);
+        }
+        return;
       }
       if (e.key === "ArrowRight" || e.key === "ArrowDown" || e.key === " " || e.key === "PageDown") {
         e.preventDefault();
@@ -446,7 +565,8 @@ export function Presentation({
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [order.length, recording]);
+  }, [order.length, recording, manualMode, manualFocusId, project.nodes]);
+
 
   // Recording state ticker.
   const [, setRecTick] = useState(0);
@@ -467,8 +587,9 @@ export function Presentation({
     function bump() {
       setUiVisible(true);
       if (hideTimer.current) window.clearTimeout(hideTimer.current);
-      // Never auto-hide while recording — the user needs the Stop button.
-      if (recording) return;
+      // Never auto-hide while recording or in manual mode — the user needs
+      // the Stop button / the manual controls at all times.
+      if (recording || manualMode) return;
       hideTimer.current = window.setTimeout(() => setUiVisible(false), 2200);
     }
     bump();
@@ -479,7 +600,7 @@ export function Presentation({
       window.removeEventListener("keydown", bump);
       if (hideTimer.current) window.clearTimeout(hideTimer.current);
     };
-  }, [recording]);
+  }, [recording, manualMode]);
 
   const frameStyle: React.CSSProperties = recording
     ? {
@@ -532,18 +653,29 @@ export function Presentation({
                 <NodeCard
                   key={n.id}
                   node={n}
-                  childCount={0}
+                  childCount={childCountById.get(n.id) ?? 0}
                   selected={false}
-                  editing={false}
-                  active={n.id === litId}
+                  editing={manualMode && editingId === n.id}
+                  active={manualMode ? n.id === activeId : n.id === litId}
                   effectiveColor={colorMap.get(n.id)}
                   presentation
-                  onSelect={() => {}}
-                  onStartEdit={() => {}}
-                  onEndEdit={() => {}}
-                  onChange={() => {}}
-                  onDelete={() => {}}
+                  manual={manualMode}
+                  onSelect={() => {
+                    if (manualMode) focusNode(n.id);
+                  }}
+                  onStartEdit={() => {
+                    if (manualMode) setEditingId(n.id);
+                  }}
+                  onEndEdit={() => setEditingId(null)}
+                  onChange={(patch) => {
+                    if (manualMode) updateNode(project.id, n.id, patch);
+                  }}
+                  onDelete={() => {
+                    if (manualMode) deleteNodeAction(project.id, n.id);
+                  }}
                   onDragStart={() => {}}
+                  onAddChild={() => manualAddChild(n.id)}
+                  onToggleCollapsed={() => toggleCollapsed(project.id, n.id)}
                   onOpenLink={() => {
                     if (!recording) {
                       if (n.url) openLinkInNewTab(n.url);
@@ -554,6 +686,7 @@ export function Presentation({
                     setLinkOpen(true);
                   }}
                 />
+
               );
             })}
           </MindMapCanvas>
@@ -619,6 +752,88 @@ export function Presentation({
         </button>
       </div>
 
+      {/* Manual-mode toolbar (off-frame — never captured in the recording). */}
+      <div
+        className={`absolute bottom-[76px] left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 rounded-full bg-card/70 backdrop-blur border border-border/60 px-2 py-1.5 transition-opacity duration-300 ${
+          uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+      >
+        <button
+          onClick={() => (manualMode ? exitManual() : enterManual())}
+          className={`h-8 px-3 rounded-full text-xs font-medium flex items-center gap-1.5 ${
+            manualMode ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+          }`}
+          title="Alterna entre roteiro automático e construção ao vivo"
+        >
+          <Hand className="size-3.5" />
+          {manualMode ? "Modo manual ativo" : "Modo manual"}
+        </button>
+        {manualMode && (
+          <>
+            <div className="w-px h-5 bg-border mx-0.5" />
+            <button
+              onClick={() => manualAddChild(activeId ?? null)}
+              className="h-8 px-3 rounded-full text-xs hover:bg-muted flex items-center gap-1.5"
+              title="Novo nó filho (Tab)"
+            >
+              <Plus className="size-3.5" /> Filho
+            </button>
+            <button
+              onClick={() => (activeId ? manualAddSibling() : manualAddChild(null))}
+              className="h-8 px-3 rounded-full text-xs hover:bg-muted flex items-center gap-1.5"
+              title="Novo nó irmão (Enter)"
+            >
+              <Plus className="size-3.5" /> Irmão
+            </button>
+            <button
+              onClick={() => activeId && setEditingId(activeId)}
+              disabled={!activeId}
+              className="h-8 px-3 rounded-full text-xs hover:bg-muted disabled:opacity-40 flex items-center gap-1.5"
+              title="Editar texto do nó em foco (E)"
+            >
+              <Pencil className="size-3.5" /> Editar
+            </button>
+            <button
+              onClick={() => activeId && toggleCollapsed(project.id, activeId)}
+              disabled={!activeId || !childCountById.has(activeId)}
+              className="h-8 px-3 rounded-full text-xs hover:bg-muted disabled:opacity-40 flex items-center gap-1.5"
+              title="Recolher / expandir o nó em foco (C)"
+            >
+              <ChevronDown className="size-3.5" /> Recolher
+            </button>
+            <div className="w-px h-5 bg-border mx-0.5" />
+            <button
+              onClick={() => setAllCollapsed(true)}
+              className="h-8 px-3 rounded-full text-xs hover:bg-muted"
+              title="Recolher todos os nós"
+            >
+              Recolher tudo
+            </button>
+            <button
+              onClick={() => setAllCollapsed(false)}
+              className="h-8 px-3 rounded-full text-xs hover:bg-muted"
+              title="Expandir todos os nós"
+            >
+              Expandir tudo
+            </button>
+            <div className="w-px h-5 bg-border mx-0.5" />
+            <button
+              onClick={() => {
+                if (!activeId) return;
+                deleteNodeAction(project.id, activeId);
+                setEditingId(null);
+                setManualFocusId(null);
+              }}
+              disabled={!activeId}
+              className="h-8 px-2.5 rounded-full text-xs text-destructive hover:bg-destructive/10 disabled:opacity-40"
+              title="Excluir o nó em foco"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
+          </>
+        )}
+      </div>
+
       <div
         className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-card/70 backdrop-blur border border-border/60 px-2 py-2 transition-opacity duration-300 ${
           uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"
@@ -626,18 +841,24 @@ export function Presentation({
       >
         <button
           onClick={prev}
-          disabled={idx === 0}
+          disabled={manualMode ? order.indexOf(activeId ?? "") <= 0 : idx === 0}
           className="size-9 grid place-items-center rounded-full hover:bg-muted disabled:opacity-40"
           aria-label="Anterior"
         >
           <ChevronLeft className="size-5" />
         </button>
         <span className="px-3 text-sm font-mono tabular-nums text-muted-foreground min-w-[70px] text-center">
-          {order.length > 0 ? `${idx + 1} / ${order.length}` : "0 / 0"}
+          {order.length > 0
+            ? `${(manualMode ? order.indexOf(activeId ?? "") : idx) + 1} / ${order.length}`
+            : "0 / 0"}
         </span>
         <button
           onClick={next}
-          disabled={idx >= order.length - 1}
+          disabled={
+            manualMode
+              ? order.indexOf(activeId ?? "") >= order.length - 1
+              : idx >= order.length - 1
+          }
           className="size-9 grid place-items-center rounded-full hover:bg-muted disabled:opacity-40"
           aria-label="Próximo"
         >
@@ -669,10 +890,26 @@ export function Presentation({
       </div>
 
       {order.length === 0 && (
-        <div className="absolute inset-0 grid place-items-center">
-          <p className="text-muted-foreground">Adicione nós antes de apresentar.</p>
+        <div className="absolute inset-0 grid place-items-center pointer-events-none">
+          <div className="pointer-events-auto text-center">
+            <p className="text-muted-foreground mb-3">
+              {manualMode
+                ? "Mapa vazio — crie o primeiro nó ao vivo."
+                : "Adicione nós antes de apresentar."}
+            </p>
+            <button
+              onClick={() => {
+                if (!manualMode) enterManual();
+                manualAddChild(null);
+              }}
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:opacity-90"
+            >
+              <Plus className="size-4" /> Criar primeiro nó
+            </button>
+          </div>
         </div>
       )}
+
 
       {result && (
         <div className="absolute inset-0 z-30 bg-background/90 backdrop-blur grid place-items-center p-6">

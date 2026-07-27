@@ -44,6 +44,12 @@ interface Props {
   selected: boolean;
   editing: boolean;
   presentation?: boolean;
+  /**
+   * Manual presentation mode: the card stays in presentation styling but the
+   * author can click to focus, expand/collapse, edit the text and add
+   * children live (during a presentation or a recording).
+   */
+  manual?: boolean;
   active?: boolean;
   /** Resolved accent color (inherits from ancestors — computed by parent). */
   effectiveColor?: string;
@@ -72,6 +78,7 @@ export function NodeCard({
   selected,
   editing,
   presentation,
+  manual,
   active,
   effectiveColor,
   hasDescendants,
@@ -171,7 +178,9 @@ export function NodeCard({
       ? isThemed
         ? "shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)]"
         : "border-primary/80 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.85)] ring-2 ring-primary/40"
-      : "border-border/20 opacity-25 blur-[1.5px]"
+      : manual
+        ? "border-border/30 opacity-45 hover:opacity-90 cursor-pointer"
+        : "border-border/20 opacity-25 blur-[1.5px]"
     : selected
       ? isThemed
         ? "shadow-[0_10px_30px_-14px_rgba(0,0,0,0.5)]"
@@ -192,13 +201,18 @@ export function NodeCard({
         ...borderStyle,
       }}
       onPointerDown={(e) => {
+        if (presentation && manual) {
+          if ((e.target as HTMLElement).closest("[data-nodrag]")) return;
+          onSelect(e);
+          return;
+        }
         if (presentation) return;
         if ((e.target as HTMLElement).closest("[data-nodrag]")) return;
         onSelect(e);
         onDragStart(e);
       }}
       onDoubleClick={(e) => {
-        if (presentation) return;
+        if (presentation && !manual) return;
         e.stopPropagation();
         onStartEdit();
       }}
@@ -225,7 +239,7 @@ export function NodeCard({
         }
       >
 
-        {editing && !presentation ? (
+        {editing && (!presentation || manual) ? (
           <textarea
             ref={textareaRef}
             data-nodrag
@@ -307,7 +321,7 @@ export function NodeCard({
       )}
 
       {/* Collapse toggle */}
-      {!presentation && childCount > 0 && (
+      {(!presentation || (manual && active)) && childCount > 0 && (
         <button
           data-nodrag
           onClick={onToggleCollapsed}
@@ -339,17 +353,20 @@ export function NodeCard({
       )}
 
       {/* Quick add child button */}
-      {!presentation && selected && !editing && onAddChild && (
+      {(presentation ? manual && active : selected) && !editing && onAddChild && (
         <button
           data-nodrag
           onClick={onAddChild}
-          className="absolute top-1/2 -translate-y-1/2 -right-14 size-7 rounded-full bg-primary text-primary-foreground grid place-items-center shadow hover:scale-105"
+          className={`absolute top-1/2 -translate-y-1/2 size-7 rounded-full bg-primary text-primary-foreground grid place-items-center shadow hover:scale-105 ${
+            presentation ? "-right-10" : "-right-14"
+          }`}
           title="Adicionar filho (Tab)"
           aria-label="Adicionar filho"
         >
           +
         </button>
       )}
+
 
       {/* Toolbar */}
       {selected && !presentation && !editing && (
