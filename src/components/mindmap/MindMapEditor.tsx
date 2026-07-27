@@ -1515,10 +1515,10 @@ function SelectedPanel({
         )}
         {ownColor && (
           <button
-            onClick={() => onSetColor(undefined, false)}
+            onClick={() => onSetColor(undefined, cascade && hasChildren)}
             className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
           >
-            Limpar cor (herdar do pai)
+            {cascade && hasChildren ? "Limpar cor da ramificação" : "Limpar cor (herdar do pai)"}
           </button>
         )}
       </section>
