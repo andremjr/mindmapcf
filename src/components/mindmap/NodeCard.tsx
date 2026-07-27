@@ -78,6 +78,7 @@ export function NodeCard({
   selected,
   editing,
   presentation,
+  manual,
   active,
   effectiveColor,
   hasDescendants,
