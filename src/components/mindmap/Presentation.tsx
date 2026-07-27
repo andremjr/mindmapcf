@@ -752,6 +752,88 @@ export function Presentation({
         </button>
       </div>
 
+      {/* Manual-mode toolbar (off-frame — never captured in the recording). */}
+      <div
+        className={`absolute bottom-[76px] left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 rounded-full bg-card/70 backdrop-blur border border-border/60 px-2 py-1.5 transition-opacity duration-300 ${
+          uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+      >
+        <button
+          onClick={() => (manualMode ? exitManual() : enterManual())}
+          className={`h-8 px-3 rounded-full text-xs font-medium flex items-center gap-1.5 ${
+            manualMode ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+          }`}
+          title="Alterna entre roteiro automático e construção ao vivo"
+        >
+          <Hand className="size-3.5" />
+          {manualMode ? "Modo manual ativo" : "Modo manual"}
+        </button>
+        {manualMode && (
+          <>
+            <div className="w-px h-5 bg-border mx-0.5" />
+            <button
+              onClick={() => manualAddChild(activeId ?? null)}
+              className="h-8 px-3 rounded-full text-xs hover:bg-muted flex items-center gap-1.5"
+              title="Novo nó filho (Tab)"
+            >
+              <Plus className="size-3.5" /> Filho
+            </button>
+            <button
+              onClick={() => (activeId ? manualAddSibling() : manualAddChild(null))}
+              className="h-8 px-3 rounded-full text-xs hover:bg-muted flex items-center gap-1.5"
+              title="Novo nó irmão (Enter)"
+            >
+              <Plus className="size-3.5" /> Irmão
+            </button>
+            <button
+              onClick={() => activeId && setEditingId(activeId)}
+              disabled={!activeId}
+              className="h-8 px-3 rounded-full text-xs hover:bg-muted disabled:opacity-40 flex items-center gap-1.5"
+              title="Editar texto do nó em foco (E)"
+            >
+              <Pencil className="size-3.5" /> Editar
+            </button>
+            <button
+              onClick={() => activeId && toggleCollapsed(project.id, activeId)}
+              disabled={!activeId || !childCountById.has(activeId)}
+              className="h-8 px-3 rounded-full text-xs hover:bg-muted disabled:opacity-40 flex items-center gap-1.5"
+              title="Recolher / expandir o nó em foco (C)"
+            >
+              <ChevronDown className="size-3.5" /> Recolher
+            </button>
+            <div className="w-px h-5 bg-border mx-0.5" />
+            <button
+              onClick={() => setAllCollapsed(true)}
+              className="h-8 px-3 rounded-full text-xs hover:bg-muted"
+              title="Recolher todos os nós"
+            >
+              Recolher tudo
+            </button>
+            <button
+              onClick={() => setAllCollapsed(false)}
+              className="h-8 px-3 rounded-full text-xs hover:bg-muted"
+              title="Expandir todos os nós"
+            >
+              Expandir tudo
+            </button>
+            <div className="w-px h-5 bg-border mx-0.5" />
+            <button
+              onClick={() => {
+                if (!activeId) return;
+                deleteNodeAction(project.id, activeId);
+                setEditingId(null);
+                setManualFocusId(null);
+              }}
+              disabled={!activeId}
+              className="h-8 px-2.5 rounded-full text-xs text-destructive hover:bg-destructive/10 disabled:opacity-40"
+              title="Excluir o nó em foco"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
+          </>
+        )}
+      </div>
+
       <div
         className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-full bg-card/70 backdrop-blur border border-border/60 px-2 py-2 transition-opacity duration-300 ${
           uiVisible ? "opacity-100" : "opacity-0 pointer-events-none"
@@ -759,18 +841,24 @@ export function Presentation({
       >
         <button
           onClick={prev}
-          disabled={idx === 0}
+          disabled={manualMode ? order.indexOf(activeId ?? "") <= 0 : idx === 0}
           className="size-9 grid place-items-center rounded-full hover:bg-muted disabled:opacity-40"
           aria-label="Anterior"
         >
           <ChevronLeft className="size-5" />
         </button>
         <span className="px-3 text-sm font-mono tabular-nums text-muted-foreground min-w-[70px] text-center">
-          {order.length > 0 ? `${idx + 1} / ${order.length}` : "0 / 0"}
+          {order.length > 0
+            ? `${(manualMode ? order.indexOf(activeId ?? "") : idx) + 1} / ${order.length}`
+            : "0 / 0"}
         </span>
         <button
           onClick={next}
-          disabled={idx >= order.length - 1}
+          disabled={
+            manualMode
+              ? order.indexOf(activeId ?? "") >= order.length - 1
+              : idx >= order.length - 1
+          }
           className="size-9 grid place-items-center rounded-full hover:bg-muted disabled:opacity-40"
           aria-label="Próximo"
         >
@@ -802,10 +890,26 @@ export function Presentation({
       </div>
 
       {order.length === 0 && (
-        <div className="absolute inset-0 grid place-items-center">
-          <p className="text-muted-foreground">Adicione nós antes de apresentar.</p>
+        <div className="absolute inset-0 grid place-items-center pointer-events-none">
+          <div className="pointer-events-auto text-center">
+            <p className="text-muted-foreground mb-3">
+              {manualMode
+                ? "Mapa vazio — crie o primeiro nó ao vivo."
+                : "Adicione nós antes de apresentar."}
+            </p>
+            <button
+              onClick={() => {
+                if (!manualMode) enterManual();
+                manualAddChild(null);
+              }}
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:opacity-90"
+            >
+              <Plus className="size-4" /> Criar primeiro nó
+            </button>
+          </div>
         </div>
       )}
+
 
       {result && (
         <div className="absolute inset-0 z-30 bg-background/90 backdrop-blur grid place-items-center p-6">
