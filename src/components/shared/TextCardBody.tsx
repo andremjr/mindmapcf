@@ -13,6 +13,7 @@ export function TextCardBody({
   scale = "sm",
   deps = "",
   tone = "light",
+  clampBody,
 }: {
   title: string;
   body?: string | null;
@@ -22,9 +23,11 @@ export function TextCardBody({
   scale?: "sm" | "lg";
   deps?: string | number;
   tone?: "light" | "muted";
+  /** Max lines for the description; extra text is trimmed instead of shrinking the whole card. */
+  clampBody?: number;
 }) {
-  const pad = scale === "lg" ? "px-[8%] py-[6%]" : "px-[10%] py-[8%]";
-  const gap = scale === "lg" ? "0.55em" : "0.5em";
+  const pad = scale === "lg" ? "px-[8%] py-[6%]" : "px-[6%] py-[5%]";
+  const gap = scale === "lg" ? "0.55em" : "0.4em";
   const bodyColor = tone === "muted" ? "text-muted-foreground" : "text-white/75";
   const ruleColor = tone === "muted" ? "bg-foreground/20" : "bg-white/35";
 
@@ -47,7 +50,19 @@ export function TextCardBody({
             <div className={`${ruleColor} rounded-full`} style={{ width: "2.2em", height: "0.09em" }} />
             <div
               className={`${bodyColor} break-words whitespace-normal`}
-              style={{ fontSize: "0.66em", lineHeight: 1.45, maxWidth: "34em" }}
+              style={{
+                fontSize: scale === "lg" ? "0.6em" : "0.74em",
+                lineHeight: 1.35,
+                maxWidth: "34em",
+                ...(clampBody
+                  ? {
+                      display: "-webkit-box",
+                      WebkitBoxOrient: "vertical" as const,
+                      WebkitLineClamp: clampBody,
+                      overflow: "hidden",
+                    }
+                  : {}),
+              }}
             >
               {body}
             </div>
