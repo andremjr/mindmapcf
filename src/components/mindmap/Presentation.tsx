@@ -252,12 +252,15 @@ export function Presentation({
     setProjectNodes(
       project.id,
       project.nodes.map((n) =>
-        n.parentId === null && collapsed
-          ? { ...n, collapsed: childCountById.has(n.id) ? true : n.collapsed }
-          : { ...n, collapsed: childCountById.has(n.id) ? collapsed : n.collapsed },
+        childCountById.has(n.id) ? { ...n, collapsed } : n,
       ),
     );
+    if (collapsed) {
+      const root = project.nodes.find((n) => !n.parentId);
+      if (root) setManualFocusId(root.id);
+    }
   }
+
 
 
   // Lit id lags activeId so the node "acende" only when the incoming edge
