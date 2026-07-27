@@ -79,8 +79,9 @@ function ItemThumb({
         <TextCardBody
           title={node.text}
           body={node.body}
-          max={Math.max(9, Math.round(Math.min(w, h) * 0.16))}
-          min={5}
+          max={Math.max(12, Math.round(Math.min(w, h) * 0.24))}
+          min={8}
+          clampBody={3}
           tone="muted"
           deps={`${w}x${h}|${node.text}|${node.body ?? ""}`}
         />
