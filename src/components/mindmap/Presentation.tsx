@@ -600,7 +600,7 @@ export function Presentation({
       window.removeEventListener("keydown", bump);
       if (hideTimer.current) window.clearTimeout(hideTimer.current);
     };
-  }, [recording]);
+  }, [recording, manualMode]);
 
   const frameStyle: React.CSSProperties = recording
     ? {
