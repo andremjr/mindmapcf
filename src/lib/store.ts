@@ -196,7 +196,7 @@ export function nodeEffectiveWidth(n: MindNode): number {
   const targetLines = Math.ceil(Math.sqrt(totalChars / 9));
   const balancedW =
     Math.ceil((totalChars / Math.max(1, targetLines)) * charW) + CARD_PAD_X;
-  const wordFloor = Math.ceil(longestWord * charW) + CARD_PAD_X;
+  const wordFloor = Math.ceil(longestWord) + CARD_PAD_X;
   return Math.min(maxW, Math.max(minW, wordFloor, balancedW));
 }
 
