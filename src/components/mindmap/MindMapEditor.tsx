@@ -488,7 +488,7 @@ export function MindMapEditor({ project }: { project: Project }) {
       const r = resizeRef.current;
       if (r) {
         const dx = (e.clientX - r.startX) / viewport.zoom;
-        const next = Math.max(220, Math.min(900, Math.round(r.startWidth + dx)));
+        const next = Math.max(60, Math.min(1200, Math.round(r.startWidth + dx)));
         updateNode(project.id, r.id, { width: next });
         return;
       }
