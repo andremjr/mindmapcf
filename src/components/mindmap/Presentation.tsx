@@ -195,8 +195,70 @@ export function Presentation({
 
   const colorMap = useMemo(() => buildColorMap(project.nodes), [project.nodes]);
 
-  const activeId = order[idx];
+  /* ================= MANUAL MODE =================
+   * The author drives the map live: click a node to focus it, expand /
+   * collapse branches, edit texts and create new nodes while presenting or
+   * recording. All controls that are not part of the map itself live outside
+   * the captured frame, so the recording stays clean. */
+  const [manualMode, setManualMode] = useState(false);
+  const [manualFocusId, setManualFocusId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const addNode = useStore((s) => s.addNode);
+  const updateNode = useStore((s) => s.updateNode);
+  const deleteNodeAction = useStore((s) => s.deleteNode);
+  const toggleCollapsed = useStore((s) => s.toggleCollapsed);
+  const setProjectNodes = useStore((s) => s.setProjectNodes);
+
+  const childCountById = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const n of project.nodes) {
+      if (n.parentId) m.set(n.parentId, (m.get(n.parentId) ?? 0) + 1);
+    }
+    return m;
+  }, [project.nodes]);
+
+  const activeId = manualMode ? manualFocusId ?? order[0] : order[idx];
   const activeNode = project.nodes.find((n) => n.id === activeId);
+
+  function enterManual() {
+    setManualMode(true);
+    setManualFocusId(order[idx] ?? order[0] ?? null);
+  }
+  function exitManual() {
+    setManualMode(false);
+    setEditingId(null);
+    const i = order.indexOf(manualFocusId ?? "");
+    if (i >= 0) setIdx(i);
+  }
+  function focusNode(id: string) {
+    setLinkOpen(false);
+    setManualFocusId(id);
+  }
+  function manualAddChild(parentId: string | null) {
+    if (parentId) {
+      const parent = project.nodes.find((n) => n.id === parentId);
+      if (parent?.collapsed) toggleCollapsed(project.id, parentId);
+    }
+    const id = addNode(project.id, { parentId });
+    setManualFocusId(id);
+    setEditingId(id);
+  }
+  function manualAddSibling() {
+    const cur = project.nodes.find((n) => n.id === manualFocusId);
+    if (!cur) return;
+    manualAddChild(cur.parentId ?? null);
+  }
+  function setAllCollapsed(collapsed: boolean) {
+    setProjectNodes(
+      project.id,
+      project.nodes.map((n) =>
+        n.parentId === null && collapsed
+          ? { ...n, collapsed: childCountById.has(n.id) ? true : n.collapsed }
+          : { ...n, collapsed: childCountById.has(n.id) ? collapsed : n.collapsed },
+      ),
+    );
+  }
+
 
   // Lit id lags activeId so the node "acende" only when the incoming edge
   // fill animation reaches it. Root has no incoming edge → lights immediately.
