@@ -737,13 +737,35 @@ export function TierListPresentation({
                     {autoSpotlightUrl && (
                       <img src={autoSpotlightUrl} alt="" className="absolute inset-0 size-full object-cover" />
                     )}
-                    {autoSpotlightNode.text && (
-                      <div className="absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-6 py-4">
-                        <div className="text-white text-2xl md:text-4xl font-bold break-words">
-                          {autoSpotlightNode.text}
+                    {!autoSpotlightUrl ? (
+                      <AutoFitText
+                        className="absolute inset-0 grid place-items-center text-center px-8 text-white"
+                        max={64}
+                        min={12}
+                        deps={`${size.w}|${autoSpotlightNode.text}|${autoSpotlightNode.body ?? ""}`}
+                      >
+                        <div className="font-bold break-words">{autoSpotlightNode.text || "Item"}</div>
+                        {autoSpotlightNode.body && (
+                          <div className="mt-3 opacity-90 break-words" style={{ fontSize: "0.5em" }}>
+                            {autoSpotlightNode.body}
+                          </div>
+                        )}
+                      </AutoFitText>
+                    ) : (
+                      autoSpotlightNode.text && (
+                        <div className="absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-6 py-4">
+                          <div className="text-white text-2xl md:text-4xl font-bold break-words">
+                            {autoSpotlightNode.text}
+                          </div>
+                          {autoSpotlightNode.body && (
+                            <div className="text-white/85 text-sm md:text-lg mt-1 break-words line-clamp-4">
+                              {autoSpotlightNode.body}
+                            </div>
+                          )}
                         </div>
-                      </div>
+                      )
                     )}
+
                   </motion.div>
                 </motion.div>
               )}
