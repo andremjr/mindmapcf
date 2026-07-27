@@ -239,7 +239,7 @@ export function NodeCard({
         }
       >
 
-        {editing && !presentation ? (
+        {editing && (!presentation || manual) ? (
           <textarea
             ref={textareaRef}
             data-nodrag
