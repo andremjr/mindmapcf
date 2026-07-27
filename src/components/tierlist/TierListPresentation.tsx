@@ -828,19 +828,17 @@ export function TierListPresentation({
                     <img src={spotlightUrl} alt="" className="absolute inset-0 size-full object-cover" />
                   )}
                   {!spotlightUrl ? (
-                    <AutoFitText
-                      className="absolute inset-0 grid place-items-center text-center px-8 text-white"
-                      max={64}
-                      min={12}
-                      deps={`${size.w}|${spotlightNode.text}|${spotlightNode.body ?? ""}`}
-                    >
-                      <div className="font-bold break-words">{spotlightNode.text || "Item"}</div>
-                      {spotlightNode.body && (
-                        <div className="mt-3 opacity-90 break-words" style={{ fontSize: "0.5em" }}>
-                          {spotlightNode.body}
-                        </div>
-                      )}
-                    </AutoFitText>
+                    <div className="absolute inset-0 text-white">
+                      <TextCardBody
+                        title={spotlightNode.text}
+                        body={spotlightNode.body}
+                        max={72}
+                        min={12}
+                        scale="lg"
+                        deps={`${size.w}|${spotlightNode.text}|${spotlightNode.body ?? ""}`}
+                      />
+                    </div>
+
                   ) : (
                     spotlightNode.text && (
                       <div className="absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-6 py-4">
