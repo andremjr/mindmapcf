@@ -360,11 +360,23 @@ export function Presentation({
   function next() {
     if (countdown !== null) return;
     setLinkOpen(false);
+    if (manualMode) {
+      const i = order.indexOf(manualFocusId ?? "");
+      const nid = order[Math.min(order.length - 1, i + 1)];
+      if (nid) setManualFocusId(nid);
+      return;
+    }
     setIdx((i) => Math.min(order.length - 1, i + 1));
   }
   function prev() {
     if (countdown !== null) return;
     setLinkOpen(false);
+    if (manualMode) {
+      const i = order.indexOf(manualFocusId ?? "");
+      const nid = order[Math.max(0, i - 1)];
+      if (nid) setManualFocusId(nid);
+      return;
+    }
     setIdx((i) => Math.max(0, i - 1));
   }
   async function stopAndDownload() {
