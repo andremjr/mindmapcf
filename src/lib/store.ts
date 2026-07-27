@@ -721,21 +721,25 @@ export const useStore = create<State & Actions>()((set) => ({
     set((s) => ({
       projects: s.projects.map((p) => {
         if (p.id !== projectId) return p;
-        const descendants = cascade
-          ? new Set(descendantIds(p.nodes, nodeId))
-          : null;
+        const descendants = new Set(descendantIds(p.nodes, nodeId));
+        // Colors inherit down the branch. Without cascade we must pin each
+        // descendant to the color it currently shows, so only this node changes.
+        const before = cascade ? null : buildColorMap(p.nodes);
         return {
           ...p,
           nodes: p.nodes.map((n) => {
             if (n.id === nodeId) return { ...n, color };
-            if (descendants && descendants.has(n.id))
-              return { ...n, color: undefined };
-            return n;
+            if (!descendants.has(n.id)) return n;
+            if (cascade) return { ...n, color: undefined };
+            if (n.color) return n;
+            const prev = before?.get(n.id);
+            return prev && prev !== DEFAULT_ACCENT ? { ...n, color: prev } : n;
           }),
           updatedAt: new Date().toISOString(),
         };
       }),
     })),
+
 
   autoLayout: (projectId) =>
     set((s) => ({
