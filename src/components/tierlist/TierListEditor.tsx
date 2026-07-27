@@ -4,6 +4,8 @@ import { ChevronLeft, Plus, Trash2, Image as ImageIcon, X, Play, Circle, GripVer
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AutoFitText } from "@/components/shared/AutoFitText";
+
 import { useStore } from "@/lib/store";
 import type { MindNode, Project } from "@/lib/types";
 import { pickMediaAndStore, pickMediaMultipleAndStore, resolveImage } from "@/lib/imageStorage";
