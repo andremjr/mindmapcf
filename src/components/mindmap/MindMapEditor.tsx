@@ -977,6 +977,8 @@ export function MindMapEditor({ project }: { project: Project }) {
                   <div
                     key={n.id}
                     style={{
+                      position: "relative",
+                      zIndex: selectedId === n.id || editingId === n.id ? 60 : isDropTarget || isMultiSel ? 50 : 1,
                       outline: isDropTarget
                         ? "2px solid color-mix(in oklch, var(--primary) 80%, transparent)"
                         : isMultiSel
