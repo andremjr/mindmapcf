@@ -14,7 +14,7 @@ import {
 import type { ImageRef, MindNode } from "@/lib/types";
 import { resolveImage, requestImageAccess } from "@/lib/imageStorage";
 import { NODE_COLOR_PALETTE, DEFAULT_ACCENT } from "@/lib/nodeColors";
-import { nodeEffectiveWidth } from "@/lib/store";
+import { nodeEffectiveWidth, nodeHasManualTextWidth } from "@/lib/store";
 
 
 /**
@@ -114,6 +114,9 @@ export function NodeCard({
   const accent = effectiveColor ?? node.color ?? DEFAULT_ACCENT;
   const isRoot = !node.parentId;
   const isThemed = accent !== DEFAULT_ACCENT;
+  const hasMedia = !!(node.imageRef || node.image);
+  const rawText = (node.text || "").trim();
+  const shouldKeepSingleLine = !hasMedia && !nodeHasManualTextWidth(node) && !rawText.includes("\n") && rawText.length > 0 && rawText.length <= 100;
 
   const hasHorizontalVideo =
     (node.imageRef?.kind === "video") && videoAspect !== null && videoAspect >= 1.2;
@@ -248,7 +251,7 @@ export function NodeCard({
           />
         ) : (
           <p
-            className={`whitespace-pre-wrap leading-snug ${
+            className={`${shouldKeepSingleLine ? "whitespace-pre" : "whitespace-pre-wrap"} leading-snug ${
               isRoot ? "font-semibold" : ""
             } ${node.text ? "text-foreground" : "text-muted-foreground/70 italic"}`}
             style={{
