@@ -549,6 +549,17 @@ export const useStore = create<State & Actions>()((set) => ({
     }));
   },
 
+  setProjectNodes: (projectId, nodes) =>
+    set((s) => ({
+      projects: s.projects.map((p) =>
+        p.id === projectId
+          ? { ...p, nodes, updatedAt: new Date().toISOString() }
+          : p,
+      ),
+    })),
+
+
+
   deleteProject: (id) =>
     set((s) => ({ projects: s.projects.filter((p) => p.id !== id) })),
 
