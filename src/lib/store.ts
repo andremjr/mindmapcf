@@ -131,20 +131,38 @@ export function nodeEffectiveWidth(n: MindNode): number {
   }
   if (hasMedia) return isRoot ? 560 : 520;
 
-  const len = (n.text || "").length;
-  if (isRoot) {
-    if (len < 12) return 220;
-    if (len < 24) return 300;
-    if (len < 70) return 420;
-    if (len < 160) return 500;
-    return 560;
+  // Auto width: measure the text and shrink-wrap the card.
+  const raw = (n.text || "").trim();
+  if (!raw) return isRoot ? 160 : 120;
+
+  const fontPx = autoFontPx(raw, isRoot);
+  const charW = fontPx * 0.52;
+  const minW = isRoot ? 140 : 100;
+  const maxW = isRoot ? 560 : 520;
+
+  const segments = raw.split(/\r?\n/);
+  const longestLine = Math.max(...segments.map((s) => s.length));
+  const longestWord = Math.max(
+    ...raw.split(/\s+/).map((w) => w.length),
+    1,
+  );
+
+  // Ideal single-line width for the longest explicit line.
+  const naturalW = Math.ceil(longestLine * charW) + CARD_PAD_X;
+  if (naturalW <= maxW) {
+    return Math.min(maxW, Math.max(minW, naturalW));
   }
-  if (len < 12) return 180;
-  if (len < 24) return 240;
-  if (len < 70) return 360;
-  if (len < 160) return 460;
-  return 520;
+
+  // Text must wrap: pick a width that yields a balanced block instead of
+  // always jumping to the maximum.
+  const totalChars = raw.length;
+  const targetLines = Math.ceil(Math.sqrt(totalChars / 9));
+  const balancedW =
+    Math.ceil((totalChars / Math.max(1, targetLines)) * charW) + CARD_PAD_X;
+  const wordFloor = Math.ceil(longestWord * charW) + CARD_PAD_X;
+  return Math.min(maxW, Math.max(minW, wordFloor, balancedW));
 }
+
 
 function nodeIntrinsicHeight(n: MindNode): number {
   const isRoot = !n.parentId;
