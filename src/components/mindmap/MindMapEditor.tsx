@@ -1402,6 +1402,10 @@ function SelectedPanel({
   onResetWidth: () => void;
 }) {
   const [cascade, setCascade] = useState(false);
+  useEffect(() => {
+    setCascade(false);
+  }, [node?.id]);
+
   if (!node) return null;
   const hasMedia = !!(node.imageRef || node.image);
   const mediaKind = node.imageRef?.kind ?? (node.image ? "image" : undefined);
