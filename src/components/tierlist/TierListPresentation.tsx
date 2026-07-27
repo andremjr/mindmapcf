@@ -22,7 +22,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { AvatarLayer } from "@/components/shared/AvatarLayer";
 import { DropIndicator, visualInsertIndex } from "@/components/shared/DropIndicator";
 import { aspectDims, parseTierListConfig, type ItemAspect } from "@/lib/tierlistConfig";
-import { AutoFitText } from "@/components/shared/AutoFitText";
+import { TextCardBody } from "@/components/shared/TextCardBody";
 
 
 function fmtDur(ms: number) {
@@ -85,19 +85,15 @@ function TierItem({
       {url ? (
         <img src={url} alt="" className="absolute inset-0 size-full object-cover" />
       ) : (
-        <AutoFitText
-          className="absolute inset-0 grid place-items-center text-center px-1.5 text-white/95"
-          max={13}
-          min={5}
-          deps={`${w}x${h}|${node.text}|${node.body ?? ""}`}
-        >
-          <div className="font-bold break-words whitespace-normal">{node.text || "Item"}</div>
-          {node.body && (
-            <div className="mt-1 opacity-85 break-words whitespace-normal" style={{ fontSize: "0.82em" }}>
-              {node.body}
-            </div>
-          )}
-        </AutoFitText>
+        <div className="absolute inset-0 text-white/95">
+          <TextCardBody
+            title={node.text}
+            body={node.body}
+            max={Math.max(9, Math.round(Math.min(w, h) * 0.16))}
+            min={5}
+            deps={`${w}x${h}|${node.text}|${node.body ?? ""}`}
+          />
+        </div>
       )}
       {url && node.text && (
         <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-[10px] px-1 py-0.5 leading-tight break-words whitespace-normal max-h-[55%] overflow-hidden">
@@ -738,19 +734,16 @@ export function TierListPresentation({
                       <img src={autoSpotlightUrl} alt="" className="absolute inset-0 size-full object-cover" />
                     )}
                     {!autoSpotlightUrl ? (
-                      <AutoFitText
-                        className="absolute inset-0 grid place-items-center text-center px-8 text-white"
-                        max={64}
-                        min={12}
-                        deps={`${size.w}|${autoSpotlightNode.text}|${autoSpotlightNode.body ?? ""}`}
-                      >
-                        <div className="font-bold break-words">{autoSpotlightNode.text || "Item"}</div>
-                        {autoSpotlightNode.body && (
-                          <div className="mt-3 opacity-90 break-words" style={{ fontSize: "0.5em" }}>
-                            {autoSpotlightNode.body}
-                          </div>
-                        )}
-                      </AutoFitText>
+                      <div className="absolute inset-0 text-white">
+                        <TextCardBody
+                          title={autoSpotlightNode.text}
+                          body={autoSpotlightNode.body}
+                          max={72}
+                          min={12}
+                          scale="lg"
+                          deps={`${size.w}|${autoSpotlightNode.text}|${autoSpotlightNode.body ?? ""}`}
+                        />
+                      </div>
                     ) : (
                       autoSpotlightNode.text && (
                         <div className="absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-6 py-4">
