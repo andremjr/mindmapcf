@@ -96,6 +96,19 @@ const MIN_SLOT_H = 110;
 const DEFAULT_NODE_W = 520;
 /** Horizontal padding inside the card (px-4 on both sides). */
 const CARD_PAD_X = 32;
+/** Small buffer so browser text rendering never wraps due to sub-pixel differences. */
+const SINGLE_LINE_GUARD = 12;
+const LEGACY_AUTO_WIDTHS = [520, 560, 260, 300];
+
+export function nodeHasManualTextWidth(n: MindNode): boolean {
+  const hasMedia = !!(n.imageRef || n.image);
+  return (
+    !hasMedia &&
+    typeof n.width === "number" &&
+    n.width > 0 &&
+    !LEGACY_AUTO_WIDTHS.includes(n.width)
+  );
+}
 
 /**
  * Mirror of NodeCard's autoFontSize() — must stay in sync so the layout
@@ -159,10 +172,9 @@ export function nodeEffectiveWidth(n: MindNode): number {
   // Explicit width only counts for media nodes, or for text nodes the user
   // resized by hand. Legacy defaults (520/560 from the editor, 260/300 from
   // the AI/Markdown importer) are treated as "auto".
-  const LEGACY_AUTO_WIDTHS = [520, 560, 260, 300];
   if (typeof n.width === "number" && n.width > 0) {
     if (hasMedia) return n.width;
-    if (!LEGACY_AUTO_WIDTHS.includes(n.width)) return n.width;
+    if (nodeHasManualTextWidth(n)) return n.width;
   }
 
   if (hasMedia) return isRoot ? 560 : 520;
@@ -192,7 +204,7 @@ export function nodeEffectiveWidth(n: MindNode): number {
   // Short text (single line, up to ~100 chars) must never wrap automatically:
   // it stays on one line even if that exceeds the regular max width.
   if (segments.length === 1 && raw.length <= 100) {
-    return Math.max(minW, naturalW);
+    return Math.max(minW, naturalW + SINGLE_LINE_GUARD);
   }
 
   if (naturalW <= maxW) {
