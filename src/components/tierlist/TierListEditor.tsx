@@ -4,7 +4,7 @@ import { ChevronLeft, Plus, Trash2, Image as ImageIcon, X, Play, Circle, GripVer
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AutoFitText } from "@/components/shared/AutoFitText";
+import { TextCardBody } from "@/components/shared/TextCardBody";
 
 import { useStore } from "@/lib/store";
 import type { MindNode, Project } from "@/lib/types";
@@ -76,19 +76,14 @@ function ItemThumb({
         <img src={url} alt="" className="absolute inset-0 size-full object-cover" />
       )}
       {!url && (
-        <AutoFitText
-          className="absolute inset-0 grid place-items-center text-center px-1.5"
-          max={12}
+        <TextCardBody
+          title={node.text}
+          body={node.body}
+          max={Math.max(9, Math.round(Math.min(w, h) * 0.16))}
           min={5}
+          tone="muted"
           deps={`${w}x${h}|${node.text}|${node.body ?? ""}`}
-        >
-          <div className="font-semibold break-words whitespace-normal">{node.text || "Item"}</div>
-          {node.body && (
-            <div className="mt-1 text-muted-foreground break-words whitespace-normal" style={{ fontSize: "0.82em" }}>
-              {node.body}
-            </div>
-          )}
-        </AutoFitText>
+        />
       )}
 
       {url && node.text && (
