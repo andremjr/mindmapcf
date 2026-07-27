@@ -93,7 +93,7 @@ export function NodeCard({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const textBoxRef = useRef<HTMLDivElement>(null);
   const [colorMenuOpen, setColorMenuOpen] = useState(false);
-  const [cascade, setCascade] = useState(true);
+  const [cascade, setCascade] = useState(false);
   const [videoAspect, setVideoAspect] = useState<number | null>(null);
   const [fittedFontPx, setFittedFontPx] = useState<number | null>(null);
 
@@ -104,6 +104,11 @@ export function NodeCard({
       textareaRef.current.select();
     }
   }, [editing]);
+
+  useEffect(() => {
+    if (!colorMenuOpen) return;
+    setCascade(false);
+  }, [colorMenuOpen, node.id]);
 
   const w = nodeEffectiveWidth(node);
   const accent = effectiveColor ?? node.color ?? DEFAULT_ACCENT;
@@ -179,6 +184,7 @@ export function NodeCard({
         left: node.x - w / 2,
         top: node.y,
         width: w,
+        zIndex: selected || editing || colorMenuOpen ? 40 : active ? 30 : 1,
         transform: "translateY(-50%)",
         ...borderStyle,
       }}
@@ -346,7 +352,7 @@ export function NodeCard({
       {selected && !presentation && !editing && (
         <div
           data-nodrag
-          className="absolute -bottom-11 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-lg border border-border/60 bg-popover px-1 py-1 shadow-lg whitespace-nowrap"
+          className="absolute -bottom-11 left-1/2 z-50 -translate-x-1/2 flex items-center gap-1 rounded-lg border border-border/60 bg-popover px-1 py-1 shadow-lg whitespace-nowrap"
         >
           <button
             onClick={onStartEdit}
@@ -391,7 +397,7 @@ export function NodeCard({
       {selected && !presentation && !editing && colorMenuOpen && (
         <div
           data-nodrag
-          className="absolute left-1/2 -translate-x-1/2 -bottom-[168px] z-20 w-[240px] rounded-lg border border-border/60 bg-popover p-3 shadow-xl"
+          className="absolute left-1/2 -translate-x-1/2 -bottom-[168px] z-50 w-[240px] rounded-lg border border-border/60 bg-popover p-3 shadow-xl"
           onPointerDown={(e) => e.stopPropagation()}
         >
           <div className="text-[11px] uppercase tracking-widest text-muted-foreground mb-2">
