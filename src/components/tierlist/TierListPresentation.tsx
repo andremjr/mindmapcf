@@ -834,13 +834,35 @@ export function TierListPresentation({
                   {spotlightUrl && (
                     <img src={spotlightUrl} alt="" className="absolute inset-0 size-full object-cover" />
                   )}
-                  {spotlightNode.text && (
-                    <div className="absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-6 py-4">
-                      <div className="text-white text-2xl md:text-4xl font-bold break-words">
-                        {spotlightNode.text}
+                  {!spotlightUrl ? (
+                    <AutoFitText
+                      className="absolute inset-0 grid place-items-center text-center px-8 text-white"
+                      max={64}
+                      min={12}
+                      deps={`${size.w}|${spotlightNode.text}|${spotlightNode.body ?? ""}`}
+                    >
+                      <div className="font-bold break-words">{spotlightNode.text || "Item"}</div>
+                      {spotlightNode.body && (
+                        <div className="mt-3 opacity-90 break-words" style={{ fontSize: "0.5em" }}>
+                          {spotlightNode.body}
+                        </div>
+                      )}
+                    </AutoFitText>
+                  ) : (
+                    spotlightNode.text && (
+                      <div className="absolute left-0 right-0 bottom-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent px-6 py-4">
+                        <div className="text-white text-2xl md:text-4xl font-bold break-words">
+                          {spotlightNode.text}
+                        </div>
+                        {spotlightNode.body && (
+                          <div className="text-white/85 text-sm md:text-lg mt-1 break-words line-clamp-4">
+                            {spotlightNode.body}
+                          </div>
+                        )}
                       </div>
-                    </div>
+                    )
                   )}
+
                   <button
                     onClick={() => setSpotlightId(null)}
                     className="absolute top-3 right-3 size-9 grid place-items-center rounded-full bg-black/60 text-white hover:bg-black/80"
