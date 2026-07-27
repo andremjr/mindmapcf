@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { Folder, ImageRef, MindNode, Project, ProjectTemplate, SonicAvatarEntry, SonicAvatarUsage } from "./types";
+import { buildColorMap, DEFAULT_ACCENT } from "./nodeColors";
 
 
 function uid(_prefix = "id") {
