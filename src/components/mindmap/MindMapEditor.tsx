@@ -46,6 +46,53 @@ import { useTheme } from "@/hooks/useTheme";
 
 
 const FREE_NODE_LIMIT = 30;
+const HISTORY_LIMIT = 80;
+
+interface PersistedNodeHistory {
+  past: MindNode[][];
+  future: MindNode[][];
+}
+
+function historyStorageKey(projectId: string) {
+  return `canvas_narrativo_mindmap_history_${projectId}`;
+}
+
+function cloneNodes(nodes: MindNode[]): MindNode[] {
+  return nodes.map((node) => ({
+    ...node,
+    imageRef: node.imageRef ? { ...node.imageRef } : undefined,
+  }));
+}
+
+function readNodeHistory(projectId: string): PersistedNodeHistory {
+  if (typeof window === "undefined") return { past: [], future: [] };
+  try {
+    const raw = window.localStorage.getItem(historyStorageKey(projectId));
+    if (!raw) return { past: [], future: [] };
+    const parsed = JSON.parse(raw) as Partial<PersistedNodeHistory>;
+    return {
+      past: Array.isArray(parsed.past) ? parsed.past.slice(-HISTORY_LIMIT) : [],
+      future: Array.isArray(parsed.future) ? parsed.future.slice(-HISTORY_LIMIT) : [],
+    };
+  } catch {
+    return { past: [], future: [] };
+  }
+}
+
+function writeNodeHistory(projectId: string, history: PersistedNodeHistory) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      historyStorageKey(projectId),
+      JSON.stringify({
+        past: history.past.slice(-HISTORY_LIMIT),
+        future: history.future.slice(-HISTORY_LIMIT),
+      }),
+    );
+  } catch {
+    // Ignore storage quota/private-mode failures; in-memory undo still works.
+  }
+}
 
 
 
@@ -105,6 +152,23 @@ export function MindMapEditor({ project }: { project: Project }) {
   const [historyTick, setHistoryTick] = useState(0);
 
   useEffect(() => {
+    const saved = readNodeHistory(project.id);
+    pastRef.current = saved.past;
+    futureRef.current = saved.future;
+    nodesRef.current = project.nodes;
+    skipHistoryRef.current = false;
+    lastPushRef.current = 0;
+    setHistoryTick((t) => t + 1);
+  }, [project.id]);
+
+  const persistHistory = useCallback(() => {
+    writeNodeHistory(project.id, {
+      past: pastRef.current,
+      future: futureRef.current,
+    });
+  }, [project.id]);
+
+  useEffect(() => {
     if (nodesRef.current === project.nodes) return;
     if (skipHistoryRef.current) {
       skipHistoryRef.current = false;
@@ -112,31 +176,36 @@ export function MindMapEditor({ project }: { project: Project }) {
       const now = Date.now();
       // Coalesce rapid bursts (drags, typing) into a single history entry.
       if (now - lastPushRef.current > 500 || pastRef.current.length === 0) {
-        pastRef.current.push(nodesRef.current);
-        if (pastRef.current.length > 100) pastRef.current.shift();
+          pastRef.current.push(cloneNodes(nodesRef.current));
+          if (pastRef.current.length > HISTORY_LIMIT) pastRef.current.shift();
       }
       lastPushRef.current = now;
       futureRef.current = [];
+        persistHistory();
     }
-    nodesRef.current = project.nodes;
+      nodesRef.current = cloneNodes(project.nodes);
     setHistoryTick((t) => t + 1);
-  }, [project.nodes]);
+  }, [project.nodes, persistHistory]);
 
   const undo = useCallback(() => {
     const prev = pastRef.current.pop();
     if (!prev) return;
-    futureRef.current.push(nodesRef.current);
+    futureRef.current.push(cloneNodes(nodesRef.current));
+    if (futureRef.current.length > HISTORY_LIMIT) futureRef.current.shift();
     skipHistoryRef.current = true;
+    persistHistory();
     setProjectNodes(project.id, prev);
-  }, [project.id, setProjectNodes]);
+  }, [project.id, persistHistory, setProjectNodes]);
 
   const redo = useCallback(() => {
     const next = futureRef.current.pop();
     if (!next) return;
-    pastRef.current.push(nodesRef.current);
+    pastRef.current.push(cloneNodes(nodesRef.current));
+    if (pastRef.current.length > HISTORY_LIMIT) pastRef.current.shift();
     skipHistoryRef.current = true;
+    persistHistory();
     setProjectNodes(project.id, next);
-  }, [project.id, setProjectNodes]);
+  }, [project.id, persistHistory, setProjectNodes]);
 
   const canUndo = pastRef.current.length > 0 && historyTick >= 0;
   const canRedo = futureRef.current.length > 0;
@@ -1333,6 +1402,10 @@ function SelectedPanel({
   onResetWidth: () => void;
 }) {
   const [cascade, setCascade] = useState(false);
+  useEffect(() => {
+    setCascade(false);
+  }, [node?.id]);
+
   if (!node) return null;
   const hasMedia = !!(node.imageRef || node.image);
   const mediaKind = node.imageRef?.kind ?? (node.image ? "image" : undefined);
@@ -1442,10 +1515,10 @@ function SelectedPanel({
         )}
         {ownColor && (
           <button
-            onClick={() => onSetColor(undefined, false)}
+            onClick={() => onSetColor(undefined, cascade && hasChildren)}
             className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
           >
-            Limpar cor (herdar do pai)
+            {cascade && hasChildren ? "Limpar cor da ramificação" : "Limpar cor (herdar do pai)"}
           </button>
         )}
       </section>

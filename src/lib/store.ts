@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Folder, ImageRef, MindNode, Project, ProjectTemplate, SonicAvatarEntry, SonicAvatarUsage } from "./types";
-import { buildColorMap, DEFAULT_ACCENT } from "./nodeColors";
+import { buildColorMap } from "./nodeColors";
 
 
 function uid(_prefix = "id") {
@@ -723,18 +723,18 @@ export const useStore = create<State & Actions>()((set) => ({
       projects: s.projects.map((p) => {
         if (p.id !== projectId) return p;
         const descendants = new Set(descendantIds(p.nodes, nodeId));
-        // Colors inherit down the branch. Without cascade we must pin each
-        // descendant to the color it currently shows, so only this node changes.
-        const before = cascade ? null : buildColorMap(p.nodes);
+        const before = buildColorMap(p.nodes);
         return {
           ...p,
           nodes: p.nodes.map((n) => {
             if (n.id === nodeId) return { ...n, color };
             if (!descendants.has(n.id)) return n;
             if (cascade) return { ...n, color: undefined };
-            if (n.color) return n;
-            const prev = before?.get(n.id);
-            return prev && prev !== DEFAULT_ACCENT ? { ...n, color: prev } : n;
+            // Without cascade, every descendant must keep exactly the color it
+            // displayed before this edit. Because colors inherit from the
+            // closest colored ancestor, descendants that had no explicit color
+            // need to be pinned to their previous effective color.
+            return { ...n, color: before.get(n.id) };
           }),
           updatedAt: new Date().toISOString(),
         };
