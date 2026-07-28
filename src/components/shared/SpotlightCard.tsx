@@ -115,7 +115,7 @@ export function SpotlightCard({
             <img src={mediaUrl} alt="" className="absolute inset-0 size-full object-cover" />
           )
         ) : hasBody ? (
-          <div className="absolute inset-0" style={{ padding: "1.6% 4%" }}>
+          <div className="absolute inset-0" style={{ padding: "3.2% 4%" }}>
             <AutoFitText
               className="grid h-full w-full items-start justify-stretch"
               max={bodyMax}
