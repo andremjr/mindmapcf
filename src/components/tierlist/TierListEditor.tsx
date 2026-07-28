@@ -13,6 +13,7 @@ import { RecordFormatMenu } from "@/components/RecordFormatMenu";
 import { launchRecording } from "@/lib/launchRecording";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
+import { AvatarToolbarButton } from "@/components/shared/AvatarToolbarButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
 import { DropIndicator, visualInsertIndex } from "@/components/shared/DropIndicator";
@@ -400,6 +401,7 @@ export function TierListEditor({ project }: { project: Project }) {
         </Button>
         <NarrationDock projectId={project.id} narrationRef={project.narrationRef} />
         <ThemeToggle />
+        <AvatarToolbarButton project={project} user={user} isPro={isPro} />
         <Button variant="destructive" size="sm" onClick={() => setRecordOpen(true)} className="gap-1.5">
           <Circle className="size-3 fill-current" /> Gravar
         </Button>

@@ -17,6 +17,7 @@ import { NarrationDock } from "@/components/shared/NarrationDock";
 import { launchRecording } from "@/lib/launchRecording";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
+import { AvatarToolbarButton } from "@/components/shared/AvatarToolbarButton";
 
 const LEVEL_GRADIENTS = [
   { from: "#7dd3fc", to: "#38bdf8", text: "#0f172a" },
@@ -304,6 +305,7 @@ export function IcebergEditor({ project }: { project: Project }) {
         </div>
         <NarrationDock projectId={project.id} narrationRef={project.narrationRef} />
         <ThemeToggle />
+        <AvatarToolbarButton project={project} user={user} isPro={isPro} />
         <Button variant="destructive" size="sm" onClick={() => setRecordOpen(true)} className="gap-1.5">
           <Circle className="size-3 fill-current" /> Gravar
         </Button>
