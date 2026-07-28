@@ -12,6 +12,7 @@ import type { MindNode, Project } from "@/lib/types";
 import { pickMediaAndStore, pickMediaMultipleAndStore, resolveImage } from "@/lib/imageStorage";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
+import { AvatarToolbarButton } from "@/components/shared/AvatarToolbarButton";
 import { RecordFormatMenu } from "@/components/RecordFormatMenu";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NarrationDock } from "@/components/shared/NarrationDock";
