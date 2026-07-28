@@ -31,6 +31,10 @@ export function AutoFitText({
     if (!box || !inner) return;
 
     const fit = () => {
+      const boxW = box.clientWidth;
+      const boxH = box.clientHeight;
+      if (boxW <= 0 || boxH <= 0) return;
+
       let lo = min;
       let hi = max;
       let best = min;
@@ -38,9 +42,10 @@ export function AutoFitText({
       for (let i = 0; i < 9 && lo <= hi; i++) {
         const mid = (lo + hi) / 2;
         inner.style.fontSize = `${mid}px`;
+        inner.style.width = `${boxW}px`;
         const fits =
-          inner.scrollHeight <= box.clientHeight + 0.5 &&
-          inner.scrollWidth <= box.clientWidth + 0.5;
+          inner.scrollHeight <= boxH + 0.5 &&
+          inner.scrollWidth <= boxW + 0.5;
         if (fits) {
           best = mid;
           lo = mid + 0.25;
@@ -49,18 +54,20 @@ export function AutoFitText({
         }
       }
       inner.style.fontSize = "";
+      inner.style.width = "";
       setSize(best);
     };
 
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(box);
+    ro.observe(inner);
     return () => ro.disconnect();
   }, [max, min, deps]);
 
   return (
     <div ref={boxRef} className={`overflow-hidden ${className}`}>
-      <div ref={innerRef} style={{ fontSize: size, lineHeight: 1.25 }}>
+      <div ref={innerRef} style={{ fontSize: size, lineHeight: 1.25, width: "100%" }}>
         {children}
       </div>
     </div>

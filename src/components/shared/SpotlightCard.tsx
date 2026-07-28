@@ -39,14 +39,14 @@ export function SpotlightCard({
   deps?: string | number;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const [aspect, setAspect] = useState(1);
+  const [box, setBox] = useState({ w: 1, h: 1, aspect: 1 });
 
   useLayoutEffect(() => {
     const el = rootRef.current;
     if (!el) return;
     const measure = () => {
       const r = el.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) setAspect(r.width / r.height);
+      if (r.width > 0 && r.height > 0) setBox({ w: r.width, h: r.height, aspect: r.width / r.height });
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -56,6 +56,7 @@ export function SpotlightCard({
 
   const hasTitle = !!title?.trim();
   const hasBody = !!body?.trim();
+  const aspect = box.aspect;
 
   // Title band takes a small, aspect-aware slice of the height.
   //   horizontal (aspect > 1.4) → ~22%
@@ -65,8 +66,14 @@ export function SpotlightCard({
     ? Math.max(0.12, Math.min(0.24, 0.18 + (aspect - 1) * 0.05))
     : 0;
 
-  const gapPct = 3; // % of card height between the two bands
-  const outerPadPct = 4;
+  const gapPct = 2.4; // % of card height between the two bands
+  const outerPadPct = 3.2;
+  const availableH = box.h * (1 - outerPadPct * 2 / 100);
+  const titlePx = hasTitle ? availableH * titleShare : 0;
+  const contentPx = Math.max(1, availableH - titlePx - (hasTitle ? box.h * gapPct / 100 : 0));
+  const contentW = Math.max(1, box.w * (1 - outerPadPct * 2 / 100));
+  const titleMax = Math.min(180, Math.max(max, Math.round(Math.min(contentW, titlePx) * 0.72)));
+  const bodyMax = Math.min(220, Math.max(max, Math.round(Math.min(contentW, contentPx) * 0.48)));
 
   return (
     <div
@@ -79,12 +86,12 @@ export function SpotlightCard({
           className="relative rounded-2xl bg-black/45 border border-white/15 overflow-hidden"
           style={{ flex: `${titleShare} 1 0`, minHeight: 0 }}
         >
-          <div className="absolute inset-0" style={{ padding: "3% 5%" }}>
+          <div className="absolute inset-0" style={{ padding: "2.2% 4.8%" }}>
             <AutoFitText
-              className="absolute inset-0 grid place-items-center"
-              max={Math.round(max * 0.9)}
+              className="grid h-full w-full place-items-center"
+              max={titleMax}
               min={min}
-              deps={`t|${aspect.toFixed(2)}|${deps}`}
+              deps={`t|${box.w.toFixed(0)}x${box.h.toFixed(0)}|${deps}`}
             >
               <div
                 className="text-white font-bold text-center break-words whitespace-normal"
@@ -108,12 +115,12 @@ export function SpotlightCard({
             <img src={mediaUrl} alt="" className="absolute inset-0 size-full object-cover" />
           )
         ) : hasBody ? (
-          <div className="absolute inset-0" style={{ padding: "3% 3.5%" }}>
+          <div className="absolute inset-0" style={{ padding: "1.2% 5%" }}>
             <AutoFitText
-              className="absolute inset-0 grid place-items-center"
-              max={Math.round(max * 1.1)}
+              className="grid h-full w-full place-items-center"
+              max={bodyMax}
               min={min}
-              deps={`b|${aspect.toFixed(2)}|${deps}`}
+              deps={`b|${box.w.toFixed(0)}x${box.h.toFixed(0)}|${deps}`}
             >
               <div
                 className="text-white/90 text-center break-words whitespace-normal"
