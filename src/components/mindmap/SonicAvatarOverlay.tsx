@@ -184,6 +184,8 @@ export function SonicAvatarOverlay({
         touchAction: "none",
         cursor: interactive ? "grab" : "default",
         userSelect: "none",
+        zIndex: 2147483000,
+        pointerEvents: "auto",
       }}
     >
       <canvas
