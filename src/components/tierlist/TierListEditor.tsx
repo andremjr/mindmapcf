@@ -13,6 +13,7 @@ import { RecordFormatMenu } from "@/components/RecordFormatMenu";
 import { launchRecording } from "@/lib/launchRecording";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
+import { AvatarToolbarButton } from "@/components/shared/AvatarToolbarButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NodeColorPicker } from "@/components/shared/NodeColorPicker";
 import { DropIndicator, visualInsertIndex } from "@/components/shared/DropIndicator";
