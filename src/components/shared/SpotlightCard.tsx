@@ -115,16 +115,16 @@ export function SpotlightCard({
             <img src={mediaUrl} alt="" className="absolute inset-0 size-full object-cover" />
           )
         ) : hasBody ? (
-          <div className="absolute inset-0" style={{ padding: "1.2% 5%" }}>
+          <div className="absolute inset-0" style={{ padding: "1.6% 4%" }}>
             <AutoFitText
-              className="grid h-full w-full place-items-center"
+              className="grid h-full w-full items-start justify-stretch"
               max={bodyMax}
               min={min}
               deps={`b|${box.w.toFixed(0)}x${box.h.toFixed(0)}|${deps}`}
             >
               <div
-                className="text-white/90 text-center break-words whitespace-normal"
-                style={{ lineHeight: 1.3 }}
+                className="text-white/90 text-left break-words"
+                style={{ lineHeight: 1.3, whiteSpace: "pre-wrap" }}
               >
                 {body}
               </div>
