@@ -17,6 +17,7 @@ import { NarrationDock } from "@/components/shared/NarrationDock";
 import { launchRecording } from "@/lib/launchRecording";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
+import { AvatarToolbarButton } from "@/components/shared/AvatarToolbarButton";
 
 const LEVEL_GRADIENTS = [
   { from: "#7dd3fc", to: "#38bdf8", text: "#0f172a" },
