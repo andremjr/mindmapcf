@@ -278,6 +278,7 @@ export function ScaleEditor({ project }: { project: Project }) {
         </Button>
         <NarrationDock projectId={project.id} narrationRef={project.narrationRef} />
         <ThemeToggle />
+        <AvatarToolbarButton project={project} user={user} isPro={isPro} />
         <Button variant="destructive" size="sm" onClick={() => setRecordOpen(true)} className="gap-1.5">
           <Circle className="size-3 fill-current" /> Gravar
         </Button>
