@@ -73,7 +73,7 @@ export function SpotlightCard({
   const contentPx = Math.max(1, availableH - titlePx - (hasTitle ? box.h * gapPct / 100 : 0));
   const contentW = Math.max(1, box.w * (1 - outerPadPct * 2 / 100));
   const titleMax = Math.min(180, Math.max(max, Math.round(Math.min(contentW, titlePx) * 0.72)));
-  const bodyMax = Math.min(220, Math.max(max, Math.round(Math.min(contentW, contentPx) * 0.48)));
+  const bodyMax = Math.min(260, Math.max(max, Math.round(Math.min(contentW, contentPx) * 0.55)));
 
   return (
     <div
