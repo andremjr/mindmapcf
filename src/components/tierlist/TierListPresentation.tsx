@@ -735,7 +735,7 @@ export function TierListPresentation({
                     <SpotlightCard
                       title={autoSpotlightNode.text}
                       body={autoSpotlightNode.body}
-                      mediaUrl={autoSpotlightUrl}
+                      mediaUrl={autoSpotlightNode.body?.trim() ? null : autoSpotlightUrl}
                       color={autoSpotlightNode.color}
                       max={72}
                       min={10}
@@ -810,7 +810,7 @@ export function TierListPresentation({
                   <SpotlightCard
                     title={spotlightNode.text}
                     body={spotlightNode.body}
-                    mediaUrl={spotlightUrl}
+                    mediaUrl={spotlightNode.body?.trim() ? null : spotlightUrl}
                     color={spotlightNode.color}
                     max={72}
                     min={10}
