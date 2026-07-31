@@ -104,7 +104,7 @@ export function SonicAvatarOverlay({
           // Idle animation when no analyser (preview/no audio yet).
           v = 0.12 + 0.08 * Math.sin(performance.now() / 400 + i * 0.4);
         }
-        smooth[i] = smooth[i] * 0.75 + v * 0.25;
+        smooth[i] = smooth[i] * 0.6 + v * 0.4;
         const len = Math.max(3, smooth[i] * maxBarLen);
         const angle = (i / BARS) * Math.PI * 2 - Math.PI / 2;
         const x0 = cx + Math.cos(angle) * innerR;
