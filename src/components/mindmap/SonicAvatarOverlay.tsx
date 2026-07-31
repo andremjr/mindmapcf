@@ -96,12 +96,15 @@ export function SonicAvatarOverlay({
         let v = 0;
         if (data) {
           const idx = Math.floor((i / BARS) * data.length * 0.7);
-          v = data[idx] / 255;
+          const raw = data[idx] / 255;
+          // Sensitivity boost: gamma curve lifts quiet levels + extra gain,
+          // without touching the mic input volume itself.
+          v = Math.min(1, Math.pow(raw, 0.65) * 1.5);
         } else {
           // Idle animation when no analyser (preview/no audio yet).
           v = 0.12 + 0.08 * Math.sin(performance.now() / 400 + i * 0.4);
         }
-        smooth[i] = smooth[i] * 0.75 + v * 0.25;
+        smooth[i] = smooth[i] * 0.6 + v * 0.4;
         const len = Math.max(3, smooth[i] * maxBarLen);
         const angle = (i / BARS) * Math.PI * 2 - Math.PI / 2;
         const x0 = cx + Math.cos(angle) * innerR;
