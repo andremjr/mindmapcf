@@ -9,13 +9,46 @@ import { createHmac, timingSafeEqual } from "crypto";
 
 type PlanId = "pro_monthly" | "pro_semiannual" | "pro_annual";
 
-function detectPlan(productName: string | undefined | null): PlanId | null {
-  const name = (productName ?? "").toLowerCase();
-  if (name.includes("mensal")) return "pro_monthly";
-  if (name.includes("semestral")) return "pro_semiannual";
-  if (name.includes("anual")) return "pro_annual";
+function planFromText(text: string | undefined | null): PlanId | null {
+  const name = (text ?? "").toLowerCase();
+  if (!name) return null;
+  if (name.includes("mensal") || name.includes("month")) return "pro_monthly";
+  if (name.includes("semestral") || name.includes("semi") || name.includes("6 mes")) return "pro_semiannual";
+  if (name.includes("anual") || name.includes("annual") || name.includes("year")) return "pro_annual";
   return null;
 }
+
+function planFromAmount(cents: unknown): PlanId | null {
+  const v = typeof cents === "number" ? cents : Number(cents);
+  if (!Number.isFinite(v) || v <= 0) return null;
+  // R$ 29,90 / R$ 159,90 / R$ 297,00 (com tolerância)
+  if (v <= 6000) return "pro_monthly";
+  if (v <= 22000) return "pro_semiannual";
+  return "pro_annual";
+}
+
+/** Detecta o plano por várias fontes; nunca falha (padrão: mensal). */
+function detectPlan(payload: any): PlanId {
+  const candidates = [
+    payload?.Subscription?.plan?.name,
+    payload?.Subscription?.plan?.frequency,
+    payload?.subscription?.plan?.name,
+    payload?.subscription_plan,
+    payload?.Product?.product_name,
+    payload?.product?.name,
+    payload?.Commissions?.product_base_price,
+  ];
+  for (const c of candidates) {
+    const hit = planFromText(typeof c === "string" ? c : null);
+    if (hit) return hit;
+  }
+  const amount =
+    payload?.Commissions?.charge_amount ??
+    payload?.CommissionedStores?.[0]?.value ??
+    payload?.charge_amount;
+  return planFromAmount(amount) ?? "pro_monthly";
+}
+
 
 function addDays(base: Date, days: number): string {
   const d = new Date(base);
@@ -127,7 +160,7 @@ export const Route = createFileRoute("/api/public/kiwify/webhook")({
           return Response.json({ received: true, skipped: true });
         }
 
-        const plan = detectPlan(productName);
+        const plan = detectPlan(payload);
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         try {
@@ -137,10 +170,8 @@ export const Route = createFileRoute("/api/public/kiwify/webhook")({
             event === "subscription_renewed" ||
             event === "assinatura_renovada"
           ) {
-            if (!plan) {
-              console.warn("[kiwify] unknown plan", productName);
-              return Response.json({ received: true, skipped: "unknown-plan" });
-            }
+            console.log("[kiwify] plan detected:", plan, "product:", productName);
+
             const userId = await findUserId(supabaseAdmin, email);
             if (!userId) {
               console.warn("[kiwify] no user for email", email, "— they must sign up with this email");
