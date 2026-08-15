@@ -160,7 +160,7 @@ export const Route = createFileRoute("/api/public/kiwify/webhook")({
           return Response.json({ received: true, skipped: true });
         }
 
-        const plan = detectPlan(productName);
+        const plan = detectPlan(payload);
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         try {
@@ -170,10 +170,8 @@ export const Route = createFileRoute("/api/public/kiwify/webhook")({
             event === "subscription_renewed" ||
             event === "assinatura_renovada"
           ) {
-            if (!plan) {
-              console.warn("[kiwify] unknown plan", productName);
-              return Response.json({ received: true, skipped: "unknown-plan" });
-            }
+            console.log("[kiwify] plan detected:", plan, "product:", productName);
+
             const userId = await findUserId(supabaseAdmin, email);
             if (!userId) {
               console.warn("[kiwify] no user for email", email, "— they must sign up with this email");
