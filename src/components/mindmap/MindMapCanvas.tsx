@@ -111,7 +111,7 @@ export const MindMapCanvas = forwardRef<HTMLDivElement, Props>(function MindMapC
         style={{
           transform: `translate(${cx}px, ${cy}px) scale(${zoom}) translate(${-x}px, ${-y}px)`,
           transformOrigin: "0 0",
-          transition: animated ? "transform 900ms cubic-bezier(0.22, 1, 0.36, 1)" : undefined,
+          transition: animated ? "transform 500ms cubic-bezier(0.22, 1, 0.36, 1)" : undefined,
           willChange: "transform",
         }}
       >
@@ -143,7 +143,7 @@ export const MindMapCanvas = forwardRef<HTMLDivElement, Props>(function MindMapC
                 style={
                   isActive
                     ? {
-                        animation: "mindmap-edge-fill 900ms ease-out forwards",
+                        animation: "mindmap-edge-fill 500ms ease-out forwards",
                         filter: `drop-shadow(0 0 6px color-mix(in oklch, ${strokeColor} 55%, transparent))`,
                       }
                     : undefined
