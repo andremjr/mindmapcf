@@ -52,7 +52,7 @@ function openLinkInNewTab(raw: string) {
 type Viewport = { x: number; y: number; zoom: number };
 
 const FOCUS_ZOOM = 2.2;
-const TRANSITION_MS = 1100;
+const TRANSITION_MS = 500;
 
 function ease(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -208,7 +208,7 @@ export function Presentation({
       return;
     }
     setLitId(undefined);
-    const t = window.setTimeout(() => setLitId(activeId), 900);
+    const t = window.setTimeout(() => setLitId(activeId), 500);
     return () => window.clearTimeout(t);
   }, [activeId, activeNode?.parentId]);
 
